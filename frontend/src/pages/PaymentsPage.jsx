@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, DollarSign, Calendar, User, Filter, CreditCard, ChevronRight, PlusCircle, X, Trash2 } from "lucide-react";
 import AddPaymentModal from "../components/AddPaymentModal";
+import API from "../services/apiClient";
 
 export default function PaymentsPage() {
     const [activeTab, setActiveTab] = useState("balances"); // 'balances' | 'history'
@@ -128,20 +129,10 @@ export default function PaymentsPage() {
         if (!window.confirm("Are you sure? This will reverse the payment from the customer's balance.")) return;
 
         try {
-            // Using direct fetch since we might not have API client fully configures for this page yet or just inline it
-            // Assuming API client is available or we use supabase directly? 
-            // The controller is backend, so we MUST use API/fetch.
-            // Using raw fetch for now as per existing pattern in AddPaymentModal (standardize later)
-            const token = localStorage.getItem("token"); // Assuming auth
-            const res = await fetch(`http://localhost:5000/api/payments/${id}`, {
-                method: "DELETE",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token || ""}`,
-                }
-            });
+            // Using API client for standardized request and base URL handling
+            const res = await API.delete(`/payments/${id}`);
 
-            if (!res.ok) throw new Error("Failed to delete");
+            if (res.status !== 200) throw new Error("Failed to delete");
 
             toast.success("Payment deleted & reverted");
             fetchData();
