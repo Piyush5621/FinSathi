@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { X, DollarSign, Calendar, CreditCard, FileText, CheckCircle } from "lucide-react";
+import API from "../services/apiClient";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -18,31 +19,20 @@ export default function AddPaymentModal({ customerId, onClose, onPaymentAdded })
 
         setLoading(true);
         try {
-            const token = localStorage.getItem("token");
-            const res = await fetch("http://localhost:5000/api/payments/add", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    customer_id: customerId,
-                    amount,
-                    date,
-                    payment_mode: mode,
-                    reference,
-                }),
+            await API.post("/payments/add", {
+                customer_id: customerId,
+                amount,
+                date,
+                payment_mode: mode,
+                reference,
             });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to add payment");
 
             toast.success("Payment recorded successfully!");
             onPaymentAdded();
             onClose();
         } catch (err) {
             console.error(err);
-            toast.error(err.message);
+            toast.error(err.response?.data?.error || err.message || "Failed to add payment");
         } finally {
             setLoading(false);
         }
