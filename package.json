@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "react-select": "^5.10.2",
+    "react-to-print": "^3.2.0"
+  }
+}

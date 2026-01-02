@@ -1,0 +1,19 @@
+{
+  // Disable automatic downloading of JSON schemas from the internet.
+  // Prevents transient "Service Unavailable" / schemastore fetch warnings in the editor.
+  "json.schemaDownload.enable": false,
+
+  // Optional: enforce a known schema mapping for package.json if you want local validation.
+  // Leave commented out or remove if you prefer the editor's default behavior.
+  // "json.schemas": [
+  //   {
+  //     "fileMatch": ["/package.json"],
+  //     "url": "https://json.schemastore.org/package.json"
+  //   }
+  // ]
+
+  // Suppress "Unknown at rule @tailwind" warnings from the built-in CSS/SCSS/LESS linters.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore"
+}

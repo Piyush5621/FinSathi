@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', sans-serif;
+    @apply bg-background-light text-text-light dark:bg-[#0f172a] dark:text-gray-100 transition-colors duration-300;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Outfit', sans-serif;
+  }
+}
+
+@layer components {
+
+  /* Modern Glassmorphism – Dark Mode Heavy */
+  .glass-card {
+    @apply bg-white/60 backdrop-blur-xl border border-white/40 shadow-xl dark:bg-slate-800/40 dark:backdrop-blur-2xl dark:border-slate-700/50 dark:shadow-2xl;
+  }
+
+  /* Vibrant Buttons */
+  .btn-primary {
+    @apply px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/30 transition-all duration-300 transform hover:-translate-y-0.5 active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 font-medium rounded-xl shadow-sm transition-all duration-200;
+  }
+
+  /* Input Fields */
+  .input-field {
+    @apply w-full px-4 py-2.5 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-gray-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-gray-900 dark:text-white placeholder-gray-400 transition-all duration-200;
+  }
+
+  .premium-gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400;
+  }
+}
+
+/* Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors;
+}
+
+/* Animations */
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
