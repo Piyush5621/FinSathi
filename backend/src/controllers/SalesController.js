@@ -81,3 +81,16 @@ export const getTrend = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch trend" });
   }
 };
+
+import { PdfService } from "../services/PdfService.js";
+
+export const generatePdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const url = await PdfService.generateAndUploadInvoice(id);
+    res.status(200).json({ url });
+  } catch (err) {
+    console.error("PDF generation error:", err);
+    res.status(500).json({ error: "Failed to generate PDF" });
+  }
+};

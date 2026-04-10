@@ -8,57 +8,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Professional Palette: Indigo Focus, Slate Neutrals
-        primary: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5', // Brand Color
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
-        },
-        gray: {
-          50: '#f8fafc',  // Slate-50
-          100: '#f1f5f9', // Slate-100
-          200: '#e2e8f0', // Slate-200
-          300: '#cbd5e1', // Slate-300
-          400: '#94a3b8', // Slate-400
-          500: '#64748b', // Slate-500
-          600: '#475569', // Slate-600
-          700: '#334155', // Slate-700
-          800: '#1e293b', // Slate-800
-          900: '#0f172a', // Slate-900
-          950: '#020617', // Slate-950
-        },
-        // Semantic aliases
-        background: {
-          light: '#f8fafc', // Light gray background mostly
-          dark: '#0f172a',  // Deep slate background
-          surface: {
-            light: '#ffffff',
-            dark: '#1e293b',
-          }
-        },
-        text: {
-          light: '#0f172a',
-          dark: '#f1f5f9',
-          muted: {
-            light: '#64748b',
-            dark: '#94a3b8'
-          }
-        },
-        border: {
-          light: '#e2e8f0',
-          dark: '#334155',
-        },
-        card: {
-          light: '#ffffff',
-          dark: '#1e293b', // Slate-800
+        'brand-navy': '#1E293B',
+        'brand-blue': '#3B82F6',
+        'bg-page': '#F8FAFC',
+        'bg-card': '#FFFFFF',
+        'text-heading': '#0F172A',
+        'text-body': '#334155',
+        'text-label': '#64748B',
+        'text-main': '#0F172A', // Legacy support linking to heading
+        'text-muted': '#64748B', // Legacy support linking to label
+        'text-disabled': '#94A3B8',
+        'border-color': '#E2E8F0',
+        status: {
+          success: { bg: '#DCFCE7', text: '#15803D' },
+          warning: { bg: '#FEF3C7', text: '#B45309' },
+          danger: { bg: '#FEE2E2', text: '#B91C1C' },
         },
       },
       animation: {

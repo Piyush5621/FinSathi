@@ -5,7 +5,8 @@ import {
   getDashboardSummary,
   getSalesSummary,
   getTopProducts,
-  getBillingMetrics
+  getBillingMetrics,
+  getPnl
 } from "../controllers/AnalyticsController.js";
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.get("/dashboard-summary", getDashboardSummary);
 router.get("/sales-summary", getSalesSummary);
 router.get("/top-products", getTopProducts);
 router.get("/billing-metrics", getBillingMetrics);
+router.get("/pnl", getPnl);
 
 export default router;

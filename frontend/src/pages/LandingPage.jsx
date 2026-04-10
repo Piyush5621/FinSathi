@@ -1,55 +1,53 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     ArrowRight,
     BarChart2,
     ShieldCheck,
     Zap,
-    Globe,
-    ChevronRight
+    CheckCircle2
 } from 'lucide-react';
-import logo from '../assets/logo.png'; // Assuming logo exists here based on other files
+import logo from '../assets/logo.png';
 
 const LandingPage = () => {
-    const navigate = useNavigate();
     const isLoggedIn = localStorage.getItem('loggedIn');
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-white font-sans overflow-x-hidden">
+        <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] font-inter selection:bg-[#3B82F6] selection:text-white overflow-hidden">
 
-            {/* 🟢 NAVBAR */}
-            <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-white/70 dark:bg-gray-900/70 border-b border-white/20 dark:border-gray-800 transition-all duration-300">
-                <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                        <img src={logo} alt="FinSathi" className="w-10 h-10 object-contain" />
-                        <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">FinSathi</span>
+            {/* NAVBAR */}
+            <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-[#E2E8F0]">
+                <div className="max-w-7xl mx-auto px-6 h-[80px] flex items-center justify-between">
+                    <div className="flex items-center gap-[12px]">
+                        <img src={logo} alt="FinSathi" className="w-[40px] h-[40px]" />
+                        <span className="text-[24px] font-bold tracking-tight text-[#1E293B]">FinSathi</span>
                     </div>
 
-                    <div className="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-600 dark:text-gray-300">
-                        <a href="#features" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Features</a>
-                        <a href="#how-it-works" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">How it Works</a>
-                        <a href="#testimonials" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Testimonials</a>
+                    <div className="hidden md:flex items-center gap-[40px] text-[14px] font-bold text-[#64748B]">
+                        <a href="#features" className="hover:text-[#3B82F6] transition-colors">Solutions</a>
+                        <a href="#growth" className="hover:text-[#3B82F6] transition-colors">Growth</a>
+                        <a href="#about" className="hover:text-[#3B82F6] transition-colors">Enterprise</a>
                     </div>
 
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center gap-[16px]">
                         {isLoggedIn ? (
                             <Link
                                 to="/dashboard"
-                                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all duration-200"
+                                className="px-[24px] py-[12px] rounded-xl bg-[#1E293B] text-white font-bold text-[14px] hover:bg-[#0F172A] transition-all shadow-lg shadow-navy-900/20"
                             >
-                                Go to Dashboard
+                                Open Dashboard
                             </Link>
                         ) : (
                             <>
-                                <Link to="/login" className="px-4 py-2 text-sm font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                <Link to="/login" className="px-[20px] py-[10px] text-[14px] font-bold text-[#1E293B] hover:text-[#3B82F6] transition-colors">
                                     Login
                                 </Link>
                                 <Link
                                     to="/register"
-                                    className="px-5 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+                                    className="hidden sm:flex px-[24px] py-[12px] rounded-xl bg-[#3B82F6] text-white font-bold text-[14px] hover:bg-[#2563EB] transition-all shadow-lg shadow-blue-500/20"
                                 >
-                                    Get Started
+                                    Start Free
                                 </Link>
                             </>
                         )}
@@ -57,148 +55,145 @@ const LandingPage = () => {
                 </div>
             </nav>
 
-            {/* 🚀 HERO SECTION */}
-            <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-6">
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] mix-blend-multiply animate-blob" />
-                    <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[100px] mix-blend-multiply animate-blob animation-delay-2000" />
-                </div>
-
-                <div className="max-w-7xl mx-auto text-center relative z-10">
+            {/* HERO SECTION */}
+            <section className="relative pt-[160px] pb-[80px] px-6">
+                <div className="max-w-7xl mx-auto text-center">
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="inline-flex items-center px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm font-semibold mb-8 border border-blue-100 dark:border-blue-800"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="inline-flex items-center px-[16px] py-[8px] rounded-full bg-[#EFF6FF] text-[#1E40AF] text-[13px] font-bold mb-[32px] border border-[#BFDBFE]"
                     >
-                        <span className="flex h-2 w-2 rounded-full bg-blue-600 mr-2 animate-pulse"></span>
-                        New: GST Billing Support Available
+                        <span className="flex h-2 w-2 rounded-full bg-[#3B82F6] mr-2 animate-pulse"></span>
+                        Built for Indian MSMEs
                     </motion.div>
 
                     <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.1 }}
-                        className="text-5xl lg:text-7xl font-extrabold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-gray-900 to-gray-600 dark:from-white dark:to-gray-400"
+                        transition={{ duration: 0.6 }}
+                        className="text-[48px] md:text-[80px] font-extrabold tracking-tight leading-[1] mb-[32px] text-[#0F172A]"
                     >
-                        Manage Business. <br />
-                        <span className="text-blue-600">Multiply Growth.</span>
+                        Master your Money. <br />
+                        <span className="text-[#3B82F6]">Grow your Legacy.</span>
                     </motion.h1>
 
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed"
+                        className="text-[18px] md:text-[20px] text-[#64748B] max-w-2xl mx-auto mb-[48px] leading-relaxed font-medium"
                     >
-                        All-in-one platform for Indian MSMEs to manage billing, inventory, and customer insights.
-                        Experience the power of smart automation.
+                        FinSathi is the definitive operating system for modern business. 
+                        Professional billing, intelligent inventory, and state-of-the-art financial insights.
                     </motion.p>
 
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.3 }}
-                        className="flex flex-col sm:flex-row items-center justify-center gap-4"
+                        className="flex flex-col sm:flex-row items-center justify-center gap-[16px] mb-[80px]"
                     >
                         <Link
                             to="/register"
-                            className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto px-[40px] py-[20px] bg-[#1E293B] text-white font-extrabold rounded-2xl shadow-2xl hover:bg-[#0F172A] hover:-translate-y-1 transition-all flex items-center justify-center gap-[12px] text-[16px]"
                         >
-                            Start Free Trial <ArrowRight size={20} />
+                            Get Started Now <ArrowRight size={20} />
                         </Link>
                         <Link
-                            to="/demo"
-                            className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-bold rounded-2xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300"
+                            to="/login"
+                            className="w-full sm:w-auto px-[40px] py-[20px] bg-white text-[#1E293B] font-extrabold rounded-2xl border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-all text-[16px]"
                         >
-                            Watch Demo
+                            Professional Login
                         </Link>
                     </motion.div>
 
-                    {/* Hero Dashboard Preview (Glass Card) */}
+                    {/* Dashboard Preview */}
                     <motion.div
-                        initial={{ opacity: 0, y: 40 }}
+                        initial={{ opacity: 0, y: 60 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.5 }}
-                        className="mt-20 relative mx-auto max-w-5xl"
+                        transition={{ duration: 1, delay: 0.4 }}
+                        className="relative mx-auto max-w-5xl rounded-[32px] border-[8px] border-white shadow-2xl overflow-hidden bg-white"
                     >
-                        <div className="glass-card rounded-2xl p-4 border border-white/20 shadow-2xl overflow-hidden relative">
-                            <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-gray-900 via-transparent to-transparent z-10 opacity-50"></div>
-                            <img
-                                src="https://cdn.dribbble.com/userupload/12470768/file/original-53badcf572ec574885567b5b2913e64b.png?resize=1200x900"
-                                alt="FinSathi Dashboard"
-                                className="w-full rounded-lg shadow-lg"
-                            />
-                        </div>
+                        <img
+                            src="https://images.unsplash.com/photo-1551288049-bbbda5366392?q=80&w=2070&auto=format&fit=crop"
+                            alt="FinSathi Dashboard Analytics"
+                            className="w-full grayscale-[0.2] hover:grayscale-0 transition-all duration-700"
+                        />
+                         <div className="absolute inset-x-0 bottom-0 h-[200px] bg-gradient-to-t from-white to-transparent pointer-events-none" />
                     </motion.div>
                 </div>
             </section>
 
-            {/* ✨ FEATURES SECTION */}
-            <section id="features" className="py-24 bg-white dark:bg-gray-900 relative">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-16">
-                        <h2 className="text-3xl lg:text-4xl font-bold mb-4">Why FinSathi?</h2>
-                        <p className="text-gray-500 dark:text-gray-400">Everything you need to run your business smoothly.</p>
-                    </div>
+            {/* FEATURES SECTION */}
+            <section id="features" className="py-[120px] bg-white">
+                <div className="max-w-7xl mx-auto px-6 text-center">
+                    <h2 className="text-[32px] md:text-[42px] font-extrabold mb-[64px] tracking-tight text-[#0F172A]">Precision Engineered Features</h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <FeatureCard
-                            icon={BarChart2}
-                            title="Smart Analytics"
-                            desc="Visualize your sales trends, top products, and customer growth instantly."
-                            color="text-blue-500"
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-[40px]">
                         <FeatureCard
                             icon={Zap}
-                            title="Superfast Billing"
-                            desc="Create GST-compliant invoices in seconds. Share directly via WhatsApp/Email."
-                            color="text-yellow-500"
+                            title="Instant GST Billing"
+                            desc="Generate professional, compliant invoices in under 10 seconds. Automated tax calculations."
+                        />
+                        <FeatureCard
+                            icon={BarChart2}
+                            title="Decision Intelligence"
+                            desc="Stop guessing. Our deep analytics reveal your most profitable products and sales trends."
                         />
                         <FeatureCard
                             icon={ShieldCheck}
-                            title="Secure & Reliable"
-                            desc="Bank-grade security ensures your business data is safe and always accessible."
-                            color="text-green-500"
+                            title="Bank-Grade Security"
+                            desc="Your financial data is encrypted and backed up 24/7. Your privacy is our highest priority."
                         />
                     </div>
                 </div>
             </section>
 
-            {/* 🦶 FOOTER */}
-            <footer className="py-12 bg-gray-50 dark:bg-gray-950 border-t border-gray-200 dark:border-gray-900">
-                <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between">
-                    <div className="flex items-center gap-2 mb-4 md:mb-0">
-                        <img src={logo} alt="FinSathi" className="w-8 h-8 grayscale opacity-70" />
-                        <span className="font-semibold text-gray-500">FinSathi</span>
+            {/* TRUST SECTION */}
+            <section id="growth" className="py-[100px] bg-[#1E293B] text-white text-center">
+                <div className="max-w-4xl mx-auto px-6">
+                    <h2 className="text-[32px] font-bold mb-[24px]">Trusted by thousands of retailers nationwide</h2>
+                    <p className="text-[#94A3B8] text-[18px] mb-[48px]">Join the movement that's digitizing the cornerstone of the Indian economy.</p>
+                    <div className="flex flex-wrap justify-center gap-[40px]">
+                         {['Kirana Stores','Pharmacy','DTC Brands','Consultants'].map(cat => (
+                             <div key={cat} className="flex items-center gap-[8px] text-[14px] font-bold text-[#CBD5F5]">
+                                <CheckCircle2 size={18} className="text-[#3B82F6]"/> {cat}
+                             </div>
+                         ))}
                     </div>
-                    <div className="text-sm text-gray-500">
-                        &copy; {new Date().getFullYear()} FinSathi Inc. All rights reserved.
+                </div>
+            </section>
+
+            {/* FOOTER */}
+            <footer className="py-[80px] bg-[#F8FAFC] border-t border-[#E2E8F0]">
+                <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-[32px]">
+                    <div className="flex items-center gap-[12px]">
+                        <img src={logo} alt="FinSathi" className="w-[32px] h-[32px] opacity-80" />
+                        <span className="font-bold text-[#64748B] text-[18px]">FinSathi</span>
                     </div>
-                    <div className="flex gap-6 mt-4 md:mt-0">
-                        <a href="#" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"><Globe size={20} /></a>
+                    <div className="text-[14px] text-[#94A3B8] font-medium">
+                        &copy; {new Date().getFullYear()} FinSathi Digital Technologies PVT LTD. Bangalore, India.
+                    </div>
+                    <div className="flex gap-[24px] text-[14px] font-bold text-[#64748B]">
+                        <a href="#" className="hover:text-[#3B82F6]">Privacy</a>
+                        <a href="#" className="hover:text-[#3B82F6]">Terms</a>
                     </div>
                 </div>
             </footer>
-
         </div>
     );
 };
 
-// Sub-component for Feature Cards
-const FeatureCard = ({ icon: Icon, title, desc, color }) => (
-    <motion.div
-        whileHover={{ y: -5 }}
-        className="p-8 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl transition-all duration-300"
-    >
-        <div className={`w-12 h-12 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center mb-6 shadow-sm ${color}`}>
-            <Icon size={24} />
+const FeatureCard = ({ icon: Icon, title, desc }) => (
+    <div className="text-left p-[40px] rounded-[32px] bg-[#F8FAFC] border border-[#E2E8F0] transition-transform hover:-translate-y-2">
+        <div className="w-[56px] h-[56px] rounded-2xl bg-white border border-[#E2E8F0] shadow-sm flex items-center justify-center mb-[32px] text-[#3B82F6]">
+            <Icon size={28} />
         </div>
-        <h3 className="text-xl font-bold mb-3">{title}</h3>
-        <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
+        <h3 className="text-[20px] font-bold mb-[16px] text-[#0F172A]">{title}</h3>
+        <p className="text-[#64748B] leading-relaxed text-[15px] font-medium">
             {desc}
         </p>
-    </motion.div>
+    </div>
 );
 
 export default LandingPage;

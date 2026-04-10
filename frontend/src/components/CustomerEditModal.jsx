@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "../lib/supabaseClient";
+import { Modal } from "./ui/Modal";
+import { Input } from "./ui/Input";
+import { Button } from "./ui/Button";
 
 export default function CustomerEditModal({ customer, onClose, onSaved }) {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-  });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", city: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -29,23 +26,14 @@ export default function CustomerEditModal({ customer, onClose, onSaved }) {
     if (!form.name.trim()) return toast.error("Name required");
     try {
       setSaving(true);
-      const { error } = await supabase
-        .from("customers")
-        .update({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          address: form.address,
-          city: form.city,
-        })
-        .eq("id", customer.id);
-
+      const { error } = await supabase.from("customers").update({
+        name: form.name, email: form.email, phone: form.phone, address: form.address, city: form.city
+      }).eq("id", customer.id);
       if (error) throw error;
       toast.success("Customer updated successfully");
       onSaved && onSaved();
       onClose();
     } catch (err) {
-      console.error(err);
       toast.error("Failed to update customer");
     } finally {
       setSaving(false);
@@ -54,62 +42,28 @@ export default function CustomerEditModal({ customer, onClose, onSaved }) {
 
   if (!customer) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold text-indigo-300 mb-3">
-          Edit Customer
-        </h3>
-
-        <form onSubmit={handleSave} className="space-y-3">
-          <input
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Full name"
-            className="w-full bg-slate-800 border border-slate-700 rounded p-2"
-          />
-          <input
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            placeholder="Email"
-            className="w-full bg-slate-800 border border-slate-700 rounded p-2"
-          />
-          <input
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="Phone"
-            className="w-full bg-slate-800 border border-slate-700 rounded p-2"
-          />
-          <input
-            value={form.city}
-            onChange={(e) => setForm({ ...form, city: e.target.value })}
-            placeholder="City"
-            className="w-full bg-slate-800 border border-slate-700 rounded p-2"
-          />
-          <textarea
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-            placeholder="Address"
-            className="w-full bg-slate-800 border border-slate-700 rounded p-2 h-20"
-          />
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal isOpen={true} onClose={onClose} title="Edit Customer">
+      <form onSubmit={handleSave} className="space-y-[16px]">
+        <Input label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <div className="grid grid-cols-2 gap-[12px]">
+           <Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+           <Input label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+        </div>
+        <Input label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        <div className="flex flex-col gap-[4px]">
+           <label className="text-[13px] font-medium text-text-main">Address</label>
+           <textarea 
+              value={form.address} 
+              onChange={e=>setForm({...form, address: e.target.value})}
+              className="w-full p-[12px] border border-gray-300 rounded-lg text-[14px] text-text-main focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue transition-all"
+              rows="3"
+            />
+        </div>
+        <div className="flex justify-end gap-[12px] pt-[8px]">
+           <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
+           <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

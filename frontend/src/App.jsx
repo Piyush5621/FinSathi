@@ -14,46 +14,34 @@ const Billing = lazy(() => import("./pages/Billing/Billing"));
 const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory/InvoiceHistory"));
 const CustomerInvoicesPage = lazy(() => import("./pages/CustomerInvoicesPage"));
 const PaymentsPage = lazy(() => import("./pages/PaymentsPage"));
-const MainLayout = lazy(() => import("./layouts/MainLayout"));
+const ExpensePage = lazy(() => import("./pages/ExpensePage"));
+const PnlPage = lazy(() => import("./pages/PnlPage"));
+const ToolsPage = lazy(() => import("./pages/ToolsPage"));
+const DemoHub = lazy(() => import("./pages/DemoHub"));
+const StaffHub = lazy(() => import("./pages/StaffHub"));
+const LogisticsHub = lazy(() => import("./pages/LogisticsHub"));
+const AttendanceScanPage = lazy(() => import("./pages/AttendanceTerminal"));
+const AppLayout = lazy(() => import("./layouts/AppLayout"));
 import { ThemeProvider } from "./contexts/ThemeContext";
 
-// ✅ Protected Route Wrapper
-const ProtectedRoute = ({ children }) => {
-  const loggedIn = localStorage.getItem("loggedIn");
-  return loggedIn ? children : <Navigate to="/login" replace />;
-};
+// ProtectedRoute logic is handled directly in AppLayout.jsx for cleaner mapping, or we can keep it here.
+// Let's rely on AppLayout checking loggedIn.
 
 function App() {
   return (
     <ThemeProvider>
       <Router>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            className: 'glass-light neo-dark',
-            duration: 4000,
-            style: {
-              background: 'rgba(255, 255, 255, 0.1)',
-              color: '#fff',
-              backdropFilter: 'blur(10px)',
-            },
-          }}
-        />
-        <Suspense fallback={<div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900"><Loader /></div>}>
+        <Toaster position="top-right" />
+        <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#F8FAFC]"><Loader /></div>}>
           <Routes>
             {/* 🟢 Public Routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/attend" element={<AttendanceScanPage />} />
 
             {/* 🔐 Protected Routes (layout with persistent Sidebar) */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <MainLayout />
-                </ProtectedRoute>
-              }
-            >
+            <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/inventory" element={<InventoryPage />} />
@@ -62,6 +50,12 @@ function App() {
               <Route path="/payments" element={<PaymentsPage />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Profile />} />
+              <Route path="/expenses" element={<ExpensePage />} />
+              <Route path="/pnl" element={<PnlPage />} />
+              <Route path="/tools" element={<ToolsPage />} />
+              <Route path="/staff" element={<StaffHub />} />
+              <Route path="/logistics" element={<LogisticsHub />} />
+              <Route path="/marketplace" element={<DemoHub />} />
               <Route path="/customer-invoices/:id" element={<CustomerInvoicesPage />} />
             </Route>
 

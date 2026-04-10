@@ -24,4 +24,9 @@ router.get("/summary", getSummary);
 // Trend route
 router.get("/trend", getTrend);
 
+import { generatePdf } from "../controllers/SalesController.js";
+
+// Generate PDF route
+router.get("/:id/pdf", generatePdf);
+
 export default router;

@@ -1,7 +1,23 @@
 import { SalesRepository } from "../repositories/SalesRepository.js";
 import { DashboardRepository } from "../repositories/DashboardRepository.js";
+import { ExpenseRepository } from "../repositories/ExpenseRepository.js";
 
 export const AnalyticsService = {
+    async getPnl() {
+        const sales = await SalesRepository.getAllForBilling();
+        let expensesData = [];
+        try {
+            expensesData = await ExpenseRepository.findAll();
+        } catch(e) {
+            console.error("No expenses module found or error:", e);
+        }
+        
+        const revenue = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+        const expenses = expensesData.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        const profit = revenue - expenses;
+
+        return { revenue, expenses, profit };
+    },
     async getSalesTrend(month, startDate, endDate) {
         const data = await SalesRepository.getSalesForTrend(month, startDate, endDate);
 

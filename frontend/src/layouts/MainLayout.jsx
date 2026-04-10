@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import BottomNav from "../components/BottomNav";
 import Topbar from "../pages/Dashboard/components/Topbar";
 
 const pathToName = (path) => {
@@ -25,7 +26,7 @@ export default function MainLayout() {
   }, [location.pathname]);
 
   return (
-    <div className="flex min-h-screen bg-[#0f172a] text-slate-100 font-inter">
+    <div className="flex min-h-screen bg-[#0f172a] text-slate-100 font-inter pb-16 lg:pb-0">
       <Sidebar active={active} onNavigate={setActive} />
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         {/* Background Ambient Glow */}
@@ -39,6 +40,7 @@ export default function MainLayout() {
           </div>
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 }

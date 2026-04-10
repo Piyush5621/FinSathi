@@ -12,7 +12,9 @@ import {
   X,
   LogOut,
   DollarSign,
-  Briefcase
+  Briefcase,
+  TrendingDown,
+  TrendingUp
 } from 'lucide-react';
 
 const menuItems = [
@@ -22,6 +24,8 @@ const menuItems = [
   { path: '/payments', label: 'Payments', icon: DollarSign },
   { path: '/customers', label: 'Customers', icon: Users },
   { path: '/inventory', label: 'Inventory', icon: Package },
+  { path: '/expenses', label: 'Expenses', icon: TrendingDown },
+  { path: '/pnl', label: 'P&L Analytics', icon: TrendingUp },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 

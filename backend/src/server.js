@@ -14,6 +14,7 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import invoiceRoutes from "./routes/invoiceRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import expenseRoutes from "./routes/expenseRoutes.js";
 
 // Load environment variables (handled by import "dotenv/config")
 
@@ -53,6 +54,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/payments", paymentRoutes); // ✅ Payment Routes
+app.use("/api/expenses", expenseRoutes);
 
 // Simple healthcheck
 app.get("/api/health", (req, res) => res.status(200).json({ ok: true }));

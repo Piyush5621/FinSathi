@@ -62,3 +62,13 @@ export const getBillingMetrics = async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch billing metrics' });
     }
 };
+
+export const getPnl = async (req, res) => {
+    try {
+        const pnl = await AnalyticsService.getPnl();
+        res.json(pnl);
+    } catch (err) {
+        console.error('getPnl error:', err);
+        res.status(500).json({ error: 'Failed to fetch P&L' });
+    }
+};
