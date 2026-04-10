@@ -28,7 +28,8 @@ import {
   HandCoins,
   Edit,
   Trash2,
-  Search
+  Search,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
