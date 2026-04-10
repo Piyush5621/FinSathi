@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Receipt, Package, DollarSign } from 'lucide-react';
 

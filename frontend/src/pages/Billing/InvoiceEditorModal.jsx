@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import {  useEffect, useState  } from 'react';
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { X, Save, Printer } from "lucide-react";

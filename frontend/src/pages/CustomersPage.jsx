@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import {  useState  } from 'react';
 import { Search, Plus, Phone, MapPin, Users, PhoneCall, MessageCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";

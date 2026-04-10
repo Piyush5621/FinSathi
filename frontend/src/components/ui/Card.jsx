@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 export function Card({ children, className = '', noPadding = false }) {
   return (

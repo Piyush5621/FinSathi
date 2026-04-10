@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 export function Badge({ children, variant = 'gray', className = '' }) {
   // Classical Finance Status Rules

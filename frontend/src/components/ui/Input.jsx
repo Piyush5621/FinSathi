@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 export function Input({ label, type = 'text', value, onChange, placeholder, required = false, className = '' }) {
   return (

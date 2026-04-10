@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import {  useState, useEffect  } from 'react';
 import toast from "react-hot-toast";
 import { supabase } from "../../lib/supabaseClient";
 import API from "../../services/apiClient";

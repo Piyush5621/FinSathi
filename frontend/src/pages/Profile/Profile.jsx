@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import {  useEffect, useState  } from 'react';
 import API from "../../services/apiClient";
 import toast from "react-hot-toast";
 import { User, Save } from "lucide-react";

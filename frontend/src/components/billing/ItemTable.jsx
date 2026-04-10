@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Trash2, Edit2 } from 'lucide-react';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../ui/Table';
 import { Badge } from '../ui/Badge';
