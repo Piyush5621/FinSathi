@@ -29,6 +29,21 @@ const Profile = () => {
 
   const handleChange = (e) => setProfile({ ...profile, [e.target.name]: e.target.value });
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        return toast.error("File is too large! Please choose an image under 2MB.");
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfile({ ...profile, avatar_url: reader.result });
+        toast.success("Photo added! Save changes to persist.");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -75,12 +90,28 @@ const Profile = () => {
 
       <Card>
         <div className="flex items-center gap-[24px] mb-[32px] pb-[24px] border-b border-[#E2E8F0]">
-          <div className="w-[110px] h-[110px] rounded-[32px] bg-[#0F172A] text-white flex items-center justify-center text-[48px] font-black shadow-2xl shadow-slate-200 overflow-hidden border-4 border-white ring-4 ring-slate-50">
+          <div 
+             onClick={() => document.getElementById('avatar-input').click()}
+             className="relative w-[110px] h-[110px] rounded-[32px] bg-[#0F172A] text-white flex items-center justify-center text-[48px] font-black shadow-2xl shadow-slate-200 overflow-hidden border-4 border-white ring-4 ring-slate-50 cursor-pointer group"
+          >
             {profile.avatar_url || profile.logo_url ? (
-               <img src={profile.avatar_url || profile.logo_url} alt="Profile" className="w-full h-full object-cover" />
+               <img src={profile.avatar_url || profile.logo_url} alt="Profile" className="w-full h-full object-cover group-hover:opacity-50 transition-opacity" />
             ) : (
                profile.name ? profile.name.charAt(0).toUpperCase() : 'U'
             )}
+            
+            {/* Overlay Icon */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+               <User size={32} className="text-white" />
+            </div>
+            
+            <input 
+              id="avatar-input"
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={handleFileChange} 
+            />
           </div>
           <div className="flex-1">
             <h2 className="text-[24px] font-black text-[#0F172A] tracking-tight">{profile.name}</h2>
@@ -103,7 +134,7 @@ const Profile = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[24px]">
                <Input label="Full Name" name="name" value={profile.name || ""} onChange={handleChange} />
                <Input label="Profile Picture URL" name="avatar_url" value={profile.avatar_url || ""} onChange={handleChange} placeholder="https://image-link.com/photo.jpg" />
-               <Input label="Email (Read Only)" type="email" name="email" value={profile.email || ""} disabled className="opacity-70 cursor-not-allowed" />
+               <Input label="Email (Read Only)" type="email" name="email" value={profile.email || ""} readOnly className="opacity-70 cursor-not-allowed" />
                <Input label="Business Name" name="business_name" value={profile.business_name || ""} onChange={handleChange} />
               
               <div className="flex flex-col gap-[4px]">
