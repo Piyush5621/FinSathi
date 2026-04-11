@@ -14,4 +14,16 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
+// Auto-Logout on 401/403
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && [401, 403].includes(error.response.status)) {
+      localStorage.clear();
+      window.location.href = "/login?expired=true";
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default API;

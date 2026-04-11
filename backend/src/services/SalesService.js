@@ -87,7 +87,8 @@ export const SalesService = {
             payment_method,
             payment_status,
             amount_paid: finalAmountPaid,
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
+            due_date: salePayload.due_date || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         };
 
         const sale = await SalesRepository.create(userId, saleData);
