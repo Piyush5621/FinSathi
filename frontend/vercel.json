@@ -3,7 +3,6 @@
     "buildCommand": "npm run build",
     "outputDirectory": "dist",
     "framework": "vite",
-    "rootDirectory": "frontend",
     "rewrites": [
         {
             "source": "/(.*)",
