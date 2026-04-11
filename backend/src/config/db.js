@@ -13,15 +13,19 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
     const chain = {
       _data: [],
       _error: null,
-      select() { return this; },
-      order() { return this; },
-      limit() { return this; },
-      gte() { return this; },
-      eq() { return this; },
-      on() { return this; },
-      subscribe() { return this; },
-      then(resolve) { return Promise.resolve({ data: this._data, error: this._error }).then(resolve); },
-      catch() { return this; },
+      select: function() { return this; },
+      order: function() { return this; },
+      limit: function() { return this; },
+      gte: function() { return this; },
+      eq: function() { return this; },
+      on: function() { return this; },
+      subscribe: function() { return this; },
+      single: function() { return this; },
+      then: function(resolve) { 
+        const result = Array.isArray(this._data) && this._data.length === 0 ? null : (Array.isArray(this._data) ? this._data[0] : this._data);
+        return Promise.resolve({ data: result, error: this._error }).then(resolve); 
+      },
+      catch: function(reject) { return this; },
     };
     return chain;
   };

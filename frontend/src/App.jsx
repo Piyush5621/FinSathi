@@ -21,6 +21,7 @@ const DemoHub = lazy(() => import("./pages/DemoHub"));
 const StaffHub = lazy(() => import("./pages/StaffHub"));
 const LogisticsHub = lazy(() => import("./pages/LogisticsHub"));
 const AttendanceScanPage = lazy(() => import("./pages/AttendanceTerminal"));
+const RemindersPage = lazy(() => import("./pages/GeneralPage"));
 const AppLayout = lazy(() => import("./layouts/AppLayout"));
 import { ThemeProvider } from "./contexts/ThemeContext";
 
@@ -52,10 +53,10 @@ function App() {
               <Route path="/settings" element={<Profile />} />
               <Route path="/expenses" element={<ExpensePage />} />
               <Route path="/pnl" element={<PnlPage />} />
-              <Route path="/tools" element={<ToolsPage />} />
               <Route path="/staff" element={<StaffHub />} />
               <Route path="/logistics" element={<LogisticsHub />} />
               <Route path="/marketplace" element={<DemoHub />} />
+              <Route path="/reminders" element={<RemindersPage />} />
               <Route path="/customer-invoices/:id" element={<CustomerInvoicesPage />} />
             </Route>
 
