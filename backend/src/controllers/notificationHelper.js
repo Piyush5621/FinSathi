@@ -6,11 +6,11 @@ import { supabase } from "../config/db.js";
  * @param {string} notification.title - Notification message
  * @param {string} [notification.type='info'] - Notification type ('info', 'success', 'warning', 'error')
  */
-export const createNotification = async ({ title, type = "info" }) => {
+export const createNotification = async (userId, { title, type = "info" }) => {
   try {
     const { error } = await supabase
       .from("notifications")
-      .insert([{ title, type }]);
+      .insert([{ user_id: userId, title, type }]);
 
     if (error) throw error;
     console.log("📢 Notification created:", title);

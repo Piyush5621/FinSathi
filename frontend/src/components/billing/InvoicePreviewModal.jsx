@@ -6,6 +6,10 @@ import toast from "react-hot-toast";
 import { useReactToPrint } from "react-to-print";
 import Barcode from "react-barcode";
 import { QRCodeCanvas } from "qrcode.react";
+import { Button } from "../ui/Button";
+import { Badge } from "../ui/Badge";
+
+import API from "../../services/apiClient";
 
 export default function InvoicePreviewModal({ invoice, onClose }) {
   const printRef = useRef();
@@ -14,9 +18,8 @@ export default function InvoicePreviewModal({ invoice, onClose }) {
   useEffect(() => {
     async function fetchBusiness() {
       try {
-        const localUser = JSON.parse(localStorage.getItem("user") || "{}");
-        if (!localUser.id) return;
-        const { data } = await supabase.from("users").select("*").eq("id", localUser.id).single();
+        // ✅ Use secure backend instead of direct supabase
+        const { data } = await API.get("/auth/profile");
         if (data) setBusiness(data);
       } catch (err) {
         console.warn("Could not fetch business info:", err);
@@ -89,7 +92,7 @@ export default function InvoicePreviewModal({ invoice, onClose }) {
                </div>
                <div className="text-right flex flex-col items-end">
                   <div className="mb-4">
-                     <Barcode value={`INV-${invoice.id?.slice(0,8) || "0000"}`} width={1} height={35} fontSize={10} background="transparent" />
+                     <Barcode value={`INV-${invoice.id ? String(invoice.id).slice(0,8) : "0000"}`} width={1} height={35} fontSize={10} background="transparent" />
                   </div>
                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-right min-w-[180px]">
                      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Total Due</p>
@@ -115,7 +118,7 @@ export default function InvoicePreviewModal({ invoice, onClose }) {
                   <h3 className="text-[11px] font-black text-brand-blue uppercase tracking-widest mb-3">Invoice Details</h3>
                   <div className="space-y-1 text-[13px] font-semibold text-brand-navy">
                      <p>Date: <span className="text-slate-500">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></p>
-                     <p>Invoice #: <span className="text-slate-500">INV-{invoice.id?.slice(0,8).toUpperCase() || 'NEW'}</span></p>
+                     <p>Invoice #: <span className="text-slate-500">INV-{invoice.id ? String(invoice.id).slice(0,8).toUpperCase() : 'NEW'}</span></p>
                      <p>Ref: <span className="text-slate-500">{invoice.invoice_no || 'Manual Entry'}</span></p>
                   </div>
                </div>

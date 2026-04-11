@@ -37,6 +37,7 @@ export const addPayment = async (req, res) => {
             .from("sales")
             .select("*")
             .eq("customer_id", customer_id)
+            .eq("user_id", userId) // ✅ Filter by user
             .neq("payment_status", "paid")
             .order("date", { ascending: true }); // FIFO
 
@@ -69,7 +70,8 @@ export const addPayment = async (req, res) => {
                     amount_paid: newPaidAmount,
                     payment_status: newStatus
                 })
-                .eq("id", inv.id);
+                .eq("id", inv.id)
+                .eq("user_id", userId); // ✅ Check ownership
 
             remaining -= toPay;
         }
@@ -90,6 +92,7 @@ export const getCustomerPayments = async (req, res) => {
             .from("payments")
             .select("*")
             .eq("customer_id", customerId)
+            .eq("user_id", req.user.id) // ✅ Filter by user
             .order("date", { ascending: false });
 
         if (error) throw error;
@@ -109,6 +112,7 @@ export const deletePayment = async (req, res) => {
             .from("payments")
             .select("*")
             .eq("id", id)
+            .eq("user_id", req.user.id) // ✅ Check ownership
             .single();
 
         if (fetchError || !payment) {
@@ -119,7 +123,8 @@ export const deletePayment = async (req, res) => {
         const { error: deleteError } = await supabase
             .from("payments")
             .delete()
-            .eq("id", id);
+            .eq("id", id)
+            .eq("user_id", req.user.id); // ✅ Check ownership
 
         if (deleteError) throw deleteError;
 
@@ -144,6 +149,7 @@ export const deletePayment = async (req, res) => {
             .from("sales")
             .select("*")
             .eq("customer_id", payment.customer_id)
+            .eq("user_id", req.user.id) // ✅ Filter by user
             .gt("amount_paid", 0)
             .order("date", { ascending: false }); // Newest first
 
@@ -173,7 +179,8 @@ export const deletePayment = async (req, res) => {
                     amount_paid: newPaid,
                     payment_status: newStatus
                 })
-                .eq("id", inv.id);
+                .eq("id", inv.id)
+                .eq("user_id", req.user.id); // ✅ Check ownership
 
             remainingToRevert -= toDeduct;
         }

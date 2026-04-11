@@ -2,18 +2,18 @@ import { SalesRepository } from "../repositories/SalesRepository.js";
 import { CustomerRepository } from "../repositories/CustomerRepository.js";
 
 export const SummaryService = {
-    async getSmartSummary() {
+    async getSmartSummary(userId) {
         // Get total sales in last 7 days
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-        const recentSales = await SalesRepository.findSalesByDateRange(sevenDaysAgo, new Date().toISOString());
+        const recentSales = await SalesRepository.findSalesByDateRange(userId, sevenDaysAgo, new Date().toISOString());
 
         // Calculate total and growth
         const totalSales = recentSales.reduce((sum, s) => sum + (s.total || 0), 0);
 
         // Previous week sales
-        const prevWeekSales = await SalesRepository.findSalesByDateRange(fourteenDaysAgo, sevenDaysAgo);
+        const prevWeekSales = await SalesRepository.findSalesByDateRange(userId, fourteenDaysAgo, sevenDaysAgo);
 
         const prevTotal = prevWeekSales?.reduce((sum, s) => sum + (s.total || 0), 0) || 0;
         const growth =
@@ -22,7 +22,7 @@ export const SummaryService = {
         // Get total customers this week - Need a new Repo method for filtering customers by date
         // Or assume CustomerRepository has standard filter
         // Adding getNewCustomersCount to CustomerRepository
-        const newCustomers = await CustomerRepository.getNewCustomersCount(sevenDaysAgo);
+        const newCustomers = await CustomerRepository.getNewCustomersCount(userId, sevenDaysAgo);
 
         // Smart summary generation
         const summary = {

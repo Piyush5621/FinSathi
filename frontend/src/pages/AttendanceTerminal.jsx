@@ -1,6 +1,6 @@
 import {  useState, useEffect  } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import API from '../services/apiClient';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -28,40 +28,19 @@ export default function AttendanceTerminal() {
 
         setLoading(true);
         try {
-            // 1. Find Staff by Unique No & Business ID
-            const { data: staff, error: staffErr } = await supabase
-                .from('staff')
-                .select('*')
-                .eq('qr_token', staffNo)
-                .eq('user_id', bizId)
-                .single();
-
-            if (staffErr || !staff) {
-                toast.error("Invalid Unique Number. Please check and try again.");
-                setLoading(false);
-                return;
-            }
-
-            // 2. Mark Attendance
-            const today = new Date().toISOString().split('T')[0];
-            const { error: attErr } = await supabase.from('attendance').upsert({
-                staff_id: staff.id,
-                user_id: bizId,
-                date: today,
-                status: 'present',
+            // New secure Kiosk API call (replaces 2 supabase calls)
+            const { data } = await API.post('/kiosk/attendance', {
+                bizId,
+                staffNo,
                 clock_in: new Date().toISOString()
-            }, { onConflict: 'staff_id, date' });
+            });
 
-            if (attErr) {
-                toast.error("Submission failed. Try again.");
-            } else {
-                setScannedStaff(staff);
-                setSuccess(true);
-                toast.success(`Welcome, ${staff.name}!`);
-            }
+            setScannedStaff(data.staff);
+            setSuccess(true);
+            toast.success(`Welcome, ${data.staff.name}!`);
         } catch (err) {
             console.error(err);
-            toast.error("System error. Please try again.");
+            toast.error(err.response?.data?.error || "System error. Please try again.");
         } finally {
             setLoading(false);
         }

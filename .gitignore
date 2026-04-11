@@ -47,3 +47,8 @@ backend/dist/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
+
+# Temporary Scripts
+backend/create_test_user.js
+backend/diagnostic.js
+backend/debug_data.js

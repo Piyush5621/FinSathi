@@ -4,10 +4,11 @@ import { supabase } from "../config/db.js";
  * Repository for Sales data access
  */
 export const SalesRepository = {
-    async findAllSales(limit = 100, orderBy = 'date', ascending = false) {
+    async findAllSales(userId, limit = 100, orderBy = 'date', ascending = false) {
         const { data, error } = await supabase
             .from("sales")
-            .select("*")
+            .select("*, customers(name)")
+            .eq("user_id", userId)
             .order(orderBy, { ascending })
             .limit(limit);
 
@@ -15,10 +16,11 @@ export const SalesRepository = {
         return data;
     },
 
-    async findSalesByDateRange(startDate, endDate) {
+    async findSalesByDateRange(userId, startDate, endDate) {
         const { data, error } = await supabase
             .from("sales")
             .select("date, total, created_at")
+            .eq("user_id", userId)
             .gte("date", startDate)
             .lte("date", endDate)
             .order("date", { ascending: true });
@@ -27,10 +29,11 @@ export const SalesRepository = {
         return data;
     },
 
-    async getSalesForSummary(limit = 1000) {
+    async getSalesForSummary(userId, limit = 1000) {
         const { data, error } = await supabase
             .from("sales")
             .select("date, total, created_at")
+            .eq("user_id", userId)
             .order("date", { ascending: true })
             .limit(limit);
 
@@ -38,14 +41,14 @@ export const SalesRepository = {
         return data;
     },
 
-    async getTopCustomers(startDate, endDate) {
+    async getTopCustomers(userId, startDate, endDate) {
         let query = supabase
             .from("sales")
             .select(`
         customer:customers (id, name),
         total,
         date
-      `);
+      `).eq("user_id", userId);
 
         if (startDate && endDate) {
             query = query.gte('date', startDate).lte('date', endDate);
@@ -56,11 +59,12 @@ export const SalesRepository = {
         return data;
     },
 
-    async getTopProducts(startDate, endDate) {
+    async getTopProducts(userId, startDate, endDate) {
         // Since we store items in 'sales.items' JSONB, we must fetch sales and aggregated in JS
         let query = supabase
             .from("sales")
-            .select("items, date, created_at");
+            .select("items, date, created_at")
+            .eq("user_id", userId);
 
         if (startDate && endDate) {
             query = query.gte('date', startDate).lte('date', endDate);
@@ -74,31 +78,34 @@ export const SalesRepository = {
         return data;
     },
 
-    async findById(id) {
+    async findById(userId, id) {
         const { data, error } = await supabase
             .from("sales")
             .select("*")
             .eq("id", id)
+            .eq("user_id", userId)
             .single();
 
         if (error) throw error;
         return data;
     },
 
-    async fetchDateAndTotal() {
+    async fetchDateAndTotal(userId) {
         // Fetches date and total for trend calculation
         const { data, error } = await supabase
             .from("sales")
-            .select("date, total, created_at");
+            .select("date, total, created_at")
+            .eq("user_id", userId);
 
         if (error) throw error;
         return data;
     },
 
-    async getSalesForTrend(month, startDate, endDate) {
+    async getSalesForTrend(userId, month, startDate, endDate) {
         let query = supabase
             .from("sales")
             .select("date, total, created_at")
+            .eq("user_id", userId)
             .order("date", { ascending: true });
 
         if (month) {
@@ -115,10 +122,11 @@ export const SalesRepository = {
         return data;
     },
 
-    async getSalesWithCustomers(month, startDate, endDate) {
+    async getSalesWithCustomers(userId, month, startDate, endDate) {
         let query = supabase
             .from("sales")
-            .select(`customer:customers(id, name), total, date`);
+            .select(`customer:customers(id, name), total, date`)
+            .eq("user_id", userId);
 
         if (month) {
             const year = new Date().getFullYear();
@@ -134,10 +142,11 @@ export const SalesRepository = {
         return data;
     },
 
-    async getSalesSummaryRaw(limit = 1000) {
+    async getSalesSummaryRaw(userId, limit = 1000) {
         const { data, error } = await supabase
             .from("sales")
             .select("date, total, created_at")
+            .eq("user_id", userId)
             .order("date", { ascending: true })
             .limit(limit);
 
@@ -145,29 +154,31 @@ export const SalesRepository = {
         return data;
     },
 
-    async deleteById(id) {
+    async deleteById(userId, id) {
         const { error } = await supabase
             .from("sales")
             .delete()
-            .eq("id", id);
+            .eq("id", id)
+            .eq("user_id", userId);
 
         if (error) throw error;
     },
 
-    async getAllForBilling() {
+    async getAllForBilling(userId) {
         // Fetch * to be safe against missing column names, letting Service handle mapping
         const { data, error } = await supabase
             .from('sales')
-            .select('*');
+            .select('*')
+            .eq("user_id", userId);
 
         if (error) throw error;
         return data;
     },
 
-    async create(saleData) {
+    async create(userId, saleData) {
         const { data, error } = await supabase
             .from("sales")
-            .insert([saleData])
+            .insert([{ ...saleData, user_id: userId }])
             .select()
             .single();
 
@@ -175,11 +186,12 @@ export const SalesRepository = {
         return data;
     },
 
-    async update(id, updates) {
+    async update(userId, id, updates) {
         const { data, error } = await supabase
             .from("sales")
             .update(updates)
             .eq("id", id)
+            .eq("user_id", userId)
             .select()
             .single();
 
@@ -189,7 +201,7 @@ export const SalesRepository = {
 
 
 
-    async getRecentSales(limit = 5) {
+    async getRecentSales(userId, limit = 5) {
         const { data, error } = await supabase
             .from("sales")
             .select(`
@@ -200,6 +212,7 @@ export const SalesRepository = {
                 payment_status,
                 customer:customers(name)
             `)
+            .eq("user_id", userId)
             .order("date", { ascending: false })
             .limit(limit);
 

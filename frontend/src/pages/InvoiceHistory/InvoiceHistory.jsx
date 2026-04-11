@@ -26,12 +26,8 @@ export default function InvoiceHistory() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("sales")
-        .select("*, customers(name)")
-        .order("date", { ascending: false });
-
-      if (error) throw error;
+      // ✅ Use secure backend instead of direct supabase
+      const { data } = await API.get("/sales");
       setInvoices(data || []);
       setFilteredInvoices(data || []);
     } catch (err) {
@@ -66,8 +62,7 @@ export default function InvoiceHistory() {
 
   const handleModifyInvoice = async (invoiceId) => {
     try {
-      const { data, error } = await supabase.from("sales").select("*").eq("id", invoiceId).single();
-      if (error) throw error;
+      const { data } = await API.get(`/sales/${invoiceId}`);
       setEditingInvoice(data);
     } catch (err) {
       toast.error("Failed to load invoice for edit");

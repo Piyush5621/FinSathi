@@ -1,32 +1,40 @@
 import { supabase } from "../config/db.js";
 
 export const InventoryRepository = {
-    async getLowStockCount(threshold = 10) {
+    async getLowStockCount(userId, threshold = 10) {
         const { count, error } = await supabase
             .from("inventory")
             .select("*", { count: "exact", head: true })
+            .eq("user_id", userId)
             .lte("stock", threshold);
 
         if (error) throw error;
         return count;
     },
 
-    async getBatchById(batchId) {
+    async getBatchById(userId, batchId) {
         const { data, error } = await supabase
             .from('inventory_batches')
-            .select('stock, id')
+            .select('stock, id, inventory!inner(user_id)')
             .eq('id', batchId)
+            .eq('inventory.user_id', userId)
             .single();
 
-        // Supabase returns error if not found? Or null data? 
-        // Usually error PGRST116 for .single() if no rows.
-        // We'll let the service handle "not found" checks if error is suppressed, 
-        // but here we throw if it's a real DB error.
         if (error && error.code !== 'PGRST116') throw error;
         return { data, error };
     },
 
-    async updateBatch(batchId, updates) {
+    async updateBatch(userId, batchId, updates) {
+        // We first verify the batch belongs to the user
+        const { data: check, error: checkError } = await supabase
+            .from('inventory_batches')
+            .select('id, inventory!inner(user_id)')
+            .eq('id', batchId)
+            .eq('inventory.user_id', userId)
+            .single();
+
+        if (checkError) throw new Error("Batch not found or access denied");
+
         const { error } = await supabase
             .from('inventory_batches')
             .update(updates)

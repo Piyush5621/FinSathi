@@ -26,10 +26,9 @@ export default function CustomerEditModal({ customer, onClose, onSaved }) {
     if (!form.name.trim()) return toast.error("Name required");
     try {
       setSaving(true);
-      const { error } = await supabase.from("customers").update({
+      await updateCustomer(customer.id, {
         name: form.name, email: form.email, phone: form.phone, address: form.address, city: form.city
-      }).eq("id", customer.id);
-      if (error) throw error;
+      });
       toast.success("Customer updated successfully");
       onSaved && onSaved();
       onClose();

@@ -1,21 +1,14 @@
-import { supabase } from "../lib/supabaseClient";
+import API from "../services/apiClient";
 
 export const getCustomers = async () => {
-  const { data, error } = await supabase
-    .from("customers")
-    .select("*")
-    .order("id", { ascending: true });
-  if (error) throw error;
+  const { data } = await API.get("/customers");
   return Array.isArray(data) ? data : [];
 };
 
 export const getPendingAmounts = async () => {
-  const { data, error } = await supabase
-    .from("sales")
-    .select("customer_id, total, amount_paid, payment_status");
-
-  if (error) throw error;
-
+  // We'll use the analytics/billing metrics instead or get it from sales
+  const { data } = await API.get("/sales");
+  
   const pendingMap = {};
   data?.forEach((sale) => {
     if (sale.payment_status !== "paid") {
@@ -32,13 +25,16 @@ export const getPendingAmounts = async () => {
 };
 
 export const addCustomer = async (form) => {
-  const { data, error } = await supabase.from("customers").insert([form]).select();
-  if (error) throw error;
+  const { data } = await API.post("/customers", form);
   return data;
 };
 
 export const deleteCustomer = async (id) => {
-  const { error } = await supabase.from("customers").delete().eq("id", id);
-  if (error) throw error;
+  await API.delete(`/customers/${id}`);
   return id;
+};
+
+export const updateCustomer = async (id, form) => {
+  const { data } = await API.put(`/customers/${id}`, form);
+  return data;
 };

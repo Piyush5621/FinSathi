@@ -28,23 +28,16 @@ export default function PaymentsPage() {
         setLoading(true);
         try {
             if (activeTab === "history") {
-                const { data, error } = await supabase
-                    .from("payments")
-                    .select(`*, customers (name, email)`)
-                    .order("date", { ascending: false });
-                if (error) throw error;
+                // ✅ Use secured API instead of direct supabase
+                const { data } = await API.get("/payments?include=customers");
                 setPayments(data || []);
             } else {
-                const { data: custData, error: custError } = await supabase.from("customers").select("*");
-                if (custError) throw custError;
-
-                const { data: salesData, error: salesError } = await supabase
-                    .from("sales")
-                    .select("customer_id, total, amount_paid, payment_status");
-                if (salesError) throw salesError;
+                // ✅ Use secured API
+                const { data: custData } = await API.get("/customers");
+                const { data: salesData } = await API.get("/sales");
 
                 const processed = custData.map(c => {
-                    const customerSales = salesData.filter(s => String(s.customer_id) === String(c.id));
+                    const customerSales = (salesData || []).filter(s => String(s.customer_id) === String(c.id));
                     const totalBilled = customerSales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
 
                     const pending = customerSales.reduce((sum, s) => {
@@ -65,6 +58,7 @@ export default function PaymentsPage() {
             }
         } catch (err) {
             console.error(err);
+            toast.error("Failed to load data");
         } finally {
             setLoading(false);
         }

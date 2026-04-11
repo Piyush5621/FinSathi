@@ -1,6 +1,6 @@
 import {  useState, useEffect  } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import API from '../services/apiClient';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -29,43 +29,35 @@ export default function AttendanceScanPage() {
 
     const fetchData = async () => {
         setLoading(true);
-        // Fetch Business Info
-        const { data: bData } = await supabase.from('users').select('business_name').eq('id', bizId).single();
-        if (bData) setBusinessName(bData.business_name);
+        try {
+            // Fetch Business Info via secure Kiosk API
+            const bRes = await API.get(`/kiosk/business/${bizId}`);
+            if (bRes.data) setBusinessName(bRes.data.business_name);
 
-        // Fetch Staff
-        const { data, error } = await supabase
-            .from('staff')
-            .select('*')
-            .eq('user_id', bizId)
-            .eq('status', 'active');
-        
-        if (error) toast.error("Error loading staff list");
-        else setStaffList(data || []);
-        setLoading(false);
+            // Fetch Staff via secure Kiosk API
+            const sRes = await API.get(`/kiosk/staff/${bizId}`);
+            setStaffList(sRes.data || []);
+        } catch (err) {
+            toast.error("Error loading terminal context");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleClockIn = async () => {
         if (!selectedStaff) return toast.error("Please select your name");
 
-        const today = new Date().toISOString().split('T')[0];
-        const { error } = await supabase
-            .from('attendance')
-            .upsert({
-                staff_id: selectedStaff.id,
-                user_id: bizId,
-                date: today,
-                status: 'present',
+        try {
+            await API.post('/kiosk/attendance', {
+                bizId,
+                staffId: selectedStaff.id,
                 clock_in: new Date().toISOString()
-            }, { onConflict: 'staff_id, date' });
-
-        if (error) {
-            console.error(error);
-            toast.error("Attendance already marked or server error");
-        } else {
+            });
             setIsSuccess(true);
             toast.success("Attendance marked successfully!");
             setTimeout(() => navigate('/'), 3000);
+        } catch (err) {
+            toast.error("Attendance already marked or server error");
         }
     };
 

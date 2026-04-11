@@ -1,5 +1,5 @@
 import {  useEffect, useState  } from 'react';
-import { supabase } from "../lib/supabaseClient";
+import API from "../services/apiClient";
 import { TrendingUp, TrendingDown, Activity, Lightbulb, ArrowUpRight, ArrowDownRight, Users, ReceiptText } from 'lucide-react';
 import { Card } from "../components/ui/Card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
@@ -20,10 +20,16 @@ export default function PnlPage() {
 
     const fetchAnalytics = async () => {
         try {
-            // Fetch everything
-            const { data: sales } = await supabase.from("sales").select("*, sale_items(*, inventory(*)), customers(name)").order('date', {ascending: false});
-            const { data: expenses } = await supabase.from("expenses").select("*").order('date', {ascending: false});
-            const { data: inventory } = await supabase.from("inventory").select("*");
+            // Fetch everything via secure backend
+            const [salesRes, expensesRes, invRes] = await Promise.all([
+                API.get("/sales"),
+                API.get("/expenses"),
+                API.get("/inventory")
+            ]);
+
+            const sales = salesRes.data || [];
+            const expenses = expensesRes.data || [];
+            const inventory = invRes.data || [];
 
             const today = new Date();
             const last30Days = new Date();

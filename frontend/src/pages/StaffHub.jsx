@@ -1,5 +1,5 @@
 import {  useState, useEffect  } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import API from '../services/apiClient';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../components/ui/Table';
@@ -55,9 +55,9 @@ export default function StaffHub() {
         try {
             const today = new Date().toISOString().split('T')[0];
             const [staffRes, attRes, payrollRes] = await Promise.all([
-                supabase.from('staff').select('*').eq('user_id', user.id).order('name'),
-                supabase.from('attendance').select(`*, staff(name)`).eq('user_id', user.id).eq('date', today),
-                supabase.from('payroll').select(`*, staff(name)`).eq('user_id', user.id).order('created_at', { ascending: false })
+                API.get('/staff'),
+                API.get(`/staff/attendance?date=${today}`),
+                API.get('/staff/payroll')
             ]);
 
             const validStaff = (staffRes.data || []).filter(s => s.name);
@@ -76,138 +76,111 @@ export default function StaffHub() {
         const firstDay = new Date(calYear, calMonth, 1).toISOString();
         const lastDay = new Date(calYear, calMonth + 1, 0).toISOString();
         
-        const { data, error } = await supabase
-            .from('attendance')
-            .select('*')
-            .eq('staff_id', calStaffId)
-            .gte('date', firstDay)
-            .lte('date', lastDay);
-        
-        if (error) toast.error("Error loading calendar context");
-        else setCalData(data || []);
+        try {
+            const { data } = await API.get(`/staff/attendance?staff_id=${calStaffId}&start=${firstDay}&end=${lastDay}`);
+            setCalData(data || []);
+        } catch (err) {
+            toast.error("Error loading calendar context");
+        }
     };
 
     const handleAddStaff = async (e) => {
         e.preventDefault();
-        // Generates a simple 6-digit numeric ID for the user
         const qr_token = Math.floor(100000 + Math.random() * 900000).toString();
-        const { error } = await supabase.from('staff').insert([{ ...newStaff, user_id: user.id, qr_token }]);
-        
-        if (error) {
-            toast.error("Failed to add staff");
-        } else {
+        try {
+            await API.post('/staff', { ...newStaff, qr_token });
             toast.success("Staff added successfully");
             setShowAddModal(false);
             setNewStaff({ name: '', phone: '', position: '', salary_type: 'fixed', base_salary: '' });
             fetchData();
+        } catch (err) {
+            toast.error("Failed to add staff");
         }
     };
 
     const markAttendance = async (staffId, status) => {
         const today = new Date().toISOString().split('T')[0];
-        const { error } = await supabase.from('attendance').upsert({ 
-            staff_id: staffId, 
-            user_id: user.id,
-            date: today, 
-            status: status,
-            clock_in: new Date().toISOString()
-        }, { onConflict: 'staff_id, date' });
-
-        if (error) toast.error("Update failed");
-        else {
+        try {
+            await API.post('/staff/attendance', { 
+                staff_id: staffId, 
+                date: today, 
+                status: status,
+                clock_in: new Date().toISOString()
+            });
             toast.success(`Marked ${status} manually`);
             fetchData();
+        } catch (err) {
+            toast.error("Update failed");
         }
     };
 
     const calculateAttendanceSalary = async (staffId) => {
-        // 1. Determine Start Date (Last Payment or Join Date)
         const lastPay = payroll.find(p => p.staff_id === staffId);
         const startDate = lastPay ? new Date(lastPay.payment_date) : new Date(selectedStaff.join_date);
         const endDate = new Date();
-        
-        // Ensure start date is at beginning of day
         startDate.setHours(0, 0, 0, 0);
         
-        const { data, error } = await supabase
-            .from('attendance')
-            .select('*')
-            .eq('staff_id', staffId)
-            .gte('date', startDate.toISOString())
-            .lte('date', endDate.toISOString());
-        
-        if (error) {
+        try {
+            const { data } = await API.get(`/staff/attendance?staff_id=${staffId}&start=${startDate.toISOString()}&end=${endDate.toISOString()}`);
+            const presentDays = data.filter(a => a.status === 'present').length;
+            const halfDays = data.filter(a => a.status === 'half_day').length;
+            const effectiveDays = presentDays + (halfDays * 0.5);
+            
+            const { data: advances } = await API.get(`/staff/payroll?staff_id=${staffId}&type=advance&start=${startDate.toISOString()}`);
+            const totalAdvance = (advances || []).reduce((sum, a) => sum + Number(a.total_paid), 0);
+
+            const dailyRate = Number(selectedStaff.base_salary) / 30;
+            const suggestion = dailyRate * effectiveDays;
+            const deduction = Number(selectedStaff.base_salary) - suggestion; 
+
+            setPayForm({
+                ...payForm,
+                calculated: true,
+                daysPresent: presentDays,
+                deductions: Math.max(0, Math.round(deduction)),
+                advanceDeduction: totalAdvance,
+                bonus: 0,
+                period: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`
+            });
+            toast.success(`Hisab updated: ${totalAdvance} advance detected.`);
+        } catch (err) {
             toast.error("Could not fetch attendance for calculation");
-            return;
         }
-
-        const presentDays = data.filter(a => a.status === 'present').length;
-        const halfDays = data.filter(a => a.status === 'half_day').length;
-        
-        const effectiveDays = presentDays + (halfDays * 0.5);
-        
-        // 2. Fetch Pending Advances since last salary
-        const { data: advances } = await supabase
-            .from('payroll')
-            .select('total_paid')
-            .eq('staff_id', staffId)
-            .eq('payment_type', 'advance')
-            .gte('payment_date', startDate.toISOString());
-
-        const totalAdvance = (advances || []).reduce((sum, a) => sum + Number(a.total_paid), 0);
-
-        // Calculation logic: Base Salary per month / 30 days * effective days
-        const dailyRate = Number(selectedStaff.base_salary) / 30;
-        const suggestion = dailyRate * effectiveDays;
-        const deduction = Number(selectedStaff.base_salary) - suggestion; 
-
-        setPayForm({
-            ...payForm,
-            calculated: true,
-            daysPresent: presentDays,
-            deductions: Math.max(0, Math.round(deduction)),
-            advanceDeduction: totalAdvance,
-            bonus: 0,
-            period: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`
-        });
-        toast.success(`Hisab updated: ${totalAdvance} advance detected.`);
     };
 
     const handleIssueAdvance = async (e) => {
         e.preventDefault();
         if (!selectedStaff) return;
 
-        const { error } = await supabase.from('payroll').insert([{
-            user_id: user.id,
-            staff_id: selectedStaff.id,
-            month: new Date().getMonth() + 1,
-            year: new Date().getFullYear(),
-            base_pay: 0,
-            bonus: 0,
-            deductions: 0,
-            total_paid: Number(advanceForm.amount),
-            payment_status: 'paid',
-            payment_type: 'advance',
-            payment_date: new Date().toISOString(),
-            notes: advanceForm.notes
-        }]);
+        try {
+            await API.post('/staff/payroll', {
+                staff_id: selectedStaff.id,
+                month: new Date().getMonth() + 1,
+                year: new Date().getFullYear(),
+                base_pay: 0,
+                bonus: 0,
+                deductions: 0,
+                total_paid: Number(advanceForm.amount),
+                payment_status: 'paid',
+                payment_type: 'advance',
+                payment_date: new Date().toISOString(),
+                notes: advanceForm.notes
+            });
 
-        if (error) {
-            toast.error("Advance log failed");
-        } else {
-            // Log as Expense
-            await supabase.from('expenses').insert([{
-                user_id: user.id,
+            // Log as Expense via secure backend
+            await API.post('/expenses', {
                 amount: Number(advanceForm.amount),
                 category: 'Staff Advance',
                 description: `Advance given to ${selectedStaff.name}: ${advanceForm.notes || 'No notes'}`,
                 date: new Date().toISOString()
-            }]);
+            });
 
             toast.success("Cash Advance Issued & Expense Logged!");
             setShowAdvanceModal(false);
             setAdvanceForm({ amount: '', notes: '' });
             fetchData();
+        } catch (err) {
+            toast.error("Advance log failed");
         }
     };
 
@@ -215,54 +188,46 @@ export default function StaffHub() {
         e.preventDefault();
         const total = Number(selectedStaff.base_salary) + Number(payForm.bonus) - (Number(payForm.deductions) + Number(payForm.advanceDeduction));
         
-        const { error } = await supabase.from('payroll').insert([{
-            user_id: user.id,
-            staff_id: selectedStaff.id,
-            month: Number(payForm.month),
-            year: Number(payForm.year),
-            base_pay: Number(selectedStaff.base_salary),
-            bonus: Number(payForm.bonus),
-            deductions: Number(payForm.deductions),
-            total_paid: total,
-            payment_status: 'paid',
-            payment_date: new Date().toISOString()
-        }]);
+        try {
+            await API.post('/staff/payroll', {
+                staff_id: selectedStaff.id,
+                month: Number(payForm.month),
+                year: Number(payForm.year),
+                base_pay: Number(selectedStaff.base_salary),
+                bonus: Number(payForm.bonus),
+                deductions: Number(payForm.deductions),
+                total_paid: total,
+                payment_status: 'paid',
+                payment_date: new Date().toISOString()
+            });
 
-        if (error) {
-            toast.error("Salary payment failed");
-        } else {
             // Log as Expense
-            await supabase.from('expenses').insert([{
-                user_id: user.id,
+            await API.post('/expenses', {
                 amount: total,
                 category: 'Staff Salary',
                 description: `Salary paid to ${selectedStaff.name} (Bonus: ₹${payForm.bonus}, Cuts: ₹${payForm.deductions + Number(payForm.advanceDeduction)})`,
                 date: new Date().toISOString()
-            }]);
+            });
 
             toast.success("Salary Paid & Expense Logged!");
             setShowPayModal(false);
             fetchData();
+        } catch (err) {
+            toast.error("Salary payment failed");
         }
     };
 
     const handleDeletePayroll = async (id, staffName, amount, type) => {
         if (!window.confirm(`Delete this payment record for ${staffName}?`)) return;
 
-        // 1. Delete from Payroll
-        const { error: pError } = await supabase.from('payroll').delete().eq('id', id);
-        if (pError) return toast.error("Delete failed");
-
-        // 2. Delete corresponding Expense (match by description containing staff name and amount)
-        const cat = type === 'advance' ? 'Staff Advance' : 'Staff Salary';
-        await supabase.from('expenses')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('category', cat)
-            .eq('amount', amount);
-
-        toast.success("Payment deleted & Hisab cleared!");
-        fetchData();
+        try {
+            await API.delete(`/staff/payroll/${id}`);
+            // Note: Expense deletion is handled by backend or manual
+            toast.success("Payment deleted & Hisab cleared!");
+            fetchData();
+        } catch (err) {
+            toast.error("Delete failed");
+        }
     };
 
     const getDaysInMonth = (month, year) => {
@@ -289,9 +254,9 @@ export default function StaffHub() {
                    </div>
                    <div>
                       <h1 className="text-[32px] font-black text-white tracking-tight">Staff Operations</h1>
-                      <p className="text-slate-400 text-[14px] font-medium mt-1 uppercase tracking-widest flex items-center gap-2">
+                      <div className="text-slate-400 text-[14px] font-medium mt-1 uppercase tracking-widest flex items-center gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Professional Workforce Management
-                      </p>
+                      </div>
                    </div>
                 </div>
                 <div className="flex flex-wrap gap-4 relative z-10">

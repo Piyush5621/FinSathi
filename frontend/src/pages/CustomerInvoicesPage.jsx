@@ -37,16 +37,18 @@ export default function CustomerInvoicesPage() {
   const fetchCustomerData = async () => {
     try {
       setLoading(true);
-      const { data: custData, error: custError } = await supabase.from("customers").select("*").eq("id", id).single();
-      if (custError) throw custError;
+      
+      // ✅ Use secured backend instead of direct supabase
+      const { data: custData } = await API.get(`/customers/${id}`);
       setCustomer(custData);
 
-      const { data: invData } = await supabase.from("sales").select("*").eq("customer_id", id).order("date", { ascending: false });
+      const { data: invData } = await API.get(`/sales?customer_id=${id}`);
       setInvoices(invData || []);
 
-      const { data: payData } = await supabase.from("payments").select("*").eq("customer_id", id).order("date", { ascending: false });
+      const { data: payData } = await API.get(`/payments/${id}`);
       setPayments(payData || []);
     } catch (err) {
+      console.error(err);
       toast.error("Failed to load data");
     } finally {
       setLoading(false);
@@ -56,7 +58,7 @@ export default function CustomerInvoicesPage() {
   const handleDeleteCustomer = async () => {
     if (!window.confirm("Delete this customer? This cannot be undone.")) return;
     try {
-      await supabase.from("customers").delete().eq("id", id);
+      await API.delete(`/customers/${id}`);
       toast.success("Customer deleted successfully");
       navigate("/customers");
     } catch (err) {
@@ -66,8 +68,7 @@ export default function CustomerInvoicesPage() {
 
   const handleModifyInvoice = async (invoiceId) => {
     try {
-      const { data, error } = await supabase.from("sales").select("*").eq("id", invoiceId).single();
-      if (error) throw error;
+      const { data } = await API.get(`/sales/${invoiceId}`);
       setEditingInvoice(data);
     } catch (err) {
       toast.error("Failed to load invoice details");

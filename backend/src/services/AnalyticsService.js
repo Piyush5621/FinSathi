@@ -3,11 +3,11 @@ import { DashboardRepository } from "../repositories/DashboardRepository.js";
 import { ExpenseRepository } from "../repositories/ExpenseRepository.js";
 
 export const AnalyticsService = {
-    async getPnl() {
-        const sales = await SalesRepository.getAllForBilling();
+    async getPnl(userId) {
+        const sales = await SalesRepository.getAllForBilling(userId);
         let expensesData = [];
         try {
-            expensesData = await ExpenseRepository.findAll();
+            expensesData = await ExpenseRepository.findAll(userId);
         } catch(e) {
             console.error("No expenses module found or error:", e);
         }
@@ -18,8 +18,8 @@ export const AnalyticsService = {
 
         return { revenue, expenses, profit };
     },
-    async getSalesTrend(month, startDate, endDate) {
-        const data = await SalesRepository.getSalesForTrend(month, startDate, endDate);
+    async getSalesTrend(userId, month, startDate, endDate) {
+        const data = await SalesRepository.getSalesForTrend(userId, month, startDate, endDate);
 
         // Group by date and calculate daily totals
         const dailyTotals = (data || []).reduce((acc, row) => {
@@ -34,8 +34,8 @@ export const AnalyticsService = {
         return Object.values(dailyTotals).sort((a, b) => new Date(a.date) - new Date(b.date));
     },
 
-    async getTopCustomers(month, startDate, endDate, limit = 10) {
-        const data = await SalesRepository.getSalesWithCustomers(month, startDate, endDate);
+    async getTopCustomers(userId, month, startDate, endDate, limit = 10) {
+        const data = await SalesRepository.getSalesWithCustomers(userId, month, startDate, endDate);
 
         const customerSums = (data || []).reduce((acc, curr) => {
             if (!curr.customer) return acc;
@@ -51,12 +51,12 @@ export const AnalyticsService = {
             .slice(0, limit);
     },
 
-    async getDashboardSummary() {
-        return await DashboardRepository.getSummary();
+    async getDashboardSummary(userId) {
+        return await DashboardRepository.getSummary(userId);
     },
 
-    async getSalesSummary() {
-        const data = await SalesRepository.getSalesSummaryRaw(1000);
+    async getSalesSummary(userId) {
+        const data = await SalesRepository.getSalesSummaryRaw(userId, 1000);
 
         const totalSales = (data || []).reduce((sum, row) => sum + Number(row.total || 0), 0);
         const totalOrders = (data || []).length;
@@ -64,7 +64,7 @@ export const AnalyticsService = {
         return { totalSales, totalOrders, avgOrderValue };
     },
 
-    async getTopProducts(month, startDate, endDate, limit = 10) {
+    async getTopProducts(userId, month, startDate, endDate, limit = 10) {
         let start, end;
         if (month) {
             const year = new Date().getFullYear();
@@ -75,7 +75,7 @@ export const AnalyticsService = {
             end = endDate;
         }
 
-        const sales = await SalesRepository.getTopProducts(start, end);
+        const sales = await SalesRepository.getTopProducts(userId, start, end);
         if (!sales || sales.length === 0) return [];
 
         const productSums = {};
@@ -99,10 +99,10 @@ export const AnalyticsService = {
             .slice(0, limit);
     },
 
-    async getBillingMetrics() {
+    async getBillingMetrics(userId) {
         let sales;
         try {
-            sales = await SalesRepository.getAllForBilling();
+            sales = await SalesRepository.getAllForBilling(userId);
         } catch (error) {
             console.error("SalesRepository.getAllForBilling failed:", error);
             // Return empty structure to prevent crash

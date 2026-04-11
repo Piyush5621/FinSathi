@@ -23,10 +23,11 @@ const secondaryMenu = [
 
 const mobileMenu = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/billing', label: 'Sales', icon: Receipt },
+  { path: '/billing', label: 'Billing', icon: Receipt },
+  { path: '/invoice-history', label: 'Invoices', icon: FileText },
   { path: '/inventory', label: 'Inventory', icon: Package },
   { path: '/customers', label: 'Customers', icon: Users },
-  { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/tools', label: 'More', icon: MoreHorizontal },
 ];
 
 export default function AppLayout() {

@@ -9,6 +9,7 @@ router.get('/', async (req, res) => {
     const { data: products, error: prodError } = await supabase
       .from('inventory')
       .select('*, inventory_batches(*)')
+      .eq('user_id', req.user.id)
       .order('name');
 
     if (prodError) throw prodError;
@@ -31,6 +32,7 @@ router.post('/', async (req, res) => {
     const { data: master, error: masterError } = await supabase
       .from('inventory')
       .insert([{
+        user_id: req.user.id,
         name,
         description,
         company,
@@ -77,6 +79,18 @@ router.post('/:id/batches', async (req, res) => {
   const { batch_name, sku_variant, cost_price, selling_price, wholesale_price, stock } = req.body;
 
   try {
+    // First, verify the user owns the parent product
+    const { data: product, error: pError } = await supabase
+      .from('inventory')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (pError || !product) {
+      return res.status(403).json({ error: "Access denied or product not found" });
+    }
+
     const { data: batch, error } = await supabase
       .from('inventory_batches')
       .insert([{
@@ -105,6 +119,17 @@ router.put('/batches/:id', async (req, res) => {
   const { cost_price, selling_price, wholesale_price, stock, batch_name } = req.body;
 
   try {
+    // Verify the batch belongs to a product owned by the user via JOIN
+    const { data: check, error: checkError } = await supabase
+      .from('inventory_batches')
+      .select('id, inventory:inventory(user_id)')
+      .eq('id', id)
+      .single();
+
+    if (checkError || check.inventory.user_id !== req.user.id) {
+       return res.status(403).json({ error: "Access denied" });
+    }
+
     const { data, error } = await supabase
       .from('inventory_batches')
       .update({
@@ -136,6 +161,7 @@ router.put('/:id', async (req, res) => {
       .from('inventory')
       .update(req.body)
       .eq('id', id)
+      .eq('user_id', req.user.id)
       .select()
       .single();
     if (error) throw error;
@@ -153,7 +179,8 @@ router.delete('/:id', async (req, res) => {
     const { error } = await supabase
       .from('inventory')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', req.user.id);
     if (error) throw error;
     res.json({ message: 'Inventory item deleted successfully' });
   } catch (err) {
@@ -171,6 +198,7 @@ router.delete('/company/:companyName', async (req, res) => {
     const { error } = await supabase
       .from('inventory')
       .delete()
+      .eq('user_id', req.user.id)
       .ilike('company', companyName); // Case insensitive match to be safe, or eq if strict
 
     if (error) throw error;

@@ -40,13 +40,16 @@ export default function Billing() {
 
   const fetchData = async () => {
     try {
-      const { data: customerData } = await supabase.from("customers").select("*").order("id");
+      const { data: customerData } = await API.get("/customers");
       setCustomers(customerData || []);
-      const { data: inventoryData } = await supabase.from("inventory").select("*, inventory_batches(*)").order("id");
+      const { data: inventoryData } = await API.get("/inventory");
       setProducts(inventoryData || []);
-      const { data: lastInvoice } = await supabase.from("sales").select("id").order("id", { ascending: false }).limit(1).maybeSingle();
+      const { data: salesData } = await API.get("/sales?limit=1");
+      const lastInvoice = salesData?.[0];
       setInvoiceNo(lastInvoice?.id ? `FS-${lastInvoice.id + 1}` : "FS-1");
-    } catch {}
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleAddItem = (newItem) => {
@@ -83,6 +86,7 @@ export default function Billing() {
         total: summaryValues.total,
         payment_method: paymentDetails.method,
         payment_status: paymentDetails.status,
+        amount_paid: paymentDetails.amountReceived,
       };
       const response = await API.post("/sales", payload);
       setLastSavedInvoice({

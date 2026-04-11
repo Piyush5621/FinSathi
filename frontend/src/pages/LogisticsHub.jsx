@@ -1,5 +1,5 @@
 import {  useState, useEffect  } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import API from '../services/apiClient';
 import { Truck, Warehouse, ShoppingCart, Package, Plus, ArrowRight, Timer, AlertCircle, BarChart3, MapPin, Building2, Search, History, Navigation, Info, Layers, Globe, Briefcase } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -30,10 +30,10 @@ export default function LogisticsHub() {
     try {
       setLoading(true);
       const [whRes, poRes, suppRes, invRes] = await Promise.all([
-        supabase.from('warehouses').select('*').order('created_at', {ascending: false}),
-        supabase.from('purchase_orders').select('*, suppliers(name), warehouses(name)').order('created_at', {ascending: false}),
-        supabase.from('suppliers').select('*').order('name'),
-        supabase.from('inventory').select('*').order('name')
+        API.get('/logistics/warehouses'),
+        API.get('/logistics/purchase-orders'),
+        API.get('/logistics/suppliers'),
+        API.get('/inventory')
       ]);
 
       setWarehouses(whRes.data || []);
@@ -420,8 +420,7 @@ function CreateWHModal({ isOpen, onClose, refresh }) {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            await supabase.from('warehouses').insert([{ ...form, user_id: user.id }]);
+            await API.post('/logistics/warehouses', form);
             toast.success("New storage hub established!");
             refresh();
             onClose();
@@ -458,8 +457,7 @@ function CreateSupplierModal({ isOpen, onClose, refresh }) {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            await supabase.from('suppliers').insert([{ ...form, user_id: user.id }]);
+            await API.post('/logistics/suppliers', form);
             toast.success("Vendor network expanded!");
             refresh();
             onClose();
@@ -490,13 +488,11 @@ function CreatePOModal({ isOpen, onClose, refresh, suppliers, warehouses }) {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            await supabase.from('purchase_orders').insert([{ 
+            await API.post('/logistics/purchase-orders', { 
                 ...form, 
-                user_id: user.id, 
                 status: 'ordered',
                 total: Number(form.total)
-            }]);
+            });
             toast.success("Purchase Order Transmitted Successfully!");
             refresh();
             onClose();
