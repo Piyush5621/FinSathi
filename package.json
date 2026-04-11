@@ -1,9 +1,8 @@
 {
+  "name": "finsathi-root",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
-    "build": "ls -R && cd ./frontend && npm install && npm run build"
-  },
-  "dependencies": {
-    "react-select": "^5.10.2",
-    "react-to-print": "^3.2.0"
+    "build": "cd frontend && npm run build"
   }
 }

@@ -1,8 +1,9 @@
 {
     "version": 2,
-    "buildCommand": "ls -R && cd ./frontend && npm install && npm run build",
-    "outputDirectory": "./frontend/dist",
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist",
     "framework": "vite",
+    "rootDirectory": "frontend",
     "rewrites": [
         {
             "source": "/(.*)",
