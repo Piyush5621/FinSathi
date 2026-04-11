@@ -1,13 +1,7 @@
 
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-    ArrowRight,
-    BarChart2,
-    ShieldCheck,
-    Zap,
-    CheckCircle2
-} from 'lucide-react';
+import { ArrowRight, BarChart2, ShieldCheck, Zap, CheckCircle2 } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 const LandingPage = () => {

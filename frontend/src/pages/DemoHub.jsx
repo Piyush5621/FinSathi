@@ -2,19 +2,7 @@ import {  useState  } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { 
-  LayoutGrid, 
-  ShoppingCart, 
-  Truck, 
-  Users, 
-  Database, 
-  Zap, 
-  ArrowRight,
-  Monitor,
-  Globe,
-  Star,
-  History
-} from 'lucide-react';
+import { LayoutGrid, ShoppingCart, Truck, Users, Database, Zap, Monitor, Globe, Star, History } from 'lucide-react';
 
 const sections = [
     {

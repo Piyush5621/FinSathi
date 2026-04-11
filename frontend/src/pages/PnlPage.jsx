@@ -1,10 +1,6 @@
 import {  useEffect, useState  } from 'react';
 import { supabase } from "../lib/supabaseClient";
-import { 
-  TrendingUp, TrendingDown, DollarSign, Activity, 
-  Lightbulb, AlertTriangle, ArrowUpRight, ArrowDownRight,
-  Package, Users, ReceiptText 
-} from "lucide-react";
+import { TrendingUp, TrendingDown, Activity, Lightbulb, ArrowUpRight, ArrowDownRight, Users, ReceiptText } from 'lucide-react';
 import { Card } from "../components/ui/Card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
 import { 

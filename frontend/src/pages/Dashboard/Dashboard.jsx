@@ -5,11 +5,7 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../../components/ui/Table";
 import { Badge } from "../../components/ui/Badge";
-import { 
-  Plus, PackagePlus, UserPlus, BarChart2,
-  TrendingUp, TrendingDown, DollarSign, AlertTriangle,
-  Lightbulb, Bell, MessageCircle, Activity, ArrowRight, CheckCircle2
-} from "lucide-react";
+import { Plus, PackagePlus, UserPlus, BarChart2, TrendingDown, DollarSign, AlertTriangle, Bell, MessageCircle, Activity, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { 
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   BarChart, Bar, Cell

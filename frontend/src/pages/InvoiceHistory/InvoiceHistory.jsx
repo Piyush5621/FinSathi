@@ -1,6 +1,6 @@
 import {  useEffect, useState, useMemo  } from 'react';
 import { supabase } from "../../lib/supabaseClient";
-import { Search, Edit3, Printer, FileText, Trash2 } from "lucide-react";
+import { Search, Edit3, Printer, FileText, Trash2 } from 'lucide-react';
 import toast from "react-hot-toast";
 import API from "../../services/apiClient";
 import InvoicePreviewModal from "../../components/billing/InvoicePreviewModal";

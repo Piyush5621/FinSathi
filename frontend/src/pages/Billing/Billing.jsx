@@ -10,7 +10,7 @@ import InvoicePreviewModal from "../../components/billing/InvoicePreviewModal";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Card, CardTitle } from "../../components/ui/Card";
-import { ShoppingCart, CheckCircle, Printer } from "lucide-react";
+import { CheckCircle } from 'lucide-react';
 
 export default function Billing() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);

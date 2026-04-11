@@ -1,5 +1,5 @@
 
-import { CreditCard, Banknote, History } from "lucide-react";
+import { CreditCard, Banknote } from 'lucide-react';
 
 const PaymentSection = ({ method, status, amountReceived, total, onChange }) => {
   return (

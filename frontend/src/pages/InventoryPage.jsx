@@ -8,7 +8,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
 import { Badge } from "../components/ui/Badge";
 import { Drawer } from "../components/ui/Drawer";
 import { Modal } from "../components/ui/Modal";
-import { Search, Plus, Filter, Trash2, Edit3, Package } from "lucide-react";
+import { Search, Plus, Trash2, Package } from 'lucide-react';
 
 export default function InventoryPage() {
   const [items, setItems] = useState([]);

@@ -1,20 +1,6 @@
 
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Receipt, 
-  Package, 
-  Users, 
-  MoreHorizontal,
-  LogOut,
-  TrendingDown,
-  TrendingUp,
-  Settings,
-  Wallet,
-  FileText,
-  LayoutGrid,
-  Truck
-} from 'lucide-react';
+import { LayoutDashboard, Receipt, Package, Users, MoreHorizontal, LogOut, TrendingDown, TrendingUp, Settings, Wallet, FileText, LayoutGrid, Truck } from 'lucide-react';
 
 const desktopMenu = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },

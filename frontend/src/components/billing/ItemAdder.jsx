@@ -1,6 +1,6 @@
 import {  useState, useEffect  } from 'react';
 import Select from "react-select";
-import { Plus } from "lucide-react";
+;
 import toast from "react-hot-toast";
 import { Button } from "../ui/Button";
 

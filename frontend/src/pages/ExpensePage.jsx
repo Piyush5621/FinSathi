@@ -7,7 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
 import { Badge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
-import { TrendingDown, Plus, FileText, PieChart as PieIcon, Users, CreditCard } from "lucide-react";
+import { TrendingDown, Plus, FileText, PieChart as PieIcon, Users, CreditCard } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 
 const COLORS = ["#3B82F6", "#EF4444", "#F59E0B", "#10B981", "#8B5CF6", "#EC4899"];

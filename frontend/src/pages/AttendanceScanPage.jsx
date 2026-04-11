@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Clock, CheckCircle, ShieldCheck, User } from 'lucide-react';
+import { Clock, CheckCircle, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function AttendanceScanPage() {

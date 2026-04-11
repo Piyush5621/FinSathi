@@ -5,7 +5,7 @@ import ClipLoader from "react-spinners/ClipLoader";
 import toast from "react-hot-toast";
 import API from "../../services/apiClient";
 import logo from "../../assets/logo.png";
-import { LogIn, ArrowRight } from "lucide-react";
+import { LogIn, ArrowRight } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();

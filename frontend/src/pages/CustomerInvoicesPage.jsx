@@ -2,7 +2,7 @@ import {  useEffect, useState  } from 'react';
 import { supabase } from "../lib/supabaseClient";
 import API from "../services/apiClient";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit3, Printer, Trash2, Mail, Phone, MapPin, CreditCard, DollarSign } from "lucide-react";
+import { ArrowLeft, Edit3, Printer, Trash2, Mail, Phone, MapPin, CreditCard, DollarSign } from 'lucide-react';
 import toast from "react-hot-toast";
 import InvoicePreviewModal from "../components/billing/InvoicePreviewModal";
 import InvoiceEditorModal from "../pages/Billing/InvoiceEditorModal";

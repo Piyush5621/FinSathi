@@ -5,32 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../components/ui/Table';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
-import { 
-  Users, 
-  Calendar, 
-  QrCode, 
-  DollarSign, 
-  CheckCircle, 
-  Clock, 
-  XCircle,
-  Plus,
-  History,
-  Calculator,
-  Info,
-  ChevronLeft,
-  ChevronRight,
-  Scan,
-  Maximize2,
-  Lock,
-  ArrowRight,
-  Wallet,
-  Coins,
-  HandCoins,
-  Edit,
-  Trash2,
-  Search,
-  AlertCircle
-} from 'lucide-react';
+import { Users, Calendar, QrCode, DollarSign, CheckCircle, XCircle, Plus, Calculator, ChevronLeft, ChevronRight, Maximize2, Lock, ArrowRight, Wallet, Coins, HandCoins, Edit, Trash2, Search, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { Modal } from '../components/ui/Modal';

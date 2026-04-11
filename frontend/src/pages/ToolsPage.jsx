@@ -2,22 +2,7 @@ import {  useState  } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { 
-  Bell, 
-  ScanBarcode, 
-  Smartphone, 
-  FileDown, 
-  ShieldCheck, 
-  Settings2, 
-  Zap,
-  MessageCircle,
-  ArrowRight,
-  Wallet,
-  Receipt,
-  Package,
-  History,
-  Users
-} from 'lucide-react';
+import { Bell, ScanBarcode, Smartphone, FileDown, ShieldCheck, Settings2, Zap, MessageCircle, ArrowRight, Wallet, Receipt, Package, History, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 

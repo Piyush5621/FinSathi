@@ -1,27 +1,6 @@
 import {  useState, useEffect  } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { 
-  Truck, 
-  Warehouse, 
-  ShoppingCart, 
-  Package, 
-  Plus, 
-  ArrowRight, 
-  Timer, 
-  CheckCircle2, 
-  AlertCircle,
-  BarChart3,
-  MapPin,
-  Building2,
-  Anchor,
-  Search,
-  History,
-  Navigation,
-  Info,
-  Layers,
-  Globe,
-  Briefcase
-} from 'lucide-react';
+import { Truck, Warehouse, ShoppingCart, Package, Plus, ArrowRight, Timer, AlertCircle, BarChart3, MapPin, Building2, Search, History, Navigation, Info, Layers, Globe, Briefcase } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../components/ui/Table';

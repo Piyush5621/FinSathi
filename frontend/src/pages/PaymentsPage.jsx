@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { Search, DollarSign, User, Trash2, PlusCircle } from "lucide-react";
+import { Search, DollarSign, User, Trash2, PlusCircle } from 'lucide-react';
 import AddPaymentModal from "../components/AddPaymentModal";
 import API from "../services/apiClient";
 import { toast } from "react-hot-toast";

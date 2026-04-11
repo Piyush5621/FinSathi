@@ -4,15 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { 
-  Lock, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle,
-  ArrowRight,
-  ShieldCheck,
-  UserCheck
-} from 'lucide-react';
+import { Lock, CheckCircle2, Clock, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 

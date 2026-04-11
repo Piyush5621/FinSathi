@@ -1,7 +1,7 @@
 import {  useRef, useEffect, useState  } from 'react';
 import { supabase } from "../../lib/supabaseClient";
 import { motion } from "framer-motion";
-import { X, Printer, Download, Share2, ShieldCheck, Mail, Phone, MapPin } from "lucide-react";
+import { X, Printer, Share2, ShieldCheck, Mail, Phone, MapPin } from 'lucide-react';
 import toast from "react-hot-toast";
 import { useReactToPrint } from "react-to-print";
 import Barcode from "react-barcode";
