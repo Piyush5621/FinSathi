@@ -33,7 +33,7 @@ export const registerUser = async (req, res) => {
       .from("users")
       .select("id")
       .eq("email", email)
-      .single();
+      .maybeSingle();
 
     if (existingUser) {
       return res.status(400).json({
@@ -106,7 +106,7 @@ export const loginUser = async (req, res) => {
       .from("users")
       .select("*")
       .eq("email", email)
-      .single();
+      .maybeSingle();
 
     if (!user)
       return res.status(401).json({ message: "Invalid email or password" });
@@ -127,8 +127,8 @@ export const loginUser = async (req, res) => {
     // ✅ Success response
     res.status(200).json({ message: "Login successful", token, user });
   } catch (err) {
-    console.error("Login Error:", err.message);
-    res.status(500).json({ message: "Login failed" });
+    console.error("CRITICAL LOGIN ERROR:", err);
+    res.status(500).json({ message: "Login failed", error: err.message });
   }
 };
 
@@ -141,7 +141,7 @@ export const getUserProfile = async (req, res) => {
       .from("users")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     res.json(data);
