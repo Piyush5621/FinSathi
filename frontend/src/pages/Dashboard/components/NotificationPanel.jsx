@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import {  useState, useEffect  } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import { Bell, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
 import API from "../../../services/apiClient";
 import { supabase } from "../../../lib/supabaseClient";
 import toast from "react-hot-toast";

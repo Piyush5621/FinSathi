@@ -1,12 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import {  useEffect, useState  } from 'react';
 import { motion } from 'framer-motion';
-import {
-  TrendingUp,
-  Activity,
-  Users,
-  IndianRupee,
-  BarChart2
-} from 'lucide-react';
+import { TrendingUp, Activity, Users, IndianRupee, BarChart2 } from 'lucide-react';
 import API from '../services/apiClient';
 import Loader from './Loader';
 

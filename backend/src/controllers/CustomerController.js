@@ -4,7 +4,7 @@ import { createNotification } from "./notificationHelper.js"; // ✅ helper impo
 /** Get all customers */
 export const getCustomers = async (req, res) => {
   try {
-    const { data, error } = await supabase.from("customers").select("*");
+    const { data, error } = await supabase.from("customers").select("*").eq("user_id", req.user.id);
     if (error) throw error;
     res.status(200).json(data);
   } catch (err) {
@@ -18,21 +18,21 @@ export const addCustomer = async (req, res) => {
   try {
     const { name, email, phone, city } = req.body;
 
-    if (!name || !email || !phone) {
-      return res.status(400).json({ message: "Missing required fields." });
+    if (!name) {
+      return res.status(400).json({ message: "Name is strictly required." });
     }
 
     // ✅ Insert new customer
     const { data, error } = await supabase
       .from("customers")
-      .insert([{ name, email, phone, city }])
+      .insert([{ user_id: req.user.id, name, email, phone, city }])
       .select("*");
 
     if (error) throw error;
 
     // ✅ Auto-create a notification (non-blocking)
     try {
-      await createNotification({
+      await createNotification(req.user.id, {
         title: `🧍‍♂️ New customer registered: ${name}`,
         type: "info",
       });

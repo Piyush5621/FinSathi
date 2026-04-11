@@ -136,11 +136,11 @@ export const loginUser = async (req, res) => {
 
 export const getUserProfile = async (req, res) => {
   try {
-    const email = req.query.email;
+    const userId = req.user.id; // ✅ Use secure ID from token instead of query email
     const { data, error } = await supabase
       .from("users")
       .select("*")
-      .eq("email", email)
+      .eq("id", userId)
       .single();
 
     if (error) throw error;

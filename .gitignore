@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+dist/
+build/
+.vercel
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# OS metadata
+thumbs.db
+Desktop.ini
+
+# Backend specific
+backend/node_modules/
+backend/dist/
+
+# Frontend specific
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Temporary Scripts
+backend/create_test_user.js
+backend/diagnostic.js
+backend/debug_data.js

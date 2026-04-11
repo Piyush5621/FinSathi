@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import {  useEffect, useState  } from 'react';
 import { motion } from "framer-motion";
 import {
   LineChart,
@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from 'lucide-react';
 import API from "../../../services/apiClient";
 import toast from "react-hot-toast";
 import FixedChartContainer from "./FixedChartContainer";

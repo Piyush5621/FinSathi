@@ -11,20 +11,26 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0",
+    "@tanstack/react-query": "^5.97.0",
     "axios": "^1.13.2",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.24",
     "html2canvas": "^1.4.1",
+    "html5-qrcode": "^2.3.8",
     "jspdf": "^3.0.3",
     "lucide-react": "^0.552.0",
+    "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
+    "react-barcode": "^1.6.1",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.2.0",
+    "react-hook-form": "^7.72.1",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.9.5",
     "react-spinners": "^0.17.0",
-    "recharts": "^3.4.1"
+    "recharts": "^3.4.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",

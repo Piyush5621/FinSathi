@@ -1,19 +1,7 @@
-import React, { useState } from 'react';
+import {  useState  } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Users,
-  Package,
-  Receipt,
-  BarChart2,
-  Settings,
-  Menu,
-  X,
-  LogOut,
-  DollarSign,
-  Briefcase
-} from 'lucide-react';
+import { LayoutDashboard, Users, Package, Receipt, BarChart2, Settings, Menu, X, LogOut, DollarSign, Briefcase, TrendingDown, TrendingUp } from 'lucide-react';
 
 const menuItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,6 +10,8 @@ const menuItems = [
   { path: '/payments', label: 'Payments', icon: DollarSign },
   { path: '/customers', label: 'Customers', icon: Users },
   { path: '/inventory', label: 'Inventory', icon: Package },
+  { path: '/expenses', label: 'Expenses', icon: TrendingDown },
+  { path: '/pnl', label: 'P&L Analytics', icon: TrendingUp },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 

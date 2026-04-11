@@ -2,10 +2,9 @@ import { SalesRepository } from "../repositories/SalesRepository.js";
 import { InventoryRepository } from "../repositories/InventoryRepository.js";
 
 export const SalesService = {
-    async getAllSales() {
-        const data = await SalesRepository.findAllSales(100, 'date', false); // Latest 100
-
-        // Format for frontend (Recharts mostly)
+    async getAllSales(userId) {
+        // Keeps the existing chart format for backward compatibility if needed
+        const data = await SalesRepository.findAllSales(userId, 100, 'date', false); 
         return data.map((item) => {
             const raw = item.date || item.created_at || null;
             const name = raw
@@ -18,12 +17,16 @@ export const SalesService = {
         });
     },
 
-    async getWeeklySales() {
+    async getSalesList(userId) {
+        return await SalesRepository.findAllSales(userId, 100);
+    },
+
+    async getWeeklySales(userId) {
         const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const endDate = new Date().toISOString(); // Now
 
         // Using findSalesByDateRange which sorts ascending by default usually
-        const data = await SalesRepository.findSalesByDateRange(startDate, endDate);
+        const data = await SalesRepository.findSalesByDateRange(userId, startDate, endDate);
 
         // Group sales by day of week
         const dailySales = Array(7).fill(0);
@@ -39,7 +42,7 @@ export const SalesService = {
         }));
     },
 
-    async createSale(salePayload) {
+    async createSale(userId, salePayload) {
         const {
             customer_id,
             items,
@@ -51,7 +54,16 @@ export const SalesService = {
             total,
             payment_method,
             payment_status,
+            amount_paid
         } = salePayload;
+
+        // Logic for auto-setting amount_paid based on status
+        let finalAmountPaid = Number(amount_paid || 0);
+        if (payment_status === 'paid') {
+            finalAmountPaid = Number(total);
+        } else if (payment_status === 'unpaid') {
+            finalAmountPaid = 0;
+        }
 
         // Calculate tax_amount if missing but gst_percent is present
         let finalTax = Number(tax_amount);
@@ -69,17 +81,16 @@ export const SalesService = {
             customer_id,
             items, // JSONB
             subtotal,
-            // Map input discount/discount_percent to DB column 'discount_percent'
-            // The user validated that DB has 'discount_percent'
             discount_percent: discount_percent || discount || 0,
             tax_amount: finalTax,
             total,
             payment_method,
             payment_status,
+            amount_paid: finalAmountPaid,
             date: new Date().toISOString()
         };
 
-        const sale = await SalesRepository.create(saleData);
+        const sale = await SalesRepository.create(userId, saleData);
 
         // 2. Update Inventory Stock (Batch Aware)
         if (items && Array.isArray(items)) {
@@ -88,7 +99,7 @@ export const SalesService = {
 
                 if (item.batchId) {
                     // A. Batch-Specific Update
-                    const { data: batch, error } = await InventoryRepository.getBatchById(item.batchId);
+                    const { data: batch, error } = await InventoryRepository.getBatchById(userId, item.batchId);
 
                     if (!error && batch) {
                         const newStock = batch.stock - item.quantity;
@@ -104,7 +115,7 @@ export const SalesService = {
                             updates.zero_stock_since = null;
                         }
 
-                        await InventoryRepository.updateBatch(item.batchId, updates);
+                        await InventoryRepository.updateBatch(userId, item.batchId, updates);
                     } else {
                         console.warn(`Batch ${item.batchId} not found, trying fallback.`);
                     }
@@ -120,7 +131,7 @@ export const SalesService = {
         return sale;
     },
 
-    async updateSale(id, updateData) {
+    async updateSale(userId, id, updateData) {
         // Logic to sync amount_paid if payment_status changes
         if (updateData.payment_status) {
             if (updateData.payment_status === 'paid') {
@@ -142,15 +153,15 @@ export const SalesService = {
             updateData.amount_paid = updateData.total;
         }
 
-        const sale = await SalesRepository.update(id, updateData);
+        const sale = await SalesRepository.update(userId, id, updateData);
         return sale;
     },
 
-    async deleteSale(saleId) {
+    async deleteSale(userId, saleId) {
         // 1. Fetch sale to get items for restocking
         let sale;
         try {
-            sale = await SalesRepository.findById(saleId);
+            sale = await SalesRepository.findById(userId, saleId);
         } catch (err) {
             // If invalid ID syntax (e.g. uuid vs int), current helper might throw
             throw new Error(`Invalid Sale ID or Sale Not Found: ${err.message}`);
@@ -167,10 +178,10 @@ export const SalesService = {
                 if (!item.batchId) continue;
 
                 try {
-                    const { data: batch, error } = await InventoryRepository.getBatchById(item.batchId);
+                    const { data: batch, error } = await InventoryRepository.getBatchById(userId, item.batchId);
                     if (!error && batch) {
                         const newStock = batch.stock + item.quantity;
-                        await InventoryRepository.updateBatch(item.batchId, {
+                        await InventoryRepository.updateBatch(userId, item.batchId, {
                             stock: newStock,
                             updated_at: new Date().toISOString(),
                             zero_stock_since: null
@@ -192,7 +203,7 @@ export const SalesService = {
             // But 'sale_items' might be zombie table.
             // await supabase.from('sale_items').delete().eq('sale_id', saleId); // Can't easily import supabase here without making it messy
 
-            await SalesRepository.deleteById(saleId);
+            await SalesRepository.deleteById(userId, saleId);
         } catch (err) {
             throw new Error(`Database Delete Failed: ${err.message}`);
         }
@@ -200,16 +211,16 @@ export const SalesService = {
         return { message: "Sale deleted successfully" };
     },
 
-    async getSummary() {
-        const data = await SalesRepository.getSalesForSummary();
+    async getSummary(userId) {
+        const data = await SalesRepository.getSalesForSummary(userId);
         const totalSales = Array.isArray(data) ? data.reduce((acc, s) => acc + Number(s.total || 0), 0) : 0;
         const totalOrders = Array.isArray(data) ? data.length : 0;
         const avgOrderValue = totalOrders ? Math.round(totalSales / totalOrders) : 0;
         return { totalSales, totalOrders, avgOrderValue };
     },
 
-    async getTrend() {
-        const data = await SalesRepository.fetchDateAndTotal();
+    async getTrend(userId) {
+        const data = await SalesRepository.fetchDateAndTotal(userId);
         const grouped = {};
         (data || []).forEach((item) => {
             const raw = item.date || item.created_at || null;

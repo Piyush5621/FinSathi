@@ -1,29 +1,22 @@
 import { supabase } from "../config/db.js";
 
 export const CustomerRepository = {
-    async getTotalCount() {
-        const { count, error } = await supabase
-            .from("customers")
-            .select("*", { count: "exact", head: true });
-
-        if (error) throw error;
-        return count;
-    },
-
-    async getNewCustomersCount(sinceDate) {
+    async getTotalCount(userId) {
         const { count, error } = await supabase
             .from("customers")
             .select("*", { count: "exact", head: true })
-            .gte("created_at", sinceDate);
+            .eq("user_id", userId);
 
         if (error) throw error;
         return count;
     },
 
-    async getTotalCount() {
+    async getNewCustomersCount(userId, sinceDate) {
         const { count, error } = await supabase
             .from("customers")
-            .select("*", { count: "exact", head: true });
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .gte("created_at", sinceDate);
 
         if (error) throw error;
         return count;

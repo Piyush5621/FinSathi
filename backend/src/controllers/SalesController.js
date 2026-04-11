@@ -3,23 +3,18 @@ import { SalesService } from "../services/SalesService.js";
 /** 🧾 Get All Sales */
 export const getAllSales = async (req, res) => {
   try {
-    const formatted = await SalesService.getAllSales();
-    res.json(formatted);
+    const data = await SalesService.getSalesList(req.user.id);
+    res.json(data);
   } catch (err) {
     console.error("Sales API error:", err.message || err);
-    // ✅ Demo fallback if DB fails
-    return res.json([
-      { name: "Mon", value: 1200 },
-      { name: "Tue", value: 1500 },
-      { name: "Wed", value: 1700 },
-    ]);
+    res.status(500).json({ error: "Failed to fetch sales" });
   }
 };
 
 /** 📊 Get Weekly Sales (last 7 days) */
 export const getWeeklySales = async (req, res) => {
   try {
-    const formatted = await SalesService.getWeeklySales();
+    const formatted = await SalesService.getWeeklySales(req.user.id);
     res.status(200).json(formatted);
   } catch (err) {
     console.error("Sales fetch error:", err.message);
@@ -30,7 +25,7 @@ export const getWeeklySales = async (req, res) => {
 /** 🛍️ Create New Sale & Update Inventory */
 export const createSale = async (req, res) => {
   try {
-    const sale = await SalesService.createSale(req.body);
+    const sale = await SalesService.createSale(req.user.id, req.body);
     res.status(201).json(sale);
   } catch (err) {
     console.error("Create Sale Error:", err);
@@ -42,7 +37,7 @@ export const createSale = async (req, res) => {
 export const updateSale = async (req, res) => {
   try {
     const { id } = req.params;
-    const updatedSale = await SalesService.updateSale(id, req.body);
+    const updatedSale = await SalesService.updateSale(req.user.id, id, req.body);
     res.status(200).json(updatedSale);
   } catch (err) {
     console.error("Update Sale Error:", err);
@@ -54,7 +49,7 @@ export const updateSale = async (req, res) => {
 export const deleteSale = async (req, res) => {
   try {
     const { id } = req.params;
-    await SalesService.deleteSale(id);
+    await SalesService.deleteSale(req.user.id, id);
     res.status(200).json({ message: "Sale deleted successfully" });
   } catch (err) {
     console.error("Delete Sale Error:", err);
@@ -64,7 +59,7 @@ export const deleteSale = async (req, res) => {
 
 export const getSummary = async (req, res) => {
   try {
-    const summary = await SalesService.getSummary();
+    const summary = await SalesService.getSummary(req.user.id);
     res.status(200).json(summary);
   } catch (err) {
     console.error("getSummary error:", err);
@@ -74,10 +69,23 @@ export const getSummary = async (req, res) => {
 
 export const getTrend = async (req, res) => {
   try {
-    const trend = await SalesService.getTrend();
+    const trend = await SalesService.getTrend(req.user.id);
     res.status(200).json(trend);
   } catch (err) {
     console.error("getTrend error:", err);
     res.status(500).json({ error: "Failed to fetch trend" });
+  }
+};
+
+import { PdfService } from "../services/PdfService.js";
+
+export const generatePdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const url = await PdfService.generateAndUploadInvoice(id);
+    res.status(200).json({ url });
+  } catch (err) {
+    console.error("PDF generation error:", err);
+    res.status(500).json({ error: "Failed to generate PDF" });
   }
 };

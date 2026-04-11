@@ -10,6 +10,7 @@ export const getNotifications = async (req, res) => {
     const { data, error } = await supabase
       .from("notifications")
       .select("*")
+      .eq("user_id", req.user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -33,7 +34,7 @@ export const addNotification = async (req, res) => {
 
     const { error } = await supabase
       .from("notifications")
-      .insert([{ title, type }]);
+      .insert([{ title, type, user_id: req.user.id }]);
 
     if (error) throw error;
 

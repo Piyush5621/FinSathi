@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import {  useState, useEffect, useRef  } from 'react';
 import { motion } from "framer-motion";
-import { Bell, Download, X } from "lucide-react";
+import { Bell, Download, X } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import { exportElementToPDF } from "../../../utils/exportPDF";
 import API from "../../../services/apiClient";

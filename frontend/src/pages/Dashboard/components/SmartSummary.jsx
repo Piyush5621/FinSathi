@@ -1,6 +1,6 @@
-import React from "react";
+
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 
 const SmartSummary = ({ data }) => {
   // Sample fallback summary if no AI data

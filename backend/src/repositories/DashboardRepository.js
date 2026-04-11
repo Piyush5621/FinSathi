@@ -1,10 +1,11 @@
 import { supabase } from "../config/db.js";
 
 export const DashboardRepository = {
-    async getSummary() {
+    async getSummary(userId) {
         const { data, error } = await supabase
             .from("finsathi_dashboard_summary")
             .select("*")
+            .eq("user_id", userId)
             .limit(1)
             .single();
 

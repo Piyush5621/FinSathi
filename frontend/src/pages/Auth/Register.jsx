@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import ClipLoader from "react-spinners/ClipLoader";
 import toast from "react-hot-toast";
 import API from "../../services/apiClient";
-import { supabase } from "../../lib/supabaseClient"; // Ensure this matches path
-import { Github } from "lucide-react";
 import logo from "../../assets/logo.png";
-import illustration from "../../assets/business.svg";
+import { ArrowRight, User, Mail, Lock, Building, MapPin, Briefcase, Phone, Check } from 'lucide-react';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -18,307 +16,228 @@ const Register = () => {
     businessName: "",
     businessType: "",
     city: "",
-    state: "",
+    state: "", // Kept inside state to avoid missing keys if requested
     phone: "",
     termsAccepted: false,
   });
 
-  const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
-  // Handlers for social login
-  const handleSocialLogin = async (provider) => {
-    try {
-      // Trigger Supabase Auth flow
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider,
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-      if (error) throw error;
-    } catch (err) {
-      toast.error(`Failed to sign up with ${provider}`);
-    }
-  };
+  // Split form logically into 2 steps for cleaner UI
+  const [step, setStep] = useState(1);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm({ ...form, [name]: type === "checkbox" ? checked : value });
   };
 
+  const validateStep1 = () => {
+      if(!form.name || !form.phone || !form.email || !form.password) {
+          toast.error("Please fill all fields", { style: { background: '#333', color: '#fff' }});
+          return false;
+      }
+      return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.termsAccepted) {
-      toast.error("You must accept the Terms & Conditions to continue.");
-      return;
+    if(step === 1) {
+        if(validateStep1()) setStep(2);
+        return;
     }
 
+    if (!form.termsAccepted) return toast.error("Please accept the terms.", { style: { background: '#333', color: '#fff' }});
+    
     setLoading(true);
-    setMsg("");
-
     try {
       const res = await API.post("/auth/register", form);
-      if (res.status === 201) {
-        // ✅ Auto-login after register
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
-        localStorage.setItem("loggedIn", true);
-
-        setLoading(false);
-        setSuccess(true);
-        toast.success("Account created successfully 🎉");
-        setTimeout(() => navigate("/dashboard"), 3500);
-      }
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      localStorage.setItem("loggedIn", "true");
+      toast.success("Workspace Initiated! Welcome 🎉", { style: { background: '#333', color: '#fff' }});
+      setTimeout(() => navigate("/dashboard"), 500);
     } catch (err) {
+      toast.error(err.response?.data?.message || "Registration failed", { style: { background: '#333', color: '#fff' }});
+    } finally {
       setLoading(false);
-      const errorMsg =
-        err.response?.data?.message ||
-        (err.message.includes("Network")
-          ? "Unable to connect to server. Please check your internet."
-          : "Something went wrong. Please try again.");
-      setMsg(errorMsg);
-      toast.error(errorMsg);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row items-center justify-center bg-gradient-to-br from-primary-600 to-primary-800 p-6">
-      {/* LEFT SECTION */}
-      <motion.section
-        initial={{ opacity: 0, x: -40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.9 }}
-        className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center text-white p-12"
-      >
-        <div className="max-w-lg">
-          <img src={logo} alt="FinSathi" className="w-36 mb-6" />
-          <h1 className="text-4xl font-extrabold leading-tight mb-4">
-            Grow your business <br /> with{" "}
-            <span className="text-white font-black">FinSathi.</span>
-          </h1>
-          <p className="text-primary-100 text-lg mb-10">
-            Simplify billing, track inventory, and manage your accounts — all
-            in one place.
-          </p>
-          <img
-            src={illustration}
-            alt="Business illustration"
-            className="w-80 mx-auto drop-shadow-xl"
-          />
-        </div>
-      </motion.section>
+    <div className="min-h-screen flex text-white font-sans bg-[#050505] relative overflow-hidden">
+        
+      {/* Background Effects */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+          <div className="absolute top-[30%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-blue-600/10 blur-[120px]"></div>
+          <div className="absolute -bottom-[20%] right-[10%] w-[40vw] h-[40vw] rounded-full bg-pink-600/10 blur-[100px]"></div>
+          <div className="absolute inset-0 z-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22 opacity=%220.03%22/%3E%3C/svg%3E')]"></div>
+      </div>
 
-      {/* RIGHT SECTION */}
-      <motion.section
-        initial={{ opacity: 0, x: 40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.9 }}
-        className="flex w-full lg:w-1/2 items-center justify-center p-6 sm:p-10 bg-card-light dark:bg-card-dark rounded-t-3xl lg:rounded-none shadow-2xl lg:shadow-none border border-border-light dark:border-border-dark"
-      >
-        <div className="w-full max-w-md">
-          <div className="bg-card-light dark:bg-card-dark rounded-2xl shadow-lg p-8 sm:p-10 relative min-h-[500px] flex flex-col justify-center border border-border-light dark:border-border-dark">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-full">
-                <ClipLoader size={80} color="#1e40af" />
-                <p className="mt-6 text-primary-600 font-semibold text-lg animate-pulse">
-                  Registering your business on FinSathi...
+      <Link to="/" className="absolute top-8 left-8 z-50 flex items-center gap-3 group">
+          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md group-hover:bg-white/10 transition-all">
+              <img src={logo} alt="FinSathi" className="w-6 h-6 filter brightness-0 invert" style={{filter: 'brightness(0) invert(1)'}} />
+          </div>
+          <span className="font-extrabold text-xl tracking-tight text-white group-hover:text-blue-400 transition-colors">FinSathi</span>
+      </Link>
+
+      <div className="flex-1 flex flex-col justify-center items-center p-6 relative z-10 w-full lg:w-1/2 pt-24 pb-12">
+          
+          <div className="w-full max-w-[420px]">
+             <div className="mb-8">
+                 <div className="flex gap-2 mb-4">
+                     <div className={`h-1 flex-1 rounded-full ${step >= 1 ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.6)]' : 'bg-white/20'}`}></div>
+                     <div className={`h-1 flex-1 rounded-full ${step >= 2 ? 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.6)]' : 'bg-white/20'}`}></div>
+                 </div>
+                 <h1 className="text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
+                     {step === 1 ? 'Create Admin Identity' : 'Business Profile'}
+                 </h1>
+                 <p className="text-gray-400 text-sm font-medium">
+                     {step === 1 ? 'Set up the primary administrator account.' : 'Configure your company parameters.'}
+                 </p>
+             </div>
+
+             <form onSubmit={handleSubmit} className="space-y-5">
+                <AnimatePresence mode="wait">
+                    {step === 1 && (
+                        <motion.div 
+                            key="step1"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            className="space-y-5"
+                        >
+                            <InputBox icon={User} label="Full Name" name="name" type="text" placeholder="Piyush Kumar" value={form.name} onChange={handleChange} />
+                            <InputBox icon={Phone} label="Phone Number" name="phone" type="text" placeholder="+91 00000 00000" value={form.phone} onChange={handleChange} />
+                            <InputBox icon={Mail} label="Email Address" name="email" type="email" placeholder="piyush@business.com" value={form.email} onChange={handleChange} />
+                            <InputBox icon={Lock} label="Password" name="password" type="password" placeholder="••••••••" value={form.password} onChange={handleChange} />
+                        </motion.div>
+                    )}
+
+                    {step === 2 && (
+                        <motion.div 
+                            key="step2"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            className="space-y-5"
+                        >
+                            <InputBox icon={Building} label="Business Name" name="businessName" type="text" placeholder="FinTech Retailers P. Ltd" value={form.businessName} onChange={handleChange} />
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2 group">
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 group-focus-within:text-purple-400 transition-colors">Type</label>
+                                    <div className="relative">
+                                        <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5 group-focus-within:text-purple-400 transition-colors pointer-events-none" />
+                                        <select name="businessType" value={form.businessType} onChange={handleChange} className="w-full bg-[#111] border border-white/10 rounded-2xl pl-12 pr-4 py-[15px] text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer">
+                                            <option value="" disabled className="text-gray-600">Select...</option>
+                                            <option value="retail">Retail</option>
+                                            <option value="service" >Service</option>
+                                            <option value="wholesale" >Wholesale</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <InputBox icon={MapPin} label="City" name="city" type="text" placeholder="Bangalore" value={form.city} onChange={handleChange} />
+                            </div>
+
+                            <div className="mt-8 flex gap-3 p-4 bg-white/5 border border-white/10 rounded-2xl items-start">
+                                <label className="relative cursor-pointer mt-1">
+                                    <input type="checkbox" name="termsAccepted" checked={form.termsAccepted} onChange={handleChange} className="sr-only" />
+                                    <div className={`w-5 h-5 rounded border ${form.termsAccepted ? 'bg-purple-500 border-purple-500' : 'border-gray-500'} flex items-center justify-center transition-all`}>
+                                        {form.termsAccepted && <Check size={14} className="text-white" />}
+                                    </div>
+                                </label>
+                                <p className="text-xs text-gray-400 leading-relaxed">
+                                    I agree to the <a href="#" className="text-purple-400 font-bold hover:underline">Terms of Service</a> and confirm my data is true and accurate.
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <div className="pt-4 flex gap-3">
+                    {step === 2 && (
+                        <button type="button" onClick={() => setStep(1)} className="w-[120px] bg-white/5 text-white font-bold py-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                            Back
+                        </button>
+                    )}
+                    <motion.button 
+                       whileHover={{ scale: 1.02 }}
+                       whileTap={{ scale: 0.98 }}
+                       type="submit" 
+                       disabled={loading}
+                       className="flex-1 bg-white text-black font-black py-4 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] flex items-center justify-center gap-2 transition-all disabled:opacity-70"
+                    >
+                       {loading ? <ClipLoader size={22} color="#000" /> : (step === 1 ? 'Continue Setup' : 'Launch Workspace')}
+                       {!loading && <ArrowRight size={18} />}
+                    </motion.button>
+                </div>
+             </form>
+
+             <div className="mt-10 pt-8 border-t border-white/10 text-center">
+                <p className="text-gray-400 text-sm font-medium">
+                   Already have a workspace? <Link to="/login" className="text-white font-bold hover:text-blue-400 transition-colors inline-flex items-center gap-1">Sign in <ArrowRight size={14}/></Link>
                 </p>
+             </div>
+          </div>
+      </div>
+
+      {/* Decorative Right Panel */}
+      <div className="hidden lg:flex flex-1 relative bg-[#0A0A0A] border-l border-white/5 items-center justify-center overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-bl from-purple-900/20 via-transparent to-blue-900/20"></div>
+          
+          <motion.div 
+             initial={{ opacity: 0, x: 50 }}
+             animate={{ opacity: 1, x: 0 }}
+             transition={{ duration: 1, delay: 0.2 }}
+             className="relative z-10 w-full max-w-[500px] border border-white/10 bg-black/40 backdrop-blur-3xl rounded-[2rem] p-10 overflow-hidden"
+          >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/20 rounded-full blur-[50px]"></div>
+              
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                  </div>
+                  System Capabilities
+              </h3>
+              
+              <div className="space-y-4">
+                  {[
+                      { title: "Real-time Profit Analytics", desc: "View identical P&L reports within milliseconds." },
+                      { title: "Staff & Attendance Sync", desc: "Automated salary processing via attendance scanning." },
+                      { title: "Encrypted Ledgers", desc: "Impenetrable enterprise-grade database structures." }
+                  ].map((f, i) => (
+                      <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/5 flex gap-4">
+                          <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center shrink-0 mt-1">
+                              <Check size={12} className="text-purple-400" />
+                          </div>
+                          <div>
+                              <div className="font-bold text-white text-sm mb-1">{f.title}</div>
+                              <div className="text-xs text-gray-400">{f.desc}</div>
+                          </div>
+                      </div>
+                  ))}
               </div>
-            ) : success ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6 }}
-                className="flex flex-col items-center justify-center text-center"
-              >
-                <img src={logo} alt="FinSathi" className="w-20 mb-4" />
-                <h2 className="text-2xl font-bold text-primary-600 mb-2">
-                  Registration Successful 🎉
-                </h2>
-                <p className="text-gray-600 mb-4">
-                  Welcome aboard! Redirecting you to the dashboard...
-                </p>
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                  className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full"
-                />
-              </motion.div>
-            ) : (
-              <>
-                <div className="flex justify-center mb-6">
-                  <img src={logo} alt="FinSathi Logo" className="w-20 h-auto" />
-                </div>
-                <h2 className="text-3xl font-bold text-center text-text-light dark:text-text-dark mb-2">
-                  Create Account
-                </h2>
-                <p className="text-sm text-center text-gray-500 mb-6">
-                  Start your journey with FinSathi today.
-                </p>
-
-                {/* Social Login Buttons */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <button
-                    onClick={() => handleSocialLogin('google')}
-                    className="flex items-center justify-center py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  >
-                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                    </svg>
-                    Google
-                  </button>
-                  <button
-                    onClick={() => handleSocialLogin('github')}
-                    className="flex items-center justify-center py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors dark:text-gray-200"
-                  >
-                    <Github className="w-5 h-5 mr-2" />
-                    Github
-                  </button>
-                </div>
-
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-card-light dark:bg-card-dark text-gray-500">Or continue with email</span>
-                  </div>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
-                      name="name"
-                      placeholder="Full Name"
-                      value={form.name}
-                      onChange={handleChange}
-                      className="input-field"
-                      required
-                    />
-                    <input
-                      name="phone"
-                      placeholder="Phone Number"
-                      value={form.phone}
-                      onChange={handleChange}
-                      className="input-field"
-                      required
-                    />
-                  </div>
-
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="Email Address"
-                    value={form.email}
-                    onChange={handleChange}
-                    className="input-field"
-                    required
-                  />
-
-                  <input
-                    name="password"
-                    type="password"
-                    placeholder="Password"
-                    value={form.password}
-                    onChange={handleChange}
-                    className="input-field"
-                    required
-                  />
-
-                  <div className="border-t border-gray-200 dark:border-gray-700 my-4 pt-4">
-                    <p className="text-xs text-gray-500 mb-3 uppercase font-semibold">Business Details</p>
-                    <input
-                      name="businessName"
-                      placeholder="Business Name"
-                      value={form.businessName}
-                      onChange={handleChange}
-                      className="input-field mb-4"
-                      required
-                    />
-
-                    <div className="mb-4">
-                      <select
-                        name="businessType"
-                        value={form.businessType}
-                        onChange={handleChange}
-                        className="input-field"
-                      >
-                        <option value="">Select Business Type</option>
-                        <option value="retail">Retail</option>
-                        <option value="wholesale">Wholesale</option>
-                        <option value="service">Service</option>
-                        <option value="manufacturing">Manufacturing</option>
-                      </select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <input
-                        name="city"
-                        placeholder="City"
-                        value={form.city}
-                        onChange={handleChange}
-                        className="input-field"
-                      />
-                      <input
-                        name="state"
-                        placeholder="State"
-                        value={form.state}
-                        onChange={handleChange}
-                        className="input-field"
-                      />
-                    </div>
-
-                  </div>
-
-                  <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                    <input
-                      type="checkbox"
-                      name="termsAccepted"
-                      checked={form.termsAccepted}
-                      onChange={handleChange}
-                      className="rounded text-primary-600 focus:ring-primary-500"
-                    />
-                    <span>
-                      I accept the{" "}
-                      <Link to="/terms" className="text-primary-600 hover:underline">
-                        Terms & Conditions
-                      </Link>
-                    </span>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full btn-primary py-3"
-                  >
-                    Register Business
-                  </button>
-                </form>
-
-                <p className="mt-6 text-center text-sm text-gray-600">
-                  Already have an account?{" "}
-                  <Link
-                    to="/login"
-                    className="text-primary-600 font-medium hover:underline"
-                  >
-                    Login here
-                  </Link>
-                </p>
-              </>
-            )}
-          </div>
-
-          <div className="mt-6 text-center text-xs text-gray-400">
-            © {new Date().getFullYear()} FinSathi — Built with ❤️
-          </div>
-        </div>
-      </motion.section>
+          </motion.div>
+      </div>
     </div>
   );
 };
+
+const InputBox = ({ icon: Icon, label, name, type, placeholder, value, onChange }) => (
+    <div className="space-y-2 group">
+        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 group-focus-within:text-blue-400 transition-colors">{label}</label>
+        <div className="relative">
+            <Icon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5 group-focus-within:text-blue-400 transition-colors" />
+            <input 
+                type={type} 
+                name={name}
+                placeholder={placeholder} 
+                value={value}
+                onChange={onChange}
+                className="w-full bg-[#111] border border-white/10 rounded-2xl pl-12 pr-4 py-[14px] text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]"
+            />
+        </div>
+    </div>
+);
 
 export default Register;

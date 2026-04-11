@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "cd frontend && npm install && npm run build"
+    "build": "ls -R && cd ./frontend && npm install && npm run build"
   },
   "dependencies": {
     "react-select": "^5.10.2",

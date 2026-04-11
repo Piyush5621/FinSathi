@@ -1,9 +1,8 @@
-import React from "react";
+
 import Select from "react-select";
 import { format } from "date-fns";
 
 const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer, invoiceNo }) => {
-  // Prepare customer options for react-select
   const customerOptions = customers.map((customer) => ({
     value: customer.id,
     label: `${customer.name} ${customer.phone ? `(${customer.phone})` : ""}`,
@@ -11,98 +10,64 @@ const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer, i
     email: customer.email,
   }));
 
-  // Find selected customer info
   const customerInfo = customerOptions.find(
     (c) => c.value.toString() === selectedCustomer?.toString()
   );
 
   return (
-    <div>
-      <h3 className="text-indigo-400 text-lg font-semibold mb-4">Customer Details</h3>
-
-      <div className="grid grid-cols-2 gap-4">
-        {/* Customer Selector with Search */}
-        <div>
-          <label className="text-indigo-400 font-semibold">Select Customer</label>
-          <Select
-            options={customerOptions}
-            onChange={(selected) => onCustomerSelect(selected?.value || null)}
-            value={
-              customerInfo
-                ? { value: customerInfo.value, label: customerInfo.label }
-                : null
-            }
-            placeholder="Search or select customer..."
-            isClearable
-            className="mt-2 text-black rounded-xl"
-            styles={{
-              control: (base) => ({
-                ...base,
-                borderRadius: "0.75rem",
-                backgroundColor: "#1e293b",
-                border: "1px solid #475569",
-                color: "white",
-                boxShadow: "none",
-              }),
-              singleValue: (base) => ({ ...base, color: "white" }),
-              input: (base) => ({ ...base, color: "white" }),
-              menu: (base) => ({
-                ...base,
-                backgroundColor: "#1e293b",
-                color: "white",
-              }),
-              option: (styles, { isFocused }) => ({
-                ...styles,
-                backgroundColor: isFocused ? "#334155" : "#1e293b",
-                color: "white",
-                cursor: "pointer",
-              }),
-            }}
-          />
-        </div>
-
-        {/* Invoice Number */}
-        <div>
-          <label className="text-indigo-400 font-semibold">Invoice No</label>
-          <input
-            value={invoiceNo}
-            readOnly
-            className="w-full bg-slate-800 border border-slate-600 rounded-xl mt-2 p-2"
-          />
-        </div>
-
-        {/* Date */}
-        <div>
-          <label className="text-indigo-400 font-semibold">Date</label>
-          <input
-            value={format(new Date(), "yyyy-MM-dd")}
-            readOnly
-            className="w-full bg-slate-800 border border-slate-600 rounded-xl mt-2 p-2"
-          />
-        </div>
-
-        {/* Customer Info (Auto-filled) */}
-        {customerInfo && (
-          <div className="space-y-2 col-span-2">
-            <div>
-              <label className="text-indigo-400 font-semibold">Phone</label>
-              <input
-                value={customerInfo.phone || ""}
-                readOnly
-                className="w-full bg-slate-800 border border-slate-600 rounded-xl mt-2 p-2"
-              />
-            </div>
-            <div>
-              <label className="text-indigo-400 font-semibold">Email</label>
-              <input
-                value={customerInfo.email || ""}
-                readOnly
-                className="w-full bg-slate-800 border border-slate-600 rounded-xl mt-2 p-2"
-              />
-            </div>
-          </div>
-        )}
+    <div className="pt-[16px]">
+      {/* Customer Selector */}
+      <div className="mb-[16px]">
+        <Select
+          options={customerOptions}
+          onChange={(selected) => onCustomerSelect(selected?.value || null)}
+          value={
+            customerInfo ? { value: customerInfo.value, label: customerInfo.label } : null
+          }
+          placeholder="Search or select customer..."
+          isClearable
+          className="text-[14px]"
+          styles={{
+            control: (base, state) => ({
+              ...base,
+              borderRadius: "0.5rem",
+              backgroundColor: "#FFFFFF",
+              border: state.isFocused ? "1px solid #3B82F6" : "1px solid #E2E8F0",
+              color: "#0F172A",
+              boxShadow: "none",
+            }),
+            singleValue: (base) => ({ ...base, color: "#0F172A" }),
+            input: (base) => ({ ...base, color: "#0F172A" }),
+            menu: (base) => ({
+              ...base,
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E2E8F0",
+              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+            }),
+            option: (styles, { isFocused }) => ({
+              ...styles,
+              backgroundColor: isFocused ? "#F8FAFC" : "#FFFFFF",
+              color: "#334155",
+              cursor: "pointer",
+            }),
+          }}
+        />
       </div>
+
+      {customerInfo && (
+        <div className="p-[12px] bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg">
+          <div className="grid grid-cols-2 gap-[8px]">
+             <div>
+                <span className="text-[12px] font-semibold text-[#64748B] uppercase">Phone</span>
+                <p className="text-[14px] text-[#0F172A] font-medium">{customerInfo.phone || "N/A"}</p>
+             </div>
+             <div>
+                <span className="text-[12px] font-semibold text-[#64748B] uppercase">Email</span>
+                <p className="text-[14px] text-[#0F172A] font-medium">{customerInfo.email || "N/A"}</p>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

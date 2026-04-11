@@ -3,7 +3,7 @@ import { SummaryService } from "../services/SummaryService.js";
 /** Generate Smart Business Summary */
 export const getSmartSummary = async (req, res) => {
   try {
-    const summary = await SummaryService.getSmartSummary();
+    const summary = await SummaryService.getSmartSummary(req.user.id);
     res.status(200).json(summary);
   } catch (err) {
     console.error("Summary Error:", err.message);

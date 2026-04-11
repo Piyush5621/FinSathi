@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import { IndianRupee } from 'lucide-react';
 

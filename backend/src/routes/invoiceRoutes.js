@@ -32,6 +32,7 @@ router.get("/history", async (req, res) => {
           subtotal
         )
       `)
+      .eq('user_id', req.user.id)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -67,6 +68,7 @@ router.post("/", async (req, res) => {
     const { data: invoice, error } = await supabase
       .from("invoices")
       .insert({
+        user_id: req.user.id,
         customer_id,
         payment_method: payment_method || "cash",
         status: "pending",
@@ -97,20 +99,32 @@ router.post("/:id/items", async (req, res) => {
         error: "Product ID, quantity, and price are required",
       });
 
-    // ✅ Check stock
+    // ✅ 1. Check Invoice Ownership
+    const { data: invoice, error: invError } = await supabase
+      .from("invoices")
+      .select("id")
+      .eq("id", id)
+      .eq("user_id", req.user.id)
+      .single();
+
+    if (invError || !invoice)
+      return res.status(403).json({ error: "Access denied to this invoice" });
+
+    // ✅ 2. Check Product Ownership & Stock
     const { data: product, error: stockError } = await supabase
       .from("inventory")
-      .select("stock")
+      .select("id, stock")
       .eq("id", product_id)
+      .eq("user_id", req.user.id) // Verify owner
       .single();
 
     if (stockError || !product)
-      return res.status(404).json({ error: "Product not found" });
+      return res.status(404).json({ error: "Product not found or access denied" });
 
     if (product.stock < quantity)
       return res.status(400).json({ error: "Insufficient stock" });
 
-    // ✅ Add item
+    // ✅ 3. Add item
     const { data: item, error: itemError } = await supabase
       .from("invoice_items")
       .insert({
@@ -125,11 +139,12 @@ router.post("/:id/items", async (req, res) => {
 
     if (itemError) throw itemError;
 
-    // ✅ Update stock
+    // ✅ 4. Update stock
     const { error: updateError } = await supabase
       .from("inventory")
       .update({ stock: product.stock - quantity })
-      .eq("id", product_id);
+      .eq("id", product_id)
+      .eq("user_id", req.user.id);
 
     if (updateError) throw updateError;
 
@@ -149,12 +164,14 @@ router.get("/", async (req, res) => {
       .from("invoices")
       .select(`
         *,
-        customer:customers ( id, name, email ),
+        customer:customers!inner ( id, name, email ),
         items:invoice_items (
           id, quantity, price, subtotal,
           product:inventory ( id, name )
         )
       `)
+      .eq("user_id", req.user.id)
+      .eq("customer.user_id", req.user.id) // Double lock
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -177,7 +194,7 @@ router.get("/:id", async (req, res) => {
       .from("invoices")
       .select(`
         *,
-        customer:customers (
+        customer:customers!inner (
           id, name, email, phone, address
         ),
         items:invoice_items (
@@ -186,6 +203,8 @@ router.get("/:id", async (req, res) => {
         )
       `)
       .eq("id", id)
+      .eq("user_id", req.user.id)
+      .eq("customer.user_id", req.user.id)
       .single();
 
     if (error) throw error;
@@ -214,6 +233,7 @@ router.patch("/:id/status", async (req, res) => {
       .from("invoices")
       .update({ payment_status })
       .eq("id", id)
+      .eq("user_id", req.user.id)
       .select()
       .single();
 
@@ -239,6 +259,7 @@ router.patch("/:id/amounts", async (req, res) => {
       .from("invoices")
       .select("total_amount")
       .eq("id", id)
+      .eq("user_id", req.user.id)
       .single();
 
     if (fetchError) throw fetchError;
@@ -252,6 +273,7 @@ router.patch("/:id/amounts", async (req, res) => {
       .from("invoices")
       .update({ gst: gst || 0, discount: discount || 0, final_amount })
       .eq("id", id)
+      .eq("user_id", req.user.id)
       .select()
       .single();
 

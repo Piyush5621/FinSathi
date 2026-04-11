@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import {  useEffect, useState  } from 'react';
 import { supabase } from "../lib/supabaseClient";
 import toast from "react-hot-toast";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 
 export default function InvoiceDrawer({

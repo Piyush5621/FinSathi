@@ -1,92 +1,78 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import {
-  Wallet,
-  CreditCard,
-  Smartphone,
-  Banknote,
-  CheckCircle,
-  XCircle,
-} from 'lucide-react';
 
-const PaymentSection = ({ method, status, onChange }) => {
+import { CreditCard, Banknote } from 'lucide-react';
+
+const PaymentSection = ({ method, status, amountReceived, total, onChange }) => {
   return (
-    <div>
-      <h3 className="text-indigo-400 text-lg font-semibold mb-4">Payment Details</h3>
-
-      <div className="space-y-5">
-        {/* 💳 Payment Method */}
-        <div>
-          <label className="text-indigo-400 font-semibold">Payment Method</label>
-          <div className="grid grid-cols-2 gap-3 mt-3">
-            {[
-              { value: 'cash', label: 'Cash', icon: <Banknote className="h-4 w-4" /> },
-              { value: 'upi', label: 'UPI', icon: <Smartphone className="h-4 w-4" /> },
-              { value: 'card', label: 'Card', icon: <CreditCard className="h-4 w-4" /> },
-              { value: 'upi_only', label: 'UPI Only', icon: <Wallet className="h-4 w-4" /> },
-            ].map((m) => (
-              <button
-                key={m.value}
-                onClick={() => onChange('method', m.value)}
-                className={`flex items-center justify-center gap-2 py-2 rounded-xl font-semibold transition-all border ${
-                  method === m.value
-                    ? 'bg-indigo-600 text-white border-indigo-500'
-                    : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'
-                }`}
-              >
-                {m.icon}
-                {m.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 💰 Payment Status */}
-        <div>
-          <label className="text-indigo-400 font-semibold mb-2 block">
-            Payment Status
-          </label>
-          <div className="flex gap-3">
-            {/* ✅ Paid */}
+    <div className="p-[20px] space-y-[24px]">
+      <div>
+        <h3 className="text-[14px] font-bold text-[#0F172A] uppercase tracking-wider mb-[12px]">Payment Method</h3>
+        <div className="grid grid-cols-3 gap-[8px]">
+          {[
+            { id: "cash", label: "Cash", icon: <Banknote size={18} /> },
+            { id: "upi", label: "UPI", icon: <CreditCard size={18} /> },
+            { id: "card", label: "Card", icon: <CreditCard size={18} /> }
+          ].map(m => (
             <button
-              onClick={() => onChange('status', 'paid')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl font-semibold transition-all ${
-                status === 'paid'
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-900/30'
-                  : 'bg-slate-800 text-slate-400 border border-slate-600 hover:bg-slate-700'
+              key={m.id}
+              onClick={() => onChange("method", m.id)}
+              className={`flex flex-col items-center justify-center p-[12px] rounded-lg border transition-all ${
+                method === m.id
+                  ? 'border-[#3B82F6] bg-[#3B82F6]/10 text-[#3B82F6]'
+                  : 'border-[#E2E8F0] text-[#64748B] hover:border-[#3B82F6]/50 hover:bg-[#F8FAFC]'
               }`}
             >
-              <motion.div
-                animate={{ scale: status === 'paid' ? 1.05 : 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                className="flex items-center gap-2"
-              >
-                <CheckCircle className="h-5 w-5" />
-                Paid
-              </motion.div>
+              {m.icon}
+              <span className="text-[13px] font-medium mt-[4px]">{m.label}</span>
             </button>
-
-            {/* ❌ Unpaid */}
-            <button
-              onClick={() => onChange('status', 'unpaid')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl font-semibold transition-all ${
-                status === 'unpaid'
-                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-900/30'
-                  : 'bg-slate-800 text-slate-400 border border-slate-600 hover:bg-slate-700'
-              }`}
-            >
-              <motion.div
-                animate={{ scale: status === 'unpaid' ? 1.05 : 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                className="flex items-center gap-2"
-              >
-                <XCircle className="h-5 w-5" />
-                Unpaid
-              </motion.div>
-            </button>
-          </div>
+          ))}
         </div>
       </div>
+
+      <div>
+        <h3 className="text-[14px] font-bold text-[#0F172A] uppercase tracking-wider mb-[12px]">Payment Status</h3>
+        <div className="flex gap-[8px]">
+          <button
+            onClick={() => onChange("status", "paid")}
+            className={`flex-1 py-[10px] rounded-lg text-[14px] font-semibold transition ${
+              status === "paid" ? 'bg-[#DCFCE7] text-[#15803D] border border-[#15803D]/30' : 'bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]'
+            }`}
+          >
+             Paid in Full
+          </button>
+          <button
+            onClick={() => onChange("status", "unpaid")}
+            className={`flex-1 py-[10px] rounded-lg text-[14px] font-semibold transition ${
+              status === "unpaid" ? 'bg-[#FEE2E2] text-[#B91C1C] border border-[#B91C1C]/30' : 'bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]'
+            }`}
+          >
+             Unpaid (Credit)
+          </button>
+          <button
+            onClick={() => onChange("status", "partial")}
+            className={`flex-1 py-[10px] rounded-lg text-[14px] font-semibold transition ${
+              status === "partial" ? 'bg-[#FEF3C7] text-[#B45309] border border-[#B45309]/30' : 'bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]'
+            }`}
+          >
+             Partial
+          </button>
+        </div>
+      </div>
+
+      {status === 'partial' && (
+        <div>
+          <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wider mb-[4px] block">Amount Received (₹)</label>
+          <input
+            type="number"
+            value={amountReceived}
+            onChange={(e) => onChange("amountReceived", parseFloat(e.target.value) || 0)}
+            className="w-full bg-[#FFFFFF] border border-[#E2E8F0] rounded-lg p-[12px] font-bold text-[#0F172A] focus:ring-2 focus:ring-[#3B82F6]/50 outline-none"
+          />
+          <div className="mt-[8px] flex justify-between text-[13px]">
+             <span className="text-[#64748B]">Remaining Balance:</span>
+             <span className="font-bold text-[#B91C1C]">₹{Math.max(0, total - amountReceived).toFixed(2)}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

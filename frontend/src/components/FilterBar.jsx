@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import {  useState  } from 'react';
 
 const FilterBar = ({ onFilter }) => {
   const [filterType, setFilterType] = useState('month');

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import {  useEffect, useState  } from 'react';
 import {
   LineChart,
   Line,
@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import FixedChartContainer from "./FixedChartContainer";
 import API from "../../../services/apiClient";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from 'lucide-react';
 import toast from "react-hot-toast";
 
 const SalesTrend = ({ demoMode = false }) => {
