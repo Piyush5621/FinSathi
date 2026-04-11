@@ -5,6 +5,7 @@ import { User, Save } from 'lucide-react';
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
+import RemindersPanel from "./RemindersPanel";
 
 const Profile = () => {
   const [profile, setProfile] = useState(null);
@@ -205,6 +206,7 @@ const Profile = () => {
           </div>
         </form>
       </Card>
+      <RemindersPanel />
     </div>
   );
 };

@@ -149,7 +149,7 @@ export default function Dashboard() {
                <Badge className="bg-slate-100 text-slate-600">This Month</Badge>
             </div>
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
                <BarChart data={charts.trend} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -172,7 +172,7 @@ export default function Dashboard() {
               <CardTitle className="text-[14px] flex items-center gap-2">
                  <Target className="text-amber-500" size={18} /> Top Expenses
               </CardTitle>
-              <div className="flex-1 flex gap-4 items-center">
+              <div className="flex-1 flex gap-4 items-center min-h-[140px]">
                  <div className="w-[120px] h-[120px] shrink-0">
                     <ResponsiveContainer width="100%" height="100%">
                        <PieChart>

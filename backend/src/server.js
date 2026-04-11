@@ -22,8 +22,13 @@ import expenseRoutes from "./routes/expenseRoutes.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import logisticsRoutes from "./routes/logisticsRoutes.js";
 import kioskRoutes from "./routes/kioskRoutes.js";
+import reminderRoutes from "./routes/reminderRoutes.js";
+import { ReminderService } from "./services/ReminderService.js";
 
 const app = express();
+
+// Initialize Automation
+ReminderService.init();
 
 // Middleware
 app.use(cors());
@@ -60,6 +65,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/logistics", logisticsRoutes);
+app.use("/api/reminders", reminderRoutes);
 
 app.get("/api/health", (req, res) => res.status(200).json({ ok: true }));
 
