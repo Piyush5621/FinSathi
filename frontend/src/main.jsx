@@ -10,6 +10,8 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false, // Default typical option
       retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes (Enterprise Performance Architecture requirement)
+      gcTime: 10 * 60 * 1000,   // 10 minutes cache
     },
   },
 });

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatCurrencyINR } from '../utils/formatNumbers';
 import { motion } from 'framer-motion';
 import API from '../services/apiClient';
 import toast from 'react-hot-toast';
@@ -94,14 +95,14 @@ const BillingMetrics = () => {
 
       <MetricCard
         title="Total GST Collected"
-        value={`₹${metrics.totalGST.toLocaleString()}`}
+        value={formatCurrencyINR(metrics.totalGST)}
         subtitle="From all invoices"
         color="blue"
       />
 
       <MetricCard
         title="Average Invoice Value"
-        value={`₹${parseFloat(metrics.averageInvoiceValue).toLocaleString()}`}
+        value={formatCurrencyINR(metrics.averageInvoiceValue)}
         subtitle="Per invoice"
         color="purple"
       />

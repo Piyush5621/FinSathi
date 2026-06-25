@@ -1,24 +1,16 @@
 
 
 export function Badge({ children, variant = 'gray', className = '' }) {
-  // Classical Finance Status Rules
   const variants = {
-    success: "bg-status-success-bg text-status-success-text",
-    warning: "bg-status-warning-bg text-status-warning-text",
-    danger: "bg-status-danger-bg text-status-danger-text",
-    gray: "bg-gray-100 text-[#64748B]",
+    success: "bg-emerald-50 text-emerald-700 border border-emerald-100/60",
+    warning: "bg-amber-50 text-amber-700 border border-amber-100/60",
+    danger: "bg-rose-50 text-rose-700 border border-rose-100/60",
+    gray: "bg-slate-50 text-slate-600 border border-slate-100/80",
+    blue: "bg-blue-50 text-blue-700 border border-blue-100/60"
   };
 
-  // Fallback to literal hex values matching the config if tailwind mappings are too deep
-  const customVariants = {
-    success: "bg-[#DCFCE7] text-[#15803D]",
-    warning: "bg-[#FEF3C7] text-[#B45309]",
-    danger: "bg-[#FEE2E2] text-[#B91C1C]",
-    gray: "bg-[#F1F5F9] text-[#64748B]" // slate-100/label
-  }
-
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-semibold ${customVariants[variant] || customVariants.gray} ${className}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold border uppercase tracking-wider ${variants[variant] || variants.gray} ${className}`}>
       {children}
     </span>
   );

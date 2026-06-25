@@ -1,5 +1,4 @@
 import {  useRef, useEffect, useState  } from 'react';
-import { supabase } from "../../lib/supabaseClient";
 import { motion } from "framer-motion";
 import { X, Printer, Share2, ShieldCheck, Mail, Phone, MapPin } from 'lucide-react';
 import toast from "react-hot-toast";
@@ -8,8 +7,8 @@ import Barcode from "react-barcode";
 import { QRCodeCanvas } from "qrcode.react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
-
 import API from "../../services/apiClient";
+import logoImg from "../../assets/logo.svg";
 
 export default function InvoicePreviewModal({ invoice, onClose }) {
   const printRef = useRef();
@@ -214,9 +213,9 @@ export default function InvoicePreviewModal({ invoice, onClose }) {
             </div>
 
             {/* Watermark / Attribution */}
-            <div className="absolute bottom-[40px] left-0 right-0 flex justify-center items-center opacity-30 gap-2 pointer-events-none grayscale">
-               <img src="/logo.png" className="w-4 h-4 opacity-50" />
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">FinSathi OS Document</p>
+            <div className="absolute bottom-[40px] left-0 right-0 flex justify-center items-center opacity-20 gap-2 pointer-events-none">
+               <img src={logoImg} className="w-5 h-5 object-contain" alt="FinSathi" />
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">FinSathi Business OS</p>
             </div>
           </div>
         </div>

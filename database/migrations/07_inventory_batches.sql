@@ -2,11 +2,10 @@
 DROP TABLE IF EXISTS public.inventory_batches CASCADE;
 
 -- 1. Create inventory_batches table
--- ADJUSTMENT: Detected that public.inventory.id is INTEGER, so we match that type here.
--- We also assume using SERIAL for the new table's ID is safer for consistency.
+-- ADJUSTMENT: Changed inventory_id to UUID to match public.inventory(id).
 CREATE TABLE public.inventory_batches (
   id SERIAL PRIMARY KEY,
-  inventory_id INTEGER REFERENCES public.inventory(id) ON DELETE CASCADE,
+  inventory_id UUID REFERENCES public.inventory(id) ON DELETE CASCADE,
   batch_name text,
   sku_variant text, 
   cost_price numeric(10,2) DEFAULT 0.00,

@@ -1,11 +1,11 @@
 
 
-export function Input({ label, type = 'text', value, onChange, placeholder, required = false, className = '' }) {
+export function Input({ label, type = 'text', value, onChange, placeholder, required = false, className = '', ...props }) {
   return (
-    <div className={`flex flex-col gap-[4px] ${className}`}>
+    <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
-        <label className="text-[13px] font-semibold text-[#64748B]">
-          {label} {required && <span className="text-[#B91C1C]">*</span>}
+        <label className="text-xs font-semibold text-slate-500 tracking-tight">
+          {label} {required && <span className="text-rose-500">*</span>}
         </label>
       )}
       <input
@@ -14,7 +14,8 @@ export function Input({ label, type = 'text', value, onChange, placeholder, requ
         onChange={onChange}
         placeholder={placeholder}
         required={required}
-        className="w-full bg-[#FFFFFF] border border-[#E2E8F0] rounded-lg px-[12px] py-[10px] text-[14px] text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/50 focus:border-[#3B82F6] transition-all"
+        {...props}
+        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue transition-all"
       />
     </div>
   );

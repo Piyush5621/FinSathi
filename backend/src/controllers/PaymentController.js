@@ -192,3 +192,20 @@ export const deletePayment = async (req, res) => {
         res.status(500).json({ error: "Failed to delete payment" });
     }
 };
+
+// ✅ Get All Payments (with Customer Details)
+export const getAllPayments = async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from("payments")
+            .select("*, customers(name)")
+            .eq("user_id", req.user.id)
+            .order("date", { ascending: false });
+
+        if (error) throw error;
+        res.status(200).json(data);
+    } catch (error) {
+        console.error("Get All Payments Error:", error);
+        res.status(500).json({ error: "Failed to fetch payments" });
+    }
+};

@@ -1,5 +1,6 @@
 import { supabase } from "../config/db.js";
 import cron from "node-cron";
+import WhatsAppService from "./WhatsAppService.js";
 
 export const ReminderService = {
   /** ⚙️ Get settings for a user */
@@ -30,12 +31,38 @@ export const ReminderService = {
     return data;
   },
 
-  /** 🚀 Messaging Wrapper (Twilio/WhatsApp Simulation) */
-  async sendMessage(phone, message) {
-    console.log(`[MessagingService] Sending to ${phone}: ${message}`);
-    // Simulate API call
-    // if (process.env.TWILIO_SID) { /* real twilio code */ }
-    return { success: true };
+  /** 🚀 Messaging Wrapper (WhatsApp + SMS Fallback) */
+  async sendMessage(phone, sale, shopName, msg) {
+    console.log(`[MessagingService] Attempting to send to ${phone}...`);
+    
+    // 1. Generate Smart Payment Link (Razorpay placeholder)
+    const paymentLink = `https://rzp.io/i/mock_${sale.id}`;
+    
+    // 2. Try WhatsApp API First
+    const waResult = await WhatsAppService.sendPaymentReminder(phone, {
+      customer_name: sale.customer.name,
+      invoice_no: sale.invoice_no,
+      amount: sale.total,
+      business_name: shopName,
+      payment_link: paymentLink
+    });
+
+    if (waResult.success) {
+       console.log(`[WhatsApp] Delivery sent. Message ID: ${waResult.messageId}`);
+       // Update DB with WhatsApp message ID
+       await supabase.from('sales').update({ whatsapp_message_id: waResult.messageId, whatsapp_status: 'sent' }).eq('id', sale.id);
+       return { success: true, method: 'whatsapp' };
+    }
+
+    // 3. Fallback to SMS if WhatsApp fails or isn't configured
+    if (waResult.fallbackRequired) {
+      console.log(`[MessagingService] WhatsApp failed/unavailable. Falling back to SMS for ${phone}: ${msg}`);
+      // Simulate API call
+      // if (process.env.TWILIO_SID) { /* real twilio code */ }
+      return { success: true, method: 'sms' };
+    }
+
+    return { success: false };
   },
 
   /** 🕵️ Logic to find who should receive reminders (Daily Job) */
@@ -86,7 +113,7 @@ export const ReminderService = {
 
         // 4. Send & Log
         try {
-          const result = await this.sendMessage(sale.customer.phone, msg);
+          const result = await this.sendMessage(sale.customer.phone, sale, shopName, msg);
           
           await supabase.from('reminder_logs').insert({
               user_id,

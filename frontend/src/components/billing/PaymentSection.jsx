@@ -3,54 +3,54 @@ import { CreditCard, Banknote } from 'lucide-react';
 
 const PaymentSection = ({ method, status, amountReceived, total, onChange }) => {
   return (
-    <div className="p-[20px] space-y-[24px]">
+    <div className="p-5 space-y-5">
       <div>
-        <h3 className="text-[14px] font-bold text-[#0F172A] uppercase tracking-wider mb-[12px]">Payment Method</h3>
-        <div className="grid grid-cols-3 gap-[8px]">
+        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">Payment Method</h3>
+        <div className="grid grid-cols-3 gap-2">
           {[
-            { id: "cash", label: "Cash", icon: <Banknote size={18} /> },
-            { id: "upi", label: "UPI", icon: <CreditCard size={18} /> },
-            { id: "card", label: "Card", icon: <CreditCard size={18} /> }
+            { id: "cash", label: "Cash", icon: <Banknote size={15} /> },
+            { id: "upi", label: "UPI", icon: <CreditCard size={15} /> },
+            { id: "card", label: "Card", icon: <CreditCard size={15} /> }
           ].map(m => (
             <button
               key={m.id}
               onClick={() => onChange("method", m.id)}
-              className={`flex flex-col items-center justify-center p-[12px] rounded-lg border transition-all ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all active:scale-[0.97] cursor-pointer ${
                 method === m.id
-                  ? 'border-[#3B82F6] bg-[#3B82F6]/10 text-[#3B82F6]'
-                  : 'border-[#E2E8F0] text-[#64748B] hover:border-[#3B82F6]/50 hover:bg-[#F8FAFC]'
+                  ? 'border-brand-blue bg-blue-50/50 text-brand-blue font-semibold'
+                  : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
               {m.icon}
-              <span className="text-[13px] font-medium mt-[4px]">{m.label}</span>
+              <span className="text-[11px] mt-1.5">{m.label}</span>
             </button>
           ))}
         </div>
       </div>
 
       <div>
-        <h3 className="text-[14px] font-bold text-[#0F172A] uppercase tracking-wider mb-[12px]">Payment Status</h3>
-        <div className="flex gap-[8px]">
+        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">Payment Status</h3>
+        <div className="flex gap-2">
           <button
             onClick={() => onChange("status", "paid")}
-            className={`flex-1 py-[10px] rounded-lg text-[14px] font-semibold transition ${
-              status === "paid" ? 'bg-[#DCFCE7] text-[#15803D] border border-[#15803D]/30' : 'bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]'
+            className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all active:scale-[0.97] cursor-pointer ${
+              status === "paid" ? 'bg-emerald-50 text-emerald-700 border-emerald-100/60' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
             }`}
           >
-             Paid in Full
+             Paid
           </button>
           <button
             onClick={() => onChange("status", "unpaid")}
-            className={`flex-1 py-[10px] rounded-lg text-[14px] font-semibold transition ${
-              status === "unpaid" ? 'bg-[#FEE2E2] text-[#B91C1C] border border-[#B91C1C]/30' : 'bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]'
+            className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all active:scale-[0.97] cursor-pointer ${
+              status === "unpaid" ? 'bg-rose-50 text-rose-700 border-rose-100/60' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
             }`}
           >
-             Unpaid (Credit)
+             Unpaid
           </button>
           <button
             onClick={() => onChange("status", "partial")}
-            className={`flex-1 py-[10px] rounded-lg text-[14px] font-semibold transition ${
-              status === "partial" ? 'bg-[#FEF3C7] text-[#B45309] border border-[#B45309]/30' : 'bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]'
+            className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all active:scale-[0.97] cursor-pointer ${
+              status === "partial" ? 'bg-amber-50 text-amber-700 border-amber-100/60' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
             }`}
           >
              Partial
@@ -59,17 +59,17 @@ const PaymentSection = ({ method, status, amountReceived, total, onChange }) => 
       </div>
 
       {status === 'partial' && (
-        <div>
-          <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wider mb-[4px] block">Amount Received (₹)</label>
+        <div className="space-y-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Amount Received (₹)</label>
           <input
             type="number"
             value={amountReceived}
             onChange={(e) => onChange("amountReceived", parseFloat(e.target.value) || 0)}
-            className="w-full bg-[#FFFFFF] border border-[#E2E8F0] rounded-lg p-[12px] font-bold text-[#0F172A] focus:ring-2 focus:ring-[#3B82F6]/50 outline-none"
+            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue outline-none transition-all"
           />
-          <div className="mt-[8px] flex justify-between text-[13px]">
-             <span className="text-[#64748B]">Remaining Balance:</span>
-             <span className="font-bold text-[#B91C1C]">₹{Math.max(0, total - amountReceived).toFixed(2)}</span>
+          <div className="flex justify-between text-[11px] font-semibold mt-1">
+             <span className="text-slate-400">Remaining Balance:</span>
+             <span className="font-bold text-rose-600">₹{Math.max(0, total - amountReceived).toFixed(2)}</span>
           </div>
         </div>
       )}

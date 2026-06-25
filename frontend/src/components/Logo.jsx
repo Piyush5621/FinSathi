@@ -1,22 +1,30 @@
-import React from 'react';
+import logoImg from '../assets/logo.png';
 
 const Logo = ({ collapsed = false }) => {
   return (
-    <div className={`flex items-center gap-3 transition-all duration-300 ${collapsed ? 'justify-center w-full' : ''}`}>
-      {/* The Purple Icon */}
+    <div className={`flex items-center gap-2.5 transition-all duration-300 ${collapsed ? 'justify-center w-full' : ''}`}>
+      {/* Official FinSathi logo icon */}
       <div className={`
-        bg-indigo-600 rounded-[14px] flex items-center justify-center 
-        shrink-0 shadow-lg shadow-indigo-600/30 
-        ${collapsed ? 'w-10 h-10 text-lg' : 'w-9 h-9 text-base'}
+        shrink-0 flex items-center justify-center
+        ${collapsed ? 'w-10 h-10' : 'w-9 h-9'}
       `}>
-        <span className="text-white font-black tracking-tighter">FS</span>
+        <img
+          src={logoImg}
+          alt="FinSathi"
+          className="w-full h-full object-contain drop-shadow-sm"
+        />
       </div>
-      
-      {/* The Text - Hidden when collapsed */}
+
+      {/* Brand Name - Hidden when collapsed */}
       {!collapsed && (
-        <span className="text-2xl font-black text-white tracking-tighter">
-          FinSathi
-        </span>
+        <div className="flex flex-col leading-none">
+          <span className="text-xl font-black text-white tracking-tight leading-none">
+            FinSathi
+          </span>
+          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-0.5">
+            Business OS
+          </span>
+        </div>
       )}
     </div>
   );

@@ -1,0 +1,57 @@
+/* Command Palette overrides */
+.cmdk-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 600px;
+  z-index: 1000;
+}
+
+.cmdk-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: -1;
+}
+
+.cmdk-content {
+  background-color: #0f172a; /* Slate 900 */
+  border: 1px solid #1e293b; /* Slate 800 */
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+[cmdk-list] {
+  min-height: 100px;
+}
+
+[cmdk-input] {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: white;
+}
+
+[cmdk-input]::placeholder {
+  color: #64748b;
+}
+
+[cmdk-item][aria-selected="true"] {
+  background-color: rgba(59, 130, 246, 0.15); /* Blue 500 w/ opacity */
+  color: #ffffff;
+}
+
+[cmdk-group-heading] {
+  user-select: none;
+  font-size: 0.75rem;
+  color: #64748b;
+  padding: 0 8px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+}

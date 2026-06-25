@@ -1,6 +1,8 @@
 import {  useState, useEffect  } from 'react';
-import { Bell, Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, Store } from 'lucide-react';
 import DarkModeToggle from './DarkModeToggle';
+import { useStore } from '../contexts/StoreContext';
+import NotificationDropdown from './Dashboard/NotificationDropdown';
 
 const Header = () => {
   const [isDark, setIsDark] = useState(() => {
@@ -23,15 +25,35 @@ const Header = () => {
 
   const toggleTheme = () => setIsDark(!isDark);
 
+  const { stores, activeStoreId, switchStore } = useStore();
+
   return (
     <header className="sticky top-0 z-30 w-full px-6 py-4 bg-card-light dark:bg-card-dark backdrop-blur-lg border-b border-border-light dark:border-border-dark">
       <div className="flex items-center justify-between">
-        {/* Left section with tagline */}
-        <div className="hidden md:block">
-          <h2 className="text-lg font-medium text-text-light dark:text-text-dark">
-            Your business. Your growth.{' '}
-            <span className="text-primary-600 font-semibold">Your FinSathi.</span>
-          </h2>
+        {/* Left section with tagline & store selection */}
+        <div className="flex items-center space-x-4">
+          <div className="hidden md:block">
+            <h2 className="text-lg font-medium text-text-light dark:text-text-dark">
+              Your business. Your growth.{' '}
+              <span className="text-primary-600 font-semibold">Your FinSathi.</span>
+            </h2>
+          </div>
+          {stores && stores.length > 0 && (
+            <div className="flex items-center space-x-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-sm">
+              <Store size={14} className="text-indigo-600 dark:text-indigo-400" />
+              <select
+                value={activeStoreId || ''}
+                onChange={(e) => switchStore(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer border-none p-0 pr-6"
+              >
+                {stores.map((s) => (
+                  <option key={s.id} value={s.id} className="dark:bg-slate-800">
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Right section with search, notifications, and profile */}
@@ -55,9 +77,7 @@ const Header = () => {
           <DarkModeToggle isDark={isDark} onToggle={toggleTheme} />
 
           {/* Notifications */}
-          <button className="p-2 text-gray-400 hover:text-text-light dark:hover:text-text-dark rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-            <Bell size={20} />
-          </button>
+          <NotificationDropdown />
 
           {/* Profile */}
           <div className="flex items-center">

@@ -1,25 +1,47 @@
 
 
-export function Button({ type = 'button', onClick, children, variant = 'primary', className = '', icon, disabled }) {
-  const baseStyle = "flex items-center justify-center gap-[8px] font-medium rounded-lg transition-colors px-[16px] py-[10px] text-[14px] disabled:opacity-50 disabled:cursor-not-allowed";
+export function Button({ 
+  type = 'button', 
+  onClick, 
+  children, 
+  variant = 'primary', 
+  className = '', 
+  icon, 
+  disabled, 
+  as: Component = 'button',
+  href,
+  target
+}) {
+  const baseStyle = "inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 px-4 py-2.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-blue/30 active:scale-[0.98]";
   
-  // Strict Classical Finance Guidelines
   const variants = {
-    primary: "bg-[#3B82F6] text-white hover:bg-blue-600 focus:ring-2 focus:ring-[#3B82F6]/50",
-    secondary: "bg-white border text-[#334155] border-[#CBD5E1] hover:bg-gray-50",
-    danger: "bg-[#FEE2E2] text-[#B91C1C] hover:bg-red-200 border border-transparent",
-    ghost: "bg-transparent text-[#334155] hover:bg-gray-100"
+    primary: "bg-brand-blue text-white shadow-sm shadow-brand-blue/10 hover:bg-blue-600 hover:shadow-md hover:shadow-brand-blue/20",
+    secondary: "bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900",
+    outline: "bg-transparent border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+    danger: "bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 hover:text-rose-700",
+    ghost: "bg-transparent text-slate-500 hover:bg-slate-100/80 hover:text-slate-800",
   };
 
+  const combinedClassName = `${baseStyle} ${variants[variant] || variants.primary} ${className}`;
+
+  if (href) {
+    return (
+      <a href={href} target={target} className={combinedClassName} onClick={onClick}>
+        {icon && <span className="flex items-center shrink-0">{icon}</span>}
+        <span>{children}</span>
+      </a>
+    );
+  }
+
   return (
-    <button 
+    <Component 
       type={type} 
       onClick={onClick} 
-      className={`${baseStyle} ${variants[variant] || variants.primary} ${className}`}
+      className={combinedClassName}
       disabled={disabled}
     >
-      {icon && <span className="flex items-center">{icon}</span>}
-      {children}
-    </button>
+      {icon && <span className="flex items-center shrink-0">{icon}</span>}
+      <span>{children}</span>
+    </Component>
   );
 }

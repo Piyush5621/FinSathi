@@ -7,7 +7,7 @@ let supabaseLocal = null;
 if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
   supabaseLocal = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 } else {
-  console.warn("WARN: SUPABASE_URL or SUPABASE_KEY not set. Using mock supabase client returning empty results.");
+  console.warn("WARN: SUPABASE_URL or SUPABASE_KEY not set. Using mock supabase client.");
 
   const makeChain = () => {
     const chain = {
@@ -37,3 +37,29 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
 }
 
 export const supabase = supabaseLocal;
+
+/**
+ * Creates a Supabase client with the user's JWT token.
+ * This handles the Bearer token cleanup and ensures the apikey is sent.
+ * @param {string} token - The user's JWT token from the Authorization header.
+ */
+export const createSupabaseUserClient = (token) => {
+  // If no token or config, return the default client
+  if (!token || !process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+    return supabase;
+  }
+  
+  // FIX: Strip "Bearer " if it's already there to avoid "Bearer Bearer" issues
+  const cleanToken = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
+
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY, {
+    global: {
+      headers: {
+        // Use the cleaned token
+        Authorization: `Bearer ${cleanToken}`,
+        // Explicitly include the apikey to satisfy PostgREST requirements
+        apikey: process.env.SUPABASE_KEY 
+      }
+    }
+  });
+};

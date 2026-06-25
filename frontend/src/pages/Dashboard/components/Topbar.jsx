@@ -2,7 +2,6 @@ import {  useState, useEffect, useRef  } from 'react';
 import { motion } from "framer-motion";
 import { Bell, Download, X } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
-import { exportElementToPDF } from "../../../utils/exportPDF";
 import API from "../../../services/apiClient";
 import toast from "react-hot-toast";
 import { supabase } from "../../../lib/supabaseClient";
@@ -82,6 +81,7 @@ const Topbar = ({ demoMode = false, onToggleDemo = () => { } }) => {
   const handleExport = async (mode = "client") => {
     try {
       if (mode === "client") {
+        const { exportElementToPDF } = await import("../../../utils/exportPDF");
         await exportElementToPDF("dashboard-root", "FinSathi-Report.pdf");
         toast.success("⚡ Quick Export completed (Client-side)");
       } else {

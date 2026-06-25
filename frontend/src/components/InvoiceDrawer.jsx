@@ -1,4 +1,5 @@
 import {  useEffect, useState  } from 'react';
+import { formatCurrencyINR } from '../utils/formatNumbers';
 import { supabase } from "../lib/supabaseClient";
 import toast from "react-hot-toast";
 import { Pencil, Plus } from 'lucide-react';
@@ -79,7 +80,7 @@ export default function InvoiceDrawer({
                 <p className="text-slate-100 font-medium">
                   Invoice #{inv.id} —{" "}
                   <span className="text-indigo-300">
-                    ₹{Number(inv.total).toFixed(2)}
+                    {formatCurrencyINR(inv.total, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </p>
                 <p className="text-xs text-slate-400">

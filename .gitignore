@@ -52,3 +52,11 @@ frontend/.env
 backend/create_test_user.js
 backend/diagnostic.js
 backend/debug_data.js
+backend/check_customers_schema.js
+backend/check_teams.js
+backend/check_users_schema.js
+backend/debug_customer_insert.js
+backend/inspect_db.js
+backend/scratch/
+frontend/scratch/
+database_backup/

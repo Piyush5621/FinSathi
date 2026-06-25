@@ -24,7 +24,7 @@ CREATE TABLE public.purchase_orders (
 CREATE TABLE public.po_items (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   po_id UUID REFERENCES public.purchase_orders(id) ON DELETE CASCADE,
-  inventory_id INTEGER REFERENCES public.inventory(id) ON DELETE SET NULL,
+  inventory_id UUID REFERENCES public.inventory(id) ON DELETE SET NULL,
   quantity INTEGER NOT NULL,
   unit_price NUMERIC(12, 2) NOT NULL
 );

@@ -12,5 +12,8 @@ export const ExpenseService = {
   },
   async addExpense(userId, payload) {
     return await ExpenseRepository.create(userId, payload);
+  },
+  async updateExpense(userId, id, payload) {
+    return await ExpenseRepository.update(userId, id, payload);
   }
 };
