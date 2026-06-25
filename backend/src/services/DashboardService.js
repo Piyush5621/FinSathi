@@ -66,7 +66,8 @@ export const DashboardService = {
             // Products sold recently (for Dead Stock)
             if (saleDate >= thirtyDaysAgo && sale.items) {
                 sale.items.forEach(item => {
-                    if (item.id) soldProductSet.add(item.id);
+                    const pId = item.productId || item.id;
+                    if (pId) soldProductSet.add(pId);
                     // Profit & Category
                     const price = Number(item.price || item.selling_price || 0);
                     const cost = Number(item.cost_price || 0);

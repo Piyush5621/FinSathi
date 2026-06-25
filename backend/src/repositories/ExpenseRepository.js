@@ -23,5 +23,10 @@ export const ExpenseRepository = {
     const { data, error } = await supabase.from("expenses").insert([{ ...payload, user_id: userId }]).select().single();
     if (error) throw error;
     return data;
+  },
+  async update(userId, id, payload) {
+    const { data, error } = await supabase.from("expenses").update(payload).eq("id", id).eq("user_id", userId).select().single();
+    if (error) throw error;
+    return data;
   }
 };

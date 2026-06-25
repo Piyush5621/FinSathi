@@ -1,19 +1,14 @@
 import {  useEffect, useState  } from 'react';
-import { motion } from 'framer-motion';
+import { formatCurrencyINR } from '../utils/formatNumbers';
 import { TrendingUp, Activity, Users, IndianRupee, BarChart2 } from 'lucide-react';
 import API from '../services/apiClient';
-import Loader from './Loader';
+import Skeleton from './ui/Skeleton';
 
 const MetricCard = ({ title, value, icon: Icon, trend, delay }) => {
   const isPositiveTrend = trend >= 0;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-      className="glass-card p-6 flex flex-col justify-between group hover:border-indigo-500/30 transition-all duration-300"
-    >
+    <div className="glass-card p-6 flex flex-col justify-between group hover:border-indigo-500/30 transition-all duration-300">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center space-x-3 mb-3">
@@ -42,15 +37,17 @@ const MetricCard = ({ title, value, icon: Icon, trend, delay }) => {
 };
 
 const DashboardMetrics = ({ data }) => {
-  if (!data) return <Loader />;
+  if (!data) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(4)].map((_, i) => (
+          <Skeleton key={i} height="140px" rounded="rounded-xl" className="bg-white border border-slate-100 shadow-sm" />
+        ))}
+      </div>
+    );
+  }
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(value || 0);
-  };
+  const formatCurrency = formatCurrencyINR;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

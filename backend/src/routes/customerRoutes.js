@@ -1,6 +1,9 @@
 import express from "express";
 import { supabase } from "../config/db.js";
 import { getCustomers, addCustomer } from "../controllers/CustomerController.js";
+import { planGuard } from "../middleware/planGuard.js";
+import { validateRequest } from "../middleware/validateRequest.js";
+import { customerSchema } from "../utils/schemas.js";
 
 const router = express.Router();
 
@@ -8,7 +11,7 @@ const router = express.Router();
 router.get("/", getCustomers);
 
 // Create customer (delegating to controller)
-router.post("/", addCustomer);
+router.post("/", planGuard('customers'), validateRequest(customerSchema), addCustomer);
 
 // Get single customer by id
 router.get("/:id", async (req, res) => {

@@ -12,7 +12,7 @@ export function Table({ children, className = '' }) {
 
 export function Thead({ children }) {
   return (
-    <thead className="bg-[#F8FAFC] border-b border-[#E2E8F0] border-t">
+    <thead className="bg-slate-50/70 border-b border-slate-100">
       {children}
     </thead>
   );
@@ -20,7 +20,7 @@ export function Thead({ children }) {
 
 export function Th({ children, className = '' }) {
   return (
-    <th className={`px-[16px] py-[12px] text-[12px] font-semibold text-[#64748B] uppercase tracking-wider ${className}`}>
+    <th className={`px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider ${className}`}>
       {children}
     </th>
   );
@@ -28,7 +28,7 @@ export function Th({ children, className = '' }) {
 
 export function Tbody({ children, className = '' }) {
   return (
-    <tbody className={`divide-y divide-[#E2E8F0] ${className}`}>
+    <tbody className={`divide-y divide-slate-100/80 bg-white ${className}`}>
       {children}
     </tbody>
   );
@@ -38,7 +38,7 @@ export function Tr({ children, className = '', onClick }) {
   return (
     <tr 
         onClick={onClick}
-        className={`hover:bg-[#F8FAFC] transition-colors ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        className={`hover:bg-slate-50/50 transition-colors ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       {children}
     </tr>
@@ -47,7 +47,7 @@ export function Tr({ children, className = '', onClick }) {
 
 export function Td({ children, className = '' }) {
   return (
-    <td className={`px-[16px] py-[16px] text-[14px] text-[#334155] ${className}`}>
+    <td className={`px-4 py-3.5 text-xs text-slate-600 font-medium ${className}`}>
       {children}
     </td>
   );

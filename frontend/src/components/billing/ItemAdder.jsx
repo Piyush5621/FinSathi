@@ -1,10 +1,10 @@
-import {  useState, useEffect  } from 'react';
-import Select from "react-select";
-;
+import {  useState, useEffect, memo  } from 'react';
+import AsyncSelect from "react-select/async";
+import API from "../../services/apiClient";
 import toast from "react-hot-toast";
 import { Button } from "../ui/Button";
 
-const ItemAdder = ({ products = [], onAddItem }) => {
+const ItemAdder = memo(({ onAddItem }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedBatch, setSelectedBatch] = useState(null);
 
@@ -14,11 +14,25 @@ const ItemAdder = ({ products = [], onAddItem }) => {
   const [subtotal, setSubtotal] = useState(0);
   const [priceTier, setPriceTier] = useState("retail");
 
-  const productOptions = products.map((product) => ({
-    value: product.id,
-    label: `${product.name} ${product.sku ? `(${product.sku})` : ""} – Stock: ${product.stock}`,
-    ...product,
-  }));
+  // Debounced API search
+  let debounceTimer;
+  const loadOptions = (inputValue) => new Promise((resolve) => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      if (!inputValue || inputValue.length < 2) return resolve([]);
+      try {
+        const res = await API.get(`/inventory/search?q=${inputValue}`);
+        resolve(res.data.map(p => ({
+          value: p.id,
+          label: `${p.name} ${p.sku ? `(${p.sku})` : ""} – Stock: ${p.stock}`,
+          ...p
+        })));
+      } catch (e) {
+        console.error(e);
+        resolve([]);
+      }
+    }, 300);
+  });
 
   useEffect(() => {
     if (selectedProduct) {
@@ -93,40 +107,44 @@ const ItemAdder = ({ products = [], onAddItem }) => {
   const batches = selectedProduct?.inventory_batches || [];
 
   return (
-    <div className="py-[16px]">
-      <div className="flex flex-col md:flex-row gap-[16px] items-end">
+    <div className="py-2 bg-white">
+      <div className="flex flex-col md:flex-row gap-4 items-end">
         
         <div className="flex-1 min-w-[240px]">
-          <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wider mb-[4px] block">Product Search</label>
-          <Select
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Product Search</label>
+          <AsyncSelect
             value={selectedProduct}
             onChange={setSelectedProduct}
-            options={productOptions}
-            placeholder="Scan SKU or Search..."
+            loadOptions={loadOptions}
+            defaultOptions={false}
+            placeholder="Search Products... (min 2 chars)"
             isClearable
-            className="text-[14px]"
+            className="text-xs"
             styles={{
               control: (base, state) => ({
                 ...base,
-                borderRadius: "0.5rem",
+                borderRadius: "0.75rem",
                 backgroundColor: "#FFFFFF",
-                border: state.isFocused ? "1px solid #3B82F6" : "1px solid #E2E8F0",
-                color: "#0F172A",
+                border: state.isFocused ? "1px solid #2483F5" : "1px solid #E5E7EB",
+                color: "#1F2937",
                 boxShadow: "none",
-                minHeight: "42px"
+                minHeight: "40px"
               }),
-              singleValue: (base) => ({ ...base, color: "#0F172A" }),
-              input: (base) => ({ ...base, color: "#0F172A" }),
+              singleValue: (base) => ({ ...base, color: "#1F2937", fontWeight: 500 }),
+              input: (base) => ({ ...base, color: "#1F2937" }),
               menu: (base) => ({
                 ...base,
                 backgroundColor: "#FFFFFF",
-                border: "1px solid #E2E8F0",
+                border: "1px solid #E5E7EB",
+                borderRadius: "0.75rem",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
                 zIndex: 50
               }),
               option: (styles, { isFocused }) => ({
                 ...styles,
-                backgroundColor: isFocused ? "#F8FAFC" : "#FFFFFF",
-                color: "#334155",
+                backgroundColor: isFocused ? "#F9FAFB" : "#FFFFFF",
+                color: "#374151",
+                fontSize: "12px",
                 cursor: "pointer",
               }),
             }}
@@ -135,11 +153,11 @@ const ItemAdder = ({ products = [], onAddItem }) => {
 
         {selectedProduct && batches.length > 0 && (
           <div className="w-[180px]">
-            <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wider mb-[4px] block">Batch</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Batch</label>
             <select
               value={selectedBatch?.id || ""}
               onChange={(e) => setSelectedBatch(batches.find(x => x.id === e.target.value))}
-              className="w-full bg-[#FFFFFF] border border-[#E2E8F0] rounded-lg h-[42px] px-[12px] text-[14px] text-[#0F172A] focus:ring-1 focus:ring-[#3B82F6] outline-none"
+              className="w-full bg-white border border-slate-200 rounded-xl h-10 px-3.5 text-xs text-slate-800 focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue outline-none transition-all font-medium"
             >
               {batches.map(b => (
                 <option key={b.id} value={b.id}>{b.batch_name || 'Lot'} (Qty: {b.stock})</option>
@@ -149,21 +167,21 @@ const ItemAdder = ({ products = [], onAddItem }) => {
         )}
 
         <div className="w-[80px]">
-          <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wider mb-[4px] block">Qty</label>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Qty</label>
           <input
             type="number"
             min="1"
             value={quantity}
             onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-            className="w-full bg-[#FFFFFF] border border-[#E2E8F0] rounded-lg h-[42px] px-[12px] text-center font-bold text-[#0F172A] focus:ring-1 focus:ring-[#3B82F6] outline-none"
+            className="w-full bg-white border border-slate-200 rounded-xl h-10 px-3 text-center text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue outline-none transition-all"
           />
         </div>
 
         <div className="w-[120px]">
-          <div className="flex justify-between items-center mb-[4px]">
-            <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wider">Price</label>
+          <div className="flex justify-between items-center mb-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Price</label>
             {((selectedBatch && selectedBatch.wholesale_price > 0) || (!selectedBatch && selectedProduct?.wholesale_price > 0)) && (
-              <select value={priceTier} onChange={(e) => setPriceTier(e.target.value)} className="text-[10px] bg-[#F8FAFC] text-[#334155] border border-[#E2E8F0] rounded outline-none">
+              <select value={priceTier} onChange={(e) => setPriceTier(e.target.value)} className="text-[9px] bg-slate-50 text-slate-600 border border-slate-100 rounded outline-none p-0.5 font-semibold">
                 <option value="retail">Retail</option>
                 <option value="wholesale">Wholesale</option>
               </select>
@@ -173,16 +191,16 @@ const ItemAdder = ({ products = [], onAddItem }) => {
             type="number"
             value={price}
             onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-            className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg h-[42px] px-[12px] font-medium text-[#0F172A] focus:ring-1 focus:ring-[#3B82F6] outline-none"
+            className="w-full bg-white border border-slate-200 rounded-xl h-10 px-3 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue outline-none transition-all"
           />
         </div>
 
-        <Button onClick={handleAddItem} disabled={!selectedProduct} className="h-[42px] px-[24px]">
-          Add
+        <Button onClick={handleAddItem} disabled={!selectedProduct} className="h-10 px-5 rounded-xl font-bold text-xs shrink-0 active:scale-[0.98]">
+          Add Item
         </Button>
       </div>
     </div>
   );
-};
+});
 
 export default ItemAdder;

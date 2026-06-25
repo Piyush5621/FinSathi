@@ -1,6 +1,7 @@
 import {  useState, useEffect  } from 'react';
 import toast from "react-hot-toast";
 import { supabase } from "../lib/supabaseClient";
+import { updateCustomer } from "../api/customers"; // Import missing API utility
 import { Modal } from "./ui/Modal";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";

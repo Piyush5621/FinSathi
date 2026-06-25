@@ -1,5 +1,5 @@
 -- RPC function to atomically decrement stock
-CREATE OR REPLACE FUNCTION decrement_stock(row_id BIGINT, quantity_to_subtract INT)
+CREATE OR REPLACE FUNCTION decrement_stock(row_id UUID, quantity_to_subtract INT)
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$

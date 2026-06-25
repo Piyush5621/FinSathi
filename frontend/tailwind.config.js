@@ -8,21 +8,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        'brand-navy': '#1E293B',
-        'brand-blue': '#3B82F6',
-        'bg-page': '#F8FAFC',
+        'brand-navy': '#0F1E3A',
+        'brand-blue': '#2483F5',
+        'bg-page': '#F5F7FA',
         'bg-card': '#FFFFFF',
-        'text-heading': '#0F172A',
-        'text-body': '#334155',
-        'text-label': '#64748B',
-        'text-main': '#0F172A', // Legacy support linking to heading
-        'text-muted': '#64748B', // Legacy support linking to label
-        'text-disabled': '#94A3B8',
-        'border-color': '#E2E8F0',
+        'text-heading': '#111827',
+        'text-body': '#374151',
+        'text-label': '#6B7280',
+        'text-main': '#111827',
+        'text-muted': '#6B7280',
+        'text-disabled': '#9CA3AF',
+        'border-color': '#E5E7EB',
         status: {
-          success: { bg: '#DCFCE7', text: '#15803D' },
-          warning: { bg: '#FEF3C7', text: '#B45309' },
-          danger: { bg: '#FEE2E2', text: '#B91C1C' },
+          success: { bg: '#DEF7EC', text: '#03543F' },
+          warning: { bg: '#FDF6B2', text: '#723B10' },
+          danger: { bg: '#FDE8E8', text: '#9B1C1C' },
         },
       },
       animation: {

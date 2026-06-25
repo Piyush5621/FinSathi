@@ -1,11 +1,12 @@
-import {  useEffect, useState  } from 'react';
+import { useEffect, useState } from 'react';
 import API from "../services/apiClient";
-import { TrendingUp, TrendingDown, Activity, Lightbulb, ArrowUpRight, ArrowDownRight, Users, ReceiptText } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Lightbulb, ArrowUpRight, ArrowDownRight, Users, ReceiptText, Award, Percent } from 'lucide-react';
 import { Card } from "../components/ui/Card";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
+import { Badge } from "../components/ui/Badge";
 import { 
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
-  PieChart, Pie, Cell, BarChart, Bar, Legend
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
+  PieChart, Pie, Cell, Legend
 } from "recharts";
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -20,7 +21,6 @@ export default function PnlPage() {
 
     const fetchAnalytics = async () => {
         try {
-            // Fetch everything via secure backend
             const [salesRes, expensesRes, invRes] = await Promise.all([
                 API.get("/sales"),
                 API.get("/expenses"),
@@ -120,11 +120,11 @@ export default function PnlPage() {
             if (trendData.length >= 2) {
                 const todayRev = trendData[trendData.length-1].revenue;
                 const yestRev = trendData[trendData.length-2].revenue;
-                if (todayRev > yestRev) insights.push({ type: 'success', text: `📈 Revenue is up by ₹${(todayRev - yestRev).toFixed(2)} compared to yesterday.`});
-                else if (todayRev < yestRev && yestRev > 0) insights.push({ type: 'warning', text: `⚠️ Revenue dropped by ₹${(yestRev - todayRev).toFixed(2)} today. Check operations.`});
+                if (todayRev > yestRev) insights.push({ type: 'success', text: `📈 Revenue is up by ₹${(todayRev - yestRev).toLocaleString('en-IN')} compared to yesterday.`});
+                else if (todayRev < yestRev && yestRev > 0) insights.push({ type: 'warning', text: `⚠️ Revenue dropped by ₹${(yestRev - todayRev).toLocaleString('en-IN')} today. Check operations.`});
             }
             if (outOfStock.length > 0) {
-                insights.push({ type: 'danger', text: `🚨 ${outOfStock.length} items out of stock! Estimated ₹${potentialLoss.toLocaleString()} potential revenue lost.`});
+                insights.push({ type: 'danger', text: `🚨 ${outOfStock.length} items out of stock! Estimated ₹${potentialLoss.toLocaleString('en-IN')} potential revenue lost.`});
             }
             if (topProducts.length > 0) {
                 insights.push({ type: 'info', text: `🔥 ${topProducts[0].name} is driving the most profit. Consider running a combo offer!`});
@@ -154,7 +154,7 @@ export default function PnlPage() {
 
     if (loading || !metrics) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
+            <div className="flex items-center justify-center min-h-[450px]">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3B82F6]"></div>
             </div>
         );
@@ -162,6 +162,7 @@ export default function PnlPage() {
 
     return (
         <div className="space-y-[32px] animate-fade-in-up pb-[40px]">
+            {/* Header */}
             <div>
                 <h1 className="text-[22px] font-bold text-[#0F172A] flex items-center gap-[8px]">
                    <Activity size={24} className="text-[#3B82F6]" />
@@ -170,124 +171,152 @@ export default function PnlPage() {
                 <p className="text-[14px] text-[#64748B] mt-[4px]">Data-driven decision-making engine mapping your financial operational trends.</p>
             </div>
 
-            {/* ROW 1: CORE STATS */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-[24px]">
-                <Card className="border-t-[4px] border-t-[#3B82F6]">
-                    <span className="text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Total Revenue</span>
-                    <h2 className="text-[32px] font-extrabold text-[#0F172A] mt-[8px]">₹{metrics.totalRevenue.toLocaleString()}</h2>
-                </Card>
-                <Card className="border-t-[4px] border-t-[#EF4444]">
-                    <span className="text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Total Expenses</span>
-                    <h2 className="text-[32px] font-extrabold text-[#0F172A] mt-[8px]">₹{metrics.totalExpenses.toLocaleString()}</h2>
-                </Card>
-                <Card className={`border-t-[4px] ${metrics.netProfit < 0 ? 'border-t-[#EF4444]' : 'border-t-[#10B981]'}`}>
-                    <span className="text-[12px] font-bold text-[#64748B] uppercase tracking-wider">Net Profit</span>
-                    <h2 className={`text-[32px] font-extrabold mt-[8px] ${metrics.netProfit < 0 ? 'text-[#EF4444]' : 'text-[#10B981]'}`}>
-                        ₹{metrics.netProfit.toLocaleString()}
-                    </h2>
-                </Card>
-                <Card className="border-t-[4px] border-t-[#F59E0B] bg-[#FFFBEB]">
-                    <span className="text-[12px] font-bold text-[#B45309] uppercase tracking-wider">Net Profit Margin %</span>
-                    <h2 className="text-[32px] font-extrabold text-[#D97706] mt-[8px]">{metrics.profitMargin}%</h2>
-                </Card>
-            </div>
-
-            {/* ROW 6: SMART INSIGHTS (Pulled up for visibility) */}
+            {/* Smart Insights (Top Visibility) */}
             {metrics.insights.length > 0 && (
-                <div className="bg-[#1E293B] rounded-2xl p-[24px] shadow-lg border border-[#334155]">
-                    <h3 className="text-[16px] font-bold text-white mb-[16px] flex items-center gap-[8px]">
-                        <Lightbulb size={20} className="text-[#FBBF24]" /> Smart Business Insights
+                <div className="bg-[#090D16] border border-slate-800 rounded-3xl p-[24px] shadow-2xl relative overflow-hidden">
+                    <div className="absolute right-[-10px] top-[-10px] w-32 h-32 rounded-full bg-indigo-500/5 blur-2xl pointer-events-none"></div>
+                    <h3 className="text-sm font-bold text-white mb-[18px] flex items-center gap-[8px] tracking-tight">
+                        <Lightbulb size={18} className="text-amber-400" /> AI Business Assistant Insights
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-[16px]">
                         {metrics.insights.map((insight, idx) => (
-                            <div key={idx} className="bg-[#0F172A] border border-[#334155] p-[16px] rounded-xl flex items-start gap-[12px]">
-                                <div className="text-[14px] text-[#E2E8F0] font-medium leading-relaxed">{insight.text}</div>
+                            <div key={idx} className="bg-slate-950/60 border border-slate-800/80 p-[16px] rounded-2xl flex items-start gap-[12px]">
+                                <div className="text-xs text-slate-200 font-medium leading-relaxed">{insight.text}</div>
                             </div>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* ROW 2: CHARTS */}
+            {/* KPI Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[24px]">
+                <Card className="border-t-[4px] border-t-[#3B82F6] border-slate-150">
+                    <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">Total Revenue</span>
+                    <h2 className="text-[28px] font-extrabold text-[#0F172A] mt-2 block">₹{metrics.totalRevenue.toLocaleString('en-IN')}</h2>
+                </Card>
+                <Card className="border-t-[4px] border-t-[#EF4444] border-slate-150">
+                    <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">Total Expenses</span>
+                    <h2 className="text-[28px] font-extrabold text-[#0F172A] mt-2 block">₹{metrics.totalExpenses.toLocaleString('en-IN')}</h2>
+                </Card>
+                <Card className={`border-t-[4px] border-slate-150 ${metrics.netProfit < 0 ? 'border-t-red-500' : 'border-t-emerald-500'}`}>
+                    <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">Net Profit</span>
+                    <h2 className={`text-[28px] font-extrabold mt-2 block ${metrics.netProfit < 0 ? 'text-red-650' : 'text-emerald-650'}`}>
+                        ₹{metrics.netProfit.toLocaleString('en-IN')}
+                    </h2>
+                </Card>
+                <Card className="border-t-[4px] border-t-amber-500 bg-amber-50/20 border-slate-150">
+                    <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block">Net Profit Margin %</span>
+                    <h2 className="text-[28px] font-extrabold text-amber-700 mt-2 block flex items-center gap-1">
+                      <Percent size={20} className="stroke-2 shrink-0" /> {metrics.profitMargin}%
+                    </h2>
+                </Card>
+            </div>
+
+            {/* Charts section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-[24px]">
-                <Card className="lg:col-span-2 flex flex-col">
-                    <h3 className="text-[14px] font-bold text-[#0F172A] mb-[24px] border-b border-[#E2E8F0] pb-[12px]">Sales & Expense Trend (7 Days)</h3>
+                <Card className="lg:col-span-2 flex flex-col border border-slate-150">
+                    <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-[24px] border-b border-slate-100 pb-[12px]">Financial Operational Trend (7 Days)</h3>
                     <div className="h-[280px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={metrics.trendData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                <XAxis dataKey="shortDate" axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 12}} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 12}} dx={-10} />
-                                <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                <Line type="monotone" name="Revenue" dataKey="revenue" stroke="#3B82F6" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
-                                <Line type="monotone" name="Expenses" dataKey="expenses" stroke="#EF4444" strokeWidth={3} dot={{r: 4}} />
-                            </LineChart>
+                            <AreaChart data={metrics.trendData}>
+                                <defs>
+                                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2}/>
+                                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.01}/>
+                                  </linearGradient>
+                                  <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.15}/>
+                                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0.01}/>
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                                <XAxis dataKey="shortDate" axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 11, fontWeight: 600}} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 11, fontWeight: 600}} dx={-10} />
+                                <RechartsTooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: 12 }} />
+                                <Area type="monotone" name="Revenue" dataKey="revenue" stroke="#3B82F6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRev)" />
+                                <Area type="monotone" name="Expenses" dataKey="expenses" stroke="#EF4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colorExp)" />
+                            </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </Card>
-                <Card className="flex flex-col">
-                    <h3 className="text-[14px] font-bold text-[#0F172A] mb-[24px] border-b border-[#E2E8F0] pb-[12px]">Expense Breakdown</h3>
-                    <div className="h-[280px] w-full flex items-center justify-center">
+                <Card className="flex flex-col border border-slate-150">
+                    <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider mb-[24px] border-b border-slate-100 pb-[12px]">Expense Outflow Breakdown</h3>
+                    <div className="h-[280px] w-full flex flex-col items-center justify-center">
                         {metrics.expenseBreakdown.length === 0 ? (
-                            <p className="text-[#64748B] text-[13px]">No expenses recorded.</p>
+                            <p className="text-slate-400 text-xs italic">No operational outflow recorded.</p>
                         ) : (
-                            <ResponsiveContainer width="99%" height={280}>
-                                <PieChart>
-                                    <Pie data={metrics.expenseBreakdown} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                        {metrics.expenseBreakdown.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <>
+                              <ResponsiveContainer width="99%" height={200}>
+                                  <PieChart>
+                                      <Pie data={metrics.expenseBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={68} paddingAngle={4} dataKey="value">
+                                          {metrics.expenseBreakdown.map((entry, index) => (
+                                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                          ))}
+                                      </Pie>
+                                      <RechartsTooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                                  </PieChart>
+                              </ResponsiveContainer>
+                              {/* Custom Legend */}
+                              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-4 w-full px-2 max-h-[70px] overflow-y-auto custom-scrollbar">
+                                {metrics.expenseBreakdown.map((item, idx) => (
+                                  <div key={idx} className="flex items-center gap-1 text-[10px] font-bold text-slate-700">
+                                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
+                                    {item.name}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
                         )}
                     </div>
                 </Card>
             </div>
 
-            {/* ROW 3: PROFIT PRODUCTS */}
+            {/* Profit & Loss Tables */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-[24px]">
-                <Card noPadding>
-                    <div className="p-[20px] border-b border-[#E2E8F0]">
-                        <h3 className="text-[14px] font-bold text-[#0F172A] flex items-center gap-[8px]">
-                            <TrendingUp size={18} className="text-[#10B981]" /> Top Profit Products
+                {/* Top Profit Products */}
+                <Card noPadding className="border border-slate-150 overflow-hidden">
+                    <div className="p-[20px] border-b border-slate-100 bg-slate-50/50">
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-[8px]">
+                            <TrendingUp size={16} className="text-[#10B981]" /> Top Performing Products
                         </h3>
                     </div>
                     <Table>
                         <Thead><tr><Th>Product</Th><Th className="text-right">Profit Margin</Th><Th className="text-right">Net Profit</Th></tr></Thead>
                         <Tbody>
                             {metrics.topProducts.length === 0 ? (
-                                <Tr><Td colSpan="3" className="text-center py-6 text-[#64748B]">No sales data.</Td></Tr>
+                                <Tr><Td colSpan="3" className="text-center py-8 text-slate-400">No product sales logged yet.</Td></Tr>
                             ) : metrics.topProducts.map((p, idx) => (
-                                <Tr key={idx}>
-                                    <Td className="font-bold text-[#0F172A]">{p.name}</Td>
-                                    <Td className="text-right font-medium text-[#10B981]">{p.margin.toFixed(1)}%</Td>
-                                    <Td className="text-right font-bold text-[#0F172A]">₹{p.profit.toLocaleString()}</Td>
+                                <Tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/30">
+                                    <Td className="font-semibold text-slate-900 text-xs">{p.name}</Td>
+                                    <Td className="text-right"><Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-100">{p.margin.toFixed(1)}% margin</Badge></Td>
+                                    <Td className="text-right font-bold text-slate-900">₹{p.profit.toLocaleString('en-IN')}</Td>
                                 </Tr>
                             ))}
                         </Tbody>
                     </Table>
                 </Card>
                 
-                <Card noPadding>
-                    <div className="p-[20px] border-b border-[#E2E8F0] bg-[#FEF2F2]">
-                        <h3 className="text-[14px] font-bold text-[#991B1B] flex items-center gap-[8px]">
-                            <TrendingDown size={18} className="text-[#EF4444]" /> Low Margin / Loss Products
+                {/* Low Margin/Loss Products */}
+                <Card noPadding className="border border-slate-150 overflow-hidden">
+                    <div className="p-[20px] border-b border-slate-100 bg-red-50/10">
+                        <h3 className="text-xs font-bold text-red-950 uppercase tracking-wider flex items-center gap-[8px]">
+                            <TrendingDown size={16} className="text-red-500" /> Low Margin / Loss Products
                         </h3>
                     </div>
                     <Table>
                         <Thead><tr><Th>Product</Th><Th className="text-right">Profit Margin</Th><Th className="text-right">Net Profit</Th></tr></Thead>
                         <Tbody>
                             {metrics.lowProducts.length === 0 ? (
-                                <Tr><Td colSpan="3" className="text-center py-6 text-[#64748B]">No poorly performing data.</Td></Tr>
+                                <Tr><Td colSpan="3" className="text-center py-8 text-slate-400">No low margin items found.</Td></Tr>
                             ) : metrics.lowProducts.map((p, idx) => (
-                                <Tr key={idx}>
-                                    <Td className="font-bold text-[#0F172A]">{p.name}</Td>
-                                    <Td className={`text-right font-medium ${p.margin <= 0 ? 'text-[#EF4444]' : 'text-[#F59E0B]'}`}>{p.margin.toFixed(1)}%</Td>
-                                    <Td className={`text-right font-bold ${p.profit <= 0 ? 'text-[#EF4444]' : 'text-[#D97706]'}`}>₹{p.profit.toLocaleString()}</Td>
+                                <Tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/30">
+                                    <Td className="font-semibold text-slate-900 text-xs">{p.name}</Td>
+                                    <Td className="text-right">
+                                       <Badge variant={p.margin <= 0 ? "danger" : "warning"}>
+                                         {p.margin.toFixed(1)}% margin
+                                       </Badge>
+                                    </Td>
+                                    <Td className={`text-right font-bold ${p.profit <= 0 ? 'text-red-600' : 'text-slate-900'}`}>₹{p.profit.toLocaleString('en-IN')}</Td>
                                 </Tr>
                             ))}
                         </Tbody>
@@ -295,51 +324,53 @@ export default function PnlPage() {
                 </Card>
             </div>
 
-            {/* ROW 4 & 5: CASH FLOW & TRANSACTIONS */}
+            {/* Customers & Recent Cash Flow */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-[24px]">
-                <Card noPadding>
-                    <div className="p-[20px] border-b border-[#E2E8F0]">
-                        <h3 className="text-[14px] font-bold text-[#0F172A] flex items-center gap-[8px]">
-                            <Users size={18} className="text-[#3B82F6]" /> Top Customers By Revenue
+                {/* Top Customers */}
+                <Card noPadding className="border border-slate-150 overflow-hidden">
+                    <div className="p-[20px] border-b border-slate-100 bg-slate-50/50">
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-[8px]">
+                            <Users size={16} className="text-[#3B82F6]" /> Client Contribution Ledgers
                         </h3>
                     </div>
                     <Table>
                         <Thead><tr><Th>Customer</Th><Th className="text-right">Total Contributed</Th></tr></Thead>
                         <Tbody>
                             {metrics.topCustomers.length === 0 ? (
-                                <Tr><Td colSpan="2" className="text-center py-6 text-[#64748B]">No customer data.</Td></Tr>
+                                <Tr><Td colSpan="2" className="text-center py-8 text-slate-400">No client payments logged.</Td></Tr>
                             ) : metrics.topCustomers.map((c, idx) => (
-                                <Tr key={idx}>
-                                    <Td className="font-bold text-[#0F172A]">{c.name}</Td>
-                                    <Td className="text-right font-bold text-[#3B82F6]">₹{c.total.toLocaleString()}</Td>
+                                <Tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/30">
+                                    <Td className="font-semibold text-slate-900 text-xs">{c.name}</Td>
+                                    <Td className="text-right font-bold text-[#3B82F6]">₹{c.total.toLocaleString('en-IN')}</Td>
                                 </Tr>
                             ))}
                         </Tbody>
                     </Table>
                 </Card>
                 
-                <Card noPadding>
-                    <div className="p-[20px] border-b border-[#E2E8F0]">
-                        <h3 className="text-[14px] font-bold text-[#0F172A] flex items-center gap-[8px]">
-                            <ReceiptText size={18} className="text-[#3B82F6]" /> Recent Cash Flow
+                {/* Recent Cash Flow ledger */}
+                <Card noPadding className="border border-slate-150 overflow-hidden">
+                    <div className="p-[20px] border-b border-slate-100 bg-slate-50/50">
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-[8px]">
+                            <ReceiptText size={16} className="text-[#3B82F6]" /> Recent Cash Flow Logs
                         </h3>
                     </div>
-                    <div className="divide-y divide-[#E2E8F0]">
+                    <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto custom-scrollbar">
                         {metrics.allTx.length === 0 ? (
-                            <div className="p-[20px] text-center text-[#64748B] text-[13px]">No recent transactions.</div>
+                            <div className="p-[20px] text-center text-slate-400 text-xs italic">No transactions recorded.</div>
                         ) : metrics.allTx.map((tx, idx) => (
-                            <div key={idx} className="p-[16px] flex justify-between items-center hover:bg-[#F8FAFC] transition-colors">
+                            <div key={idx} className="p-[14px] flex justify-between items-center hover:bg-slate-50/40 transition-colors">
                                 <div className="flex items-center gap-[12px]">
-                                    <div className={`p-[8px] rounded-lg ${tx.txType === 'SALE' ? 'bg-[#DCFCE7] text-[#16A34A]' : 'bg-[#FEE2E2] text-[#DC2626]'}`}>
-                                        {tx.txType === 'SALE' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
+                                    <div className={`p-[6px] rounded-lg shrink-0 ${tx.txType === 'SALE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                                        {tx.txType === 'SALE' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                                     </div>
                                     <div>
-                                        <p className="text-[14px] font-bold text-[#0F172A]">{tx.title}</p>
-                                        <p className="text-[12px] text-[#64748B]">{tx.dateObj.toLocaleDateString()}</p>
+                                        <p className="text-xs font-bold text-[#0F172A]">{tx.title}</p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">{tx.dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
                                     </div>
                                 </div>
-                                <span className={`font-bold ${tx.txType === 'SALE' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                                    {tx.txType === 'SALE' ? '+' : '-'}₹{Number(tx.amt).toLocaleString()}
+                                <span className={`text-xs font-bold ${tx.txType === 'SALE' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    {tx.txType === 'SALE' ? '+' : '-'}₹{Number(tx.amt).toLocaleString('en-IN')}
                                 </span>
                             </div>
                         ))}

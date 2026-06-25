@@ -1,34 +1,79 @@
 import express from 'express';
 import { supabase } from '../config/db.js';
+import { planGuard } from '../middleware/planGuard.js';
+import { validateRequest } from '../middleware/validateRequest.js';
+import { inventorySchema } from '../utils/schemas.js';
 
 const router = express.Router();
 
-// Get all inventory items with their active batches
 router.get('/', async (req, res) => {
   try {
+    console.log('[Inventory] Fetching for User ID:', req.user?.id);
+    
+    if (!req.user?.id) {
+      console.error('[Inventory] Critical: req.user.id is missing!');
+      return res.status(401).json({ error: 'AUTHENTICATION_ERROR', message: 'User ID missing in request' });
+    }
+
+    const limit = parseInt(req.query.limit) || 1000;
+    const offset = parseInt(req.query.offset) || 0;
+
     const { data: products, error: prodError } = await supabase
       .from('inventory')
       .select('*, inventory_batches(*)')
       .eq('user_id', req.user.id)
-      .order('name');
+      .order('name')
+      .range(offset, offset + limit - 1);
 
-    if (prodError) throw prodError;
+    if (prodError) {
+      console.error('[Inventory] Database Query Error:', prodError);
+      throw prodError;
+    }
 
+    console.log(`[Inventory] Successfully fetched ${products?.length || 0} items.`);
     res.json(products);
   } catch (err) {
-    console.error('Error fetching inventory:', err);
-    res.status(500).json({ error: 'Failed to fetch inventory items' });
+    console.error('Inventory Fetch Error [500]:', err);
+    res.status(500).json({ 
+      error: 'INVENTORY_FETCH_FAILED', 
+      message: err.message,
+      hint: 'Check your terminal for the Database Query Error log.'
+    });
+  }
+});
+
+// Fast server-side search (Critical for Billing Dropdown)
+router.get('/search', async (req, res) => {
+  try {
+    const q = req.query.q || '';
+    if (!q) return res.json([]);
+    
+    // Fuzzy search on name or sku
+    const { data, error } = await supabase
+      .from('inventory')
+      .select('*, inventory_batches(*)')
+      .eq('user_id', req.user.id)
+      .or(`name.ilike.%${q}%,sku.ilike.%${q}%`)
+      .limit(20);
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'SEARCH_FAILED', message: err.message });
   }
 });
 
 // Add new inventory item (Master + Initial Batch)
-router.post('/', async (req, res) => {
+router.post('/', planGuard('products'), validateRequest(inventorySchema), async (req, res) => {
   const {
     name, description, company, sku,
     price, cost_price, wholesale_price, stock, gst_percent, units, unit
   } = req.body;
 
   try {
+    console.log('[Inventory] Adding new item for User:', req.user.id);
+    console.log('[Inventory] Payload:', req.body);
+
     const { data: master, error: masterError } = await supabase
       .from('inventory')
       .insert([{
@@ -37,20 +82,32 @@ router.post('/', async (req, res) => {
         description,
         company,
         sku,
-        gst_percent,
-        price,
-        cost_price,
-        wholesale_price,
-        stock,
+        gst_percent: Number(gst_percent || 0),
+        price: Number(price || 0),
+        cost_price: Number(cost_price || 0),
+        wholesale_price: Number(wholesale_price || 0),
+        stock: Number(stock || 0),
         units: units || unit || 'pcs'
       }])
-      .select()
+      .select('*')
       .single();
 
-    if (masterError) throw masterError;
+    if (masterError) {
+      console.error('[Inventory] Master Create Error Details:', masterError);
+      return res.status(500).json({ 
+         error: 'MASTER_CREATE_FAILED', 
+         message: masterError.message,
+         details: masterError.details
+      });
+    }
+
+    if (!master) {
+      throw new Error("No data returned from master creation");
+    }
 
     // Create Initial Batch if pricing/stock provided
     if (stock > 0 || price > 0) {
+      console.log('[Inventory] Creating initial batch for Master ID:', master.id);
       const { error: batchError } = await supabase
         .from('inventory_batches')
         .insert([{
@@ -63,13 +120,20 @@ router.post('/', async (req, res) => {
           stock: Number(stock || 0)
         }]);
 
-      if (batchError) console.error("Batch creation warning:", batchError);
+      if (batchError) {
+        console.error('[Inventory] Batch Creation Warning:', batchError);
+      }
     }
 
+    console.log('[Inventory] Successfully added item:', master.id);
     res.status(201).json(master);
   } catch (err) {
-    console.error('Error adding inventory item:', err);
-    res.status(500).json({ error: 'Failed to add inventory item' });
+    console.error('Error adding inventory item [500]:', err);
+    res.status(500).json({ 
+      error: 'ADD_INVENTORY_FAILED', 
+      message: err.message,
+      hint: 'Check your backend terminal for "Master Create Error"'
+    });
   }
 });
 

@@ -35,3 +35,12 @@ export const addExpense = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const updateExpense = async (req, res) => {
+  try {
+    const data = await ExpenseService.updateExpense(req.user.id, req.params.id, req.body);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

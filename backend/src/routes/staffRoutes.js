@@ -8,6 +8,7 @@ router.use(authenticateToken);
 
 router.get('/', StaffController.getStaff);
 router.post('/', StaffController.addStaff);
+router.delete('/:id', StaffController.deleteStaff);
 router.get('/attendance', StaffController.getAttendance);
 router.post('/attendance', StaffController.markAttendance);
 router.get('/payroll', StaffController.getPayroll);

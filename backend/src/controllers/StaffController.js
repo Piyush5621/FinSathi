@@ -113,3 +113,22 @@ export const deletePayroll = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+export const deleteStaff = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if staff has any dependencies (optional, but good for safety)
+    // For now, we'll allow delete and let foreign key constraints handle it or just delete.
+    
+    const { error } = await supabase
+      .from('staff')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', req.user.id);
+
+    if (error) throw error;
+    res.json({ message: "Staff member removed" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

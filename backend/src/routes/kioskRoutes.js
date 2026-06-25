@@ -7,12 +7,22 @@ const router = express.Router();
 router.get('/business/:id', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .select('business_name')
       .eq('id', req.params.id)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: "Business not found" });
+      }
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });

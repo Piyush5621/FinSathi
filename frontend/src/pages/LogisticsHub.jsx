@@ -66,9 +66,9 @@ export default function LogisticsHub() {
            <div>
               <h1 className="text-[32px] font-black text-brand-navy tracking-tighter">Supply Chain Engine</h1>
               <div className="flex items-center gap-4 mt-1">
-                 <p className="text-[12px] text-brand-blue font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                 <div className="text-[12px] text-brand-blue font-black uppercase tracking-[0.2em] flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-lg shadow-emerald-200" /> Global Node Active
-                 </p>
+                 </div>
                  <span className="text-slate-300">|</span>
                  <p className="text-[12px] text-slate-400 font-bold uppercase tracking-widest">{warehouses.length} Active Storage Terminals</p>
               </div>

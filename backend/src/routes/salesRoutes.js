@@ -1,10 +1,13 @@
 import express from "express";
 import { getWeeklySales, getAllSales, createSale, deleteSale, getSummary, getTrend, updateSale } from "../controllers/SalesController.js";
+import { planGuard } from "../middleware/planGuard.js";
+import { validateRequest } from "../middleware/validateRequest.js";
+import { saleSchema } from "../utils/schemas.js";
 
 const router = express.Router();
 
 // ✅ Create Sales (Checkout)
-router.post("/", createSale);
+router.post("/", planGuard('invoices_per_month'), validateRequest(saleSchema), createSale);
 
 // ✅ Update Sale
 router.put("/:id", updateSale);

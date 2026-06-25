@@ -37,32 +37,63 @@ export default function InvoiceEditorModal({ invoice, onClose, onSaved }) {
   const loadInvoiceData = async () => {
     try {
       setLoading(true);
-      const { data: custData, error: custErr } = await supabase
-        .from("customers")
-        .select("*")
-        .eq("id", invoice.customer_id)
-        .single();
-      if (custErr) throw custErr;
-      setCustomer(custData);
+      // Safely fetch customer data
+      try {
+        if (invoice.customer_id) {
+          const { data: custData, error: custErr } = await supabase
+            .from("customers")
+            .select("*")
+            .eq("id", invoice.customer_id)
+            .maybeSingle();
+          if (!custErr && custData) {
+            setCustomer(custData);
+          } else if (invoice.customers) {
+            setCustomer(invoice.customers);
+          }
+        } else if (invoice.customers) {
+           setCustomer(invoice.customers);
+        }
+      } catch (e) {
+        console.warn("Could not fetch customer, using fallback", e);
+        if (invoice.customers) setCustomer(invoice.customers);
+      }
 
-      const { data: invData, error: invErr } = await supabase
-        .from("inventory")
-        .select("id, name, sku, price, stock, description, gst_percent, units") // Corrected 'unit' to 'units'
-        .order("id", { ascending: true });
-      if (invErr) throw invErr;
-      setProducts(invData || []);
+      // Inventory is now handled via async search in ItemAdder, so we don't need to load all products here.
+      setProducts([]);
 
-      const parsedItems =
-        Array.isArray(invoice.items) ||
-          typeof invoice.items === "object"
-          ? invoice.items
-          : typeof invoice.items === "string"
-            ? JSON.parse(invoice.items)
-            : [];
+      let parsedItems = [];
+      if (invoice.items) {
+        if (Array.isArray(invoice.items)) {
+          parsedItems = invoice.items;
+        } else if (typeof invoice.items === "string") {
+          try {
+            parsedItems = JSON.parse(invoice.items);
+          } catch (e) {
+            console.error("Failed to parse invoice items:", e);
+          }
+        } else if (typeof invoice.items === "object") {
+          parsedItems = invoice.items;
+        }
+      }
+      
+      // Fallback for missing items, check sale_items relation
+      if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
+        if (Array.isArray(invoice.sale_items)) {
+          parsedItems = invoice.sale_items.map(si => ({
+            id: si.id || Date.now() + Math.random(),
+            product_id: si.product_id,
+            name: si.products?.name || "Unknown Item",
+            price: si.unit_price,
+            quantity: si.quantity,
+            amount: si.total,
+            gst_percent: si.products?.gst_percent || 0
+          }));
+        }
+      }
 
-      setItems(parsedItems);
+      setItems(Array.isArray(parsedItems) ? parsedItems : []);
 
-      const gstAmount = invoice.gst_percent ? invoice.gst_percent : 0;
+      const gstAmount = invoice.tax_amount != null ? Number(invoice.tax_amount) : 0;
       setSummaryValues({
         subtotal: invoice.subtotal || 0,
         gst_amount: gstAmount,
@@ -73,6 +104,7 @@ export default function InvoiceEditorModal({ invoice, onClose, onSaved }) {
       setPaymentDetails({
         method: invoice.payment_method || "cash",
         status: invoice.payment_status || "unpaid",
+        amountReceived: invoice.amount_paid || 0,
       });
     } catch (err) {
       console.error("Error loading invoice:", err);
@@ -147,7 +179,8 @@ export default function InvoiceEditorModal({ invoice, onClose, onSaved }) {
         total: summaryValues.total,
         payment_method: paymentDetails.method,
         payment_status: paymentDetails.status,
-        date: new Date().toISOString(),
+        amount_paid: paymentDetails.amountReceived,
+        date: invoice.date || invoice.created_at || new Date().toISOString(),
       });
 
       toast.success("Invoice updated successfully");
@@ -163,7 +196,7 @@ export default function InvoiceEditorModal({ invoice, onClose, onSaved }) {
 
   if (loading)
     return (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center text-slate-300 z-50">
+      <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center text-white z-50">
         Loading invoice details...
       </div>
     );
@@ -174,14 +207,14 @@ export default function InvoiceEditorModal({ invoice, onClose, onSaved }) {
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50"
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50"
       >
-        <div className="bg-[#0f172a] border border-slate-700 rounded-2xl shadow-2xl 
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl shadow-2xl 
                         w-[95%] max-w-5xl max-h-[88vh] overflow-y-auto p-6 
-                        scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
+                        scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
           {/* Header */}
-          <div className="flex justify-between items-center mb-6 sticky top-0 bg-[#0f172a] pb-2">
-            <h2 className="text-xl font-bold text-indigo-400">
+          <div className="flex justify-between items-center mb-6 sticky top-0 bg-slate-50 pb-2 z-10">
+            <h2 className="text-xl font-bold text-indigo-700">
               Modify Invoice #{invoice.id}
             </h2>
             <button
@@ -196,7 +229,7 @@ export default function InvoiceEditorModal({ invoice, onClose, onSaved }) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left */}
             <div className="lg:col-span-2 flex flex-col gap-6">
-              <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700">
+              <div className="bg-white p-6 rounded-[20px] border border-slate-100 shadow-sm">
                 <CustomerSection
                   customers={[customer]}
                   selectedCustomer={customer?.id}
@@ -205,11 +238,11 @@ export default function InvoiceEditorModal({ invoice, onClose, onSaved }) {
                 />
               </div>
 
-              <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700">
+              <div className="bg-white p-6 rounded-[20px] border border-slate-100 shadow-sm">
                 <ItemAdder products={products} onAddItem={handleAddItem} />
               </div>
 
-              <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700">
+              <div className="bg-white p-6 rounded-[20px] border border-slate-100 shadow-sm">
                 <ItemTable items={items} onRemoveItem={handleRemoveItem} />
               </div>
             </div>
@@ -224,16 +257,18 @@ export default function InvoiceEditorModal({ invoice, onClose, onSaved }) {
                 onFieldChange={handleSummaryChange}
               />
 
-              <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700">
+              <div className="bg-white p-6 rounded-[20px] border border-slate-100 shadow-sm">
                 <PaymentSection
                   method={paymentDetails.method}
                   status={paymentDetails.status}
+                  amountReceived={paymentDetails.amountReceived}
+                  total={summaryValues.total}
                   onChange={handlePaymentChange}
                 />
               </div>
 
               {/* Save + Preview */}
-              <div className="bg-[#1e293b] p-6 rounded-xl border border-slate-700 flex justify-center gap-4">
+              <div className="bg-white p-6 rounded-[20px] border border-slate-100 shadow-sm flex justify-center gap-4">
                 <button
                   onClick={handleSave}
                   disabled={saving}

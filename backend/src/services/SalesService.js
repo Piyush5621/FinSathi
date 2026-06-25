@@ -1,5 +1,7 @@
 import { SalesRepository } from "../repositories/SalesRepository.js";
 import { InventoryRepository } from "../repositories/InventoryRepository.js";
+import { ReminderService } from "./ReminderService.js";
+import { supabase } from "../config/db.js";
 
 export const SalesService = {
     async getAllSales(userId) {
@@ -79,6 +81,7 @@ export const SalesService = {
         // 1. Create Sale
         const saleData = {
             customer_id,
+            invoice_no: `INV-${Date.now()}`, // Inject unique invoice number to satisfy DB constraint
             items, // JSONB
             subtotal,
             discount_percent: discount_percent || discount || 0,
@@ -92,6 +95,26 @@ export const SalesService = {
         };
 
         const sale = await SalesRepository.create(userId, saleData);
+
+        // 3. AUTO-SEND WHATSAPP (New Feature)
+        try {
+            const settings = await ReminderService.getSettings(userId);
+            if (settings?.auto_send_on_create) {
+                // Fetch customer phone number
+                const { data: customer } = await supabase.from('customers').select('name, phone').eq('id', customer_id).single();
+                
+                if (customer?.phone) {
+                    const { data: userData } = await supabase.from('users').select('business_name').eq('id', userId).single();
+                    const shopName = userData?.business_name || "FinSathi";
+                    const msg = `Hi ${customer.name}, your bill #${sale.invoice_no} of ₹${total} has been generated.`;
+                    
+                    // We don't await this to keep the API response snappy
+                    ReminderService.sendMessage(customer.phone, sale, shopName, msg).catch(e => console.error("Auto-send background error:", e));
+                }
+            }
+        } catch (autoErr) {
+            console.error("WhatsApp Auto-send check failed:", autoErr);
+        }
 
         // 2. Update Inventory Stock (Batch Aware)
         if (items && Array.isArray(items)) {

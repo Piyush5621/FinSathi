@@ -1,15 +1,28 @@
 import { supabase } from "../config/db.js";
-import { createNotification } from "./notificationHelper.js"; // ✅ helper import
+import { createNotification } from "./notificationHelper.js";
 
 /** Get all customers */
 export const getCustomers = async (req, res) => {
   try {
-    const { data, error } = await supabase.from("customers").select("*").eq("user_id", req.user.id);
+    const limit = parseInt(req.query.limit) || 1000;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("user_id", req.user.id)
+      .range(offset, offset + limit - 1);
+
     if (error) throw error;
+
     res.status(200).json(data);
   } catch (err) {
-    console.error("Get Customers Error:", err.message);
-    res.status(500).json({ message: err.message });
+    console.error("Get Customers Error [500]:", err);
+    res.status(500).json({ 
+      error: "DATABASE_QUERY_FAILED",
+      message: err.message,
+      hint: err.hint || "Check if user_id column exists in customers table"
+    });
   }
 };
 
@@ -22,10 +35,16 @@ export const addCustomer = async (req, res) => {
       return res.status(400).json({ message: "Name is strictly required." });
     }
 
-    // ✅ Insert new customer
+    // Perform the insert (✅ Added city so location is tracked)
     const { data, error } = await supabase
       .from("customers")
-      .insert([{ user_id: req.user.id, name, email, phone, city }])
+      .insert([{ 
+        user_id: req.user.id, 
+        name, 
+        email, 
+        phone,
+        city
+      }])
       .select("*");
 
     if (error) throw error;
@@ -46,6 +65,6 @@ export const addCustomer = async (req, res) => {
     });
   } catch (err) {
     console.error("Add Customer Error:", err.message);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: err.message || "Failed to add customer" });
   }
 };

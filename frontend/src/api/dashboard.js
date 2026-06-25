@@ -12,6 +12,6 @@ export const getSalesSummary = async () => {
 };
 
 export const getDashboardData = async () => {
-  const { data } = await API.get("/dashboard/data");
+  const { data } = await API.get("/dashboard");
   return data || null;
 };

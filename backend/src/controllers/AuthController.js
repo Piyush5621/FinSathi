@@ -102,19 +102,36 @@ export const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     // ✅ Find user by email
-    const { data: user } = await supabase
+    const { data: user, error } = await supabase
       .from("users")
       .select("*")
       .eq("email", email)
       .maybeSingle();
 
-    if (!user)
+    if (error) {
+      console.error("Supabase Login Error:", error.message);
+      return res.status(500).json({ message: "Database error during login", error: error.message });
+    }
+
+    if (!user) {
+      console.warn(`Login attempt failed: User not found for email ${email}`);
       return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // ✅ Check if account is suspended
+    if (user.is_active === false) {
+      console.warn(`Login attempt blocked: Account suspended for email ${email}`);
+      return res.status(403).json({ error: "ACCOUNT_SUSPENDED", message: "Account Suspended: Please contact support." });
+    }
 
     // ✅ Compare hashed password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
+    if (!isMatch) {
+      console.warn(`Login attempt failed: Password mismatch for email ${email}`);
       return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    console.log(`User logged in successfully: ${email}`);
 
     // ✅ Generate Token
     const secret = process.env.JWT_SECRET || "supersecret_jwt_key_change_me_in_production";
@@ -152,11 +169,16 @@ export const getUserProfile = async (req, res) => {
 
 export const updateUserProfile = async (req, res) => {
   try {
-    const { email, ...updates } = req.body;
+    const updates = req.body;
+    
+    // Safety check: do not allow updating email or id directly to prevent corruption
+    delete updates.email;
+    delete updates.id;
+
     const { error } = await supabase
       .from("users")
       .update(updates)
-      .eq("email", email);
+      .eq("id", req.user.id);
 
     if (error) throw error;
     res.json({ message: "Profile updated successfully" });

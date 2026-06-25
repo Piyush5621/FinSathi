@@ -44,3 +44,15 @@ export const useAddSupplier = () => {
         }
     });
 };
+
+export const useUpdateExpense = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ id, ...data }) => {
+            return await API.put(`/expenses/${id}`, data);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["expenses"] });
+        }
+    });
+};
