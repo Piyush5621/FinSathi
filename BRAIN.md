@@ -595,7 +595,14 @@ VITE_SUPABASE_KEY=your-anon-public-key
 
 ## 21. Current Progress
 
-* **Overall Project Completion:** ~80%
+* **Overall Project Completion:** ~95%
+* **Status:** Version `v1.0.0-rc1`
+* **State:** Release Candidate
+* **Deployment:** Production (Vercel Frontend, Render Backend, Supabase Database)
+* **Branch:** `master`
+* **Git Tag:** `v1.0.0-rc1`
+* **Release Commit:** `f9266e9b0aee40e16439b30fda392071160515fb`
+* **Merge Commit:** `cf4bcfb30d6a5825007274ab8db2c237654e15dc`
 * **Completed Modules:** Auth, POS Billing, Inventory batches, Staff attendance, Cash flow forecasts, Business health scoring, AI voice advisor (Hinglish/English), Multi-store contexts.
 * **Active Tasks:** Offline billing IndexedDB queue sync, automated GSTR spreadsheet summaries.
 * **Technical Debt:**
@@ -626,6 +633,7 @@ VITE_SUPABASE_KEY=your-anon-public-key
 
 | Date | Feature | Files Modified | Reason | Impact |
 | :--- | :--- | :--- | :--- | :--- |
+| **2026-06-26** | Release Candidate 1 (v1.0.0-rc1) | Multiple files | Finalize stabilization, timezone utility, performance bundle size reductions, and bug fixes for RC1 release. | Highly stable production-ready release candidate branch. |
 | **2026-06-26** | Production Bundle Optimization | `Topbar.jsx`, `GeneralPage.jsx`, `pwa-192x192.png` | Lazy-loaded jsPDF and settings tabs, resized PWA 192x192 icon. | Reduced initial layout chunk and GeneralPage chunk sizes, optimized pre-cache weight. |
 | **2026-06-26** | Formatting Standardization | `formatNumbers.js`, `DashboardMetrics.jsx`, `BillingMetrics.jsx`, `InvoiceDrawer.jsx` | Created centralized currency/number helpers and refactored metrics components. | Removed duplicate inline formatting logic. |
 | **2026-06-26** | Timezone Utility Refactoring | `dateTime.js`, `AnomalyService.js` | Created centralized timezone utility and refactored AnomalyService. | Improved codebase robustness and prevented future timezone bugs. |
