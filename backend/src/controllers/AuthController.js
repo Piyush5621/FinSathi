@@ -44,8 +44,27 @@ export const registerUser = async (req, res) => {
     // ✅ 3. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ✅ 4. Insert new user
-    // ✅ 4. Insert new user
+    // ✅ 4. Create Organization first (Required for multi-tenancy)
+    const { data: newOrg, error: orgError } = await supabase
+      .from("organizations")
+      .insert([{
+        name: businessName || `${name} Business`,
+        business_type: businessType,
+        phone: phone,
+        city: city,
+        state: state
+      }])
+      .select()
+      .single();
+
+    if (orgError) {
+      console.error("Supabase Org Insert Error:", orgError.message);
+      return res
+        .status(500)
+        .json({ message: `Database error (Organization): ${orgError.message}` });
+    }
+
+    // ✅ 5. Insert new user
     const { data: newUser, error } = await supabase
       .from("users")
       .insert([
@@ -58,6 +77,7 @@ export const registerUser = async (req, res) => {
           city,
           state,
           phone,
+          organization_id: newOrg.id
         },
       ])
       .select()
