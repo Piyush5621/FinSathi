@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Card } from '../../../components/ui/Card';
+import { Card, CardContent } from '../../../../components/ui/Card';
 import { ArrowRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { TYPOGRAPHY, LAYOUT } from '../utils/networkConstants';
 
