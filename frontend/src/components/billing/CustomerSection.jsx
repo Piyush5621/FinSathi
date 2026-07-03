@@ -1,5 +1,5 @@
 
-import Select from "react-select";
+import CreatableSelect from "react-select/creatable";
 import { format } from "date-fns";
 
 const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer, invoiceNo }) => {
@@ -8,6 +8,7 @@ const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer, i
     label: `${customer.name} ${customer.phone ? `(${customer.phone})` : ""}`,
     phone: customer.phone,
     email: customer.email,
+    balance: customer.outstanding_balance || 0,
   }));
 
   const customerInfo = customerOptions.find(
@@ -18,13 +19,16 @@ const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer, i
     <div className="pt-2">
       {/* Customer Selector */}
       <div className="mb-4">
-        <Select
+        <CreatableSelect
+          inputId="customer-search-input"
           options={customerOptions}
           onChange={(selected) => onCustomerSelect(selected?.value || null)}
+          onCreateOption={typeof onCustomerSelect === 'function' ? (inputValue) => onCustomerSelect(null, inputValue) : undefined}
           value={
             customerInfo ? { value: customerInfo.value, label: customerInfo.label } : null
           }
-          placeholder="Search or select customer..."
+          formatCreateLabel={(inputValue) => `+ Quick Add "${inputValue}"`}
+          placeholder="Search or type name/phone to quick add..."
           isClearable
           className="text-xs"
           styles={{
@@ -68,6 +72,15 @@ const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer, i
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Email</span>
                 <p className="text-xs text-slate-800 font-semibold mt-0.5 truncate">{customerInfo.email || "N/A"}</p>
              </div>
+             {customerInfo.balance > 0 && (
+                <div className="col-span-2 mt-2 pt-2 border-t border-slate-200">
+                  <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                    Outstanding Balance (Khata)
+                  </span>
+                  <p className="text-sm text-rose-600 font-bold mt-0.5">₹{Number(customerInfo.balance).toFixed(2)}</p>
+                </div>
+             )}
           </div>
         </div>
       )}

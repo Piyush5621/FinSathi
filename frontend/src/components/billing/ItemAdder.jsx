@@ -113,6 +113,7 @@ const ItemAdder = memo(({ onAddItem }) => {
         <div className="flex-1 min-w-[240px]">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Product Search</label>
           <AsyncSelect
+            inputId="product-search-input"
             value={selectedProduct}
             onChange={setSelectedProduct}
             loadOptions={loadOptions}

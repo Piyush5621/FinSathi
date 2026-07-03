@@ -2,20 +2,50 @@ import { supabase } from "../config/db.js";
 import { StoreService } from "../services/StoreService.js";
 import { successResponse, errorResponse, createdResponse } from "../utils/responseHelper.js";
 
+// Helper for audit logs
+const logAudit = async (userId, storeId, entityType, entityId, action, details) => {
+  try {
+    await supabase.from("audit_logs").insert([{
+      user_id: userId,
+      store_id: storeId,
+      entity_type: entityType,
+      entity_id: entityId,
+      action,
+      details
+    }]);
+  } catch (err) {
+    console.error("Failed to log audit:", err);
+  }
+};
+
 /**
- * Get all purchase orders for the active store
+ * Get all purchase orders for the active store with advanced filtering
  */
 export const getPurchaseOrders = async (req, res) => {
   try {
     const userId = req.user.id;
     const storeId = await StoreService.getActiveStore(userId);
+    const { search, status, date_from, date_to, min_amount, max_amount } = req.query;
 
-    const { data: pos, error } = await supabase
+    let query = supabase
       .from("purchase_orders")
-      .select("*, suppliers(name)")
+      .select("*, suppliers(name)", { count: 'exact' })
       .eq("user_id", userId)
-      .eq("store_id", storeId)
-      .order("created_at", { ascending: false });
+      .eq("store_id", storeId);
+
+    if (status) query = query.eq("status", status);
+    if (date_from) query = query.gte("created_at", date_from);
+    if (date_to) query = query.lte("created_at", date_to);
+    if (min_amount) query = query.gte("total_amount", min_amount);
+    if (max_amount) query = query.lte("total_amount", max_amount);
+
+    if (search) {
+      query = query.ilike("order_no", `%${search}%`);
+    }
+
+    query = query.order("created_at", { ascending: false });
+
+    const { data: pos, error } = await query;
 
     if (error) throw error;
 
@@ -64,28 +94,49 @@ export const createPurchaseOrder = async (req, res) => {
   try {
     const userId = req.user.id;
     const storeId = await StoreService.getActiveStore(userId);
-    const { supplier_id, order_no, items } = req.body; // items: [{ inventory_id, quantity, cost_price }]
+    const { supplier_id, order_no, items, tax_amount = 0, discount_amount = 0, notes = '' } = req.body; 
 
     if (!supplier_id || !order_no || !items || !Array.isArray(items) || items.length === 0) {
       return errorResponse(res, "Missing required parameters or items list", 400);
     }
 
-    // 1. Calculate total amount
-    let totalAmount = 0;
+    // Check for duplicate PO
+    const { data: existingPo } = await supabase
+      .from("purchase_orders")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("order_no", order_no)
+      .single();
+      
+    if (existingPo) {
+      return errorResponse(res, "A Purchase Order with this number already exists.", 409);
+    }
+
+    let subtotal = 0;
     const normalizedItems = items.map(item => {
       const qty = Number(item.quantity || 0);
       const price = Number(item.cost_price || 0);
-      const subtotal = qty * price;
-      totalAmount += subtotal;
+      const itemDiscount = Number(item.discount_amount || 0);
+      const itemGst = Number(item.gst_rate || 0);
+      
+      const itemSubtotal = (qty * price) - itemDiscount;
+      const tax = itemSubtotal * (itemGst / 100);
+      const total = itemSubtotal + tax;
+      
+      subtotal += itemSubtotal;
+      
       return {
         inventory_id: item.inventory_id,
         quantity: qty,
         cost_price: price,
-        total: subtotal
+        discount_amount: itemDiscount,
+        gst_rate: itemGst,
+        total: total
       };
     });
 
-    // 2. Insert PO
+    const totalAmount = subtotal + Number(tax_amount) - Number(discount_amount);
+
     const { data: po, error: poErr } = await supabase
       .from("purchase_orders")
       .insert([{
@@ -94,14 +145,17 @@ export const createPurchaseOrder = async (req, res) => {
         supplier_id,
         order_no,
         status: "Draft",
-        total_amount: totalAmount
+        subtotal,
+        tax_amount,
+        discount_amount,
+        total_amount: totalAmount,
+        notes
       }])
       .select("*")
       .single();
 
     if (poErr) throw poErr;
 
-    // 3. Insert items
     const poItems = normalizedItems.map(item => ({
       purchase_order_id: po.id,
       ...item
@@ -112,10 +166,11 @@ export const createPurchaseOrder = async (req, res) => {
       .insert(poItems);
 
     if (itemsErr) {
-      // Cleanup PO on failure
       await supabase.from("purchase_orders").delete().eq("id", po.id);
       throw itemsErr;
     }
+
+    await logAudit(userId, storeId, "PurchaseOrder", po.id, "Created", { order_no, total_amount: totalAmount });
 
     return createdResponse(res, po, "Purchase order created successfully");
   } catch (err) {
@@ -125,20 +180,130 @@ export const createPurchaseOrder = async (req, res) => {
 };
 
 /**
- * Update Purchase Order status (handles RESTOCKING auto-updates)
+ * Update an existing purchase order (only if Draft or Sent)
+ */
+export const updatePurchaseOrder = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const storeId = await StoreService.getActiveStore(userId);
+    const { supplier_id, order_no, items, tax_amount = 0, discount_amount = 0, notes = '' } = req.body; 
+
+    const { data: existingPo } = await supabase
+      .from("purchase_orders")
+      .select("status")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .single();
+
+    if (!existingPo) return errorResponse(res, "Purchase order not found", 404);
+    if (!['Draft', 'Sent'].includes(existingPo.status)) {
+      return errorResponse(res, "Cannot edit a purchase order that is already processed", 409);
+    }
+
+    let subtotal = 0;
+    const normalizedItems = items.map(item => {
+      const qty = Number(item.quantity || 0);
+      const price = Number(item.cost_price || 0);
+      const itemDiscount = Number(item.discount_amount || 0);
+      const itemGst = Number(item.gst_rate || 0);
+      const itemSubtotal = (qty * price) - itemDiscount;
+      const tax = itemSubtotal * (itemGst / 100);
+      const total = itemSubtotal + tax;
+      subtotal += itemSubtotal;
+      return {
+        purchase_order_id: id,
+        inventory_id: item.inventory_id,
+        quantity: qty,
+        cost_price: price,
+        discount_amount: itemDiscount,
+        gst_rate: itemGst,
+        total: total
+      };
+    });
+
+    const totalAmount = subtotal + Number(tax_amount) - Number(discount_amount);
+
+    // Update PO
+    const { data: po, error: poErr } = await supabase
+      .from("purchase_orders")
+      .update({
+        supplier_id,
+        order_no,
+        subtotal,
+        tax_amount,
+        discount_amount,
+        total_amount: totalAmount,
+        notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (poErr) throw poErr;
+
+    // Delete old items and insert new ones
+    await supabase.from("purchase_order_items").delete().eq("purchase_order_id", id);
+    await supabase.from("purchase_order_items").insert(normalizedItems);
+
+    await logAudit(userId, storeId, "PurchaseOrder", id, "Edited", { order_no, total_amount: totalAmount });
+
+    return successResponse(res, po, "Purchase order updated successfully");
+  } catch (err) {
+    console.error("updatePurchaseOrder Error:", err);
+    return errorResponse(res, err, 500, "Failed to update purchase order");
+  }
+};
+
+/**
+ * Delete a purchase order (only if Draft)
+ */
+export const deletePurchaseOrder = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const storeId = await StoreService.getActiveStore(userId);
+    const { id } = req.params;
+
+    const { data: po } = await supabase
+      .from("purchase_orders")
+      .select("status, order_no")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .single();
+
+    if (!po) return errorResponse(res, "Purchase order not found", 404);
+    if (po.status !== 'Draft') {
+      return errorResponse(res, "Only Draft purchase orders can be deleted", 409);
+    }
+
+    const { error } = await supabase.from("purchase_orders").delete().eq("id", id);
+    if (error) throw error;
+
+    await logAudit(userId, storeId, "PurchaseOrder", id, "Deleted", { order_no: po.order_no });
+
+    return successResponse(res, null, "Purchase order deleted successfully");
+  } catch (err) {
+    console.error("deletePurchaseOrder Error:", err);
+    return errorResponse(res, err, 500, "Failed to delete purchase order");
+  }
+};
+
+/**
+ * Update Purchase Order status with State Machine Validation
  */
 export const updatePurchaseOrderStatus = async (req, res) => {
   try {
     const userId = req.user.id;
+    const storeId = await StoreService.getActiveStore(userId);
     const { id } = req.params;
-    const { status } = req.body; // Draft, Sent, Approved, Received, Completed
+    const { status } = req.body;
 
-    const allowedStatuses = ["Draft", "Sent", "Approved", "Received", "Completed"];
+    const allowedStatuses = ["Draft", "Sent", "Accepted", "Partially Received", "Received", "Completed", "Cancelled"];
     if (!status || !allowedStatuses.includes(status)) {
-      return errorResponse(res, "Invalid status transition", 400);
+      return errorResponse(res, "Invalid status", 400);
     }
 
-    // 1. Fetch current PO details and items
     const { data: po, error: poErr } = await supabase
       .from("purchase_orders")
       .select("*")
@@ -146,27 +311,26 @@ export const updatePurchaseOrderStatus = async (req, res) => {
       .eq("user_id", userId)
       .single();
 
-    if (poErr || !po) {
-      return errorResponse(res, "Purchase order not found", 404);
+    if (poErr || !po) return errorResponse(res, "Purchase order not found", 404);
+
+    // State Machine Validation
+    const current = po.status;
+    const validTransitions = {
+      'Draft': ['Sent', 'Cancelled'],
+      'Sent': ['Accepted', 'Cancelled'],
+      'Accepted': ['Partially Received', 'Received', 'Cancelled'],
+      'Partially Received': ['Received'],
+      'Received': ['Completed'],
+      'Completed': [],
+      'Cancelled': []
+    };
+
+    if (!validTransitions[current]?.includes(status)) {
+      return errorResponse(res, `Invalid status transition from ${current} to ${status}`, 409);
     }
 
-    // Prevent re-processing if already received/completed
-    const isAlreadyStocked = ["Received", "Completed"].includes(po.status);
-    const isTransitioningToStocked = ["Received", "Completed"].includes(status);
-
-    // Update status in db
-    const { data: updatedPo, error: updateErr } = await supabase
-      .from("purchase_orders")
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select("*")
-      .single();
-
-    if (updateErr) throw updateErr;
-
-    // 2. Trigger Inventory RESTOCKING auto-update
-    if (isTransitioningToStocked && !isAlreadyStocked) {
-      // Fetch PO Items
+    // Process Received state side effects
+    if (status === 'Received') {
       const { data: items, error: itemsErr } = await supabase
         .from("purchase_order_items")
         .select("*")
@@ -174,9 +338,8 @@ export const updatePurchaseOrderStatus = async (req, res) => {
 
       if (itemsErr) throw itemsErr;
 
-      // Loop and update inventory
+      // Note for Tech Debt: This sequential update block should be migrated to a Postgres RPC for atomicity
       for (const item of items) {
-        // A. Fetch parent product info to get pricing details for the new batch
         const { data: product } = await supabase
           .from("inventory")
           .select("stock, price, wholesale_price, sku")
@@ -188,13 +351,16 @@ export const updatePurchaseOrderStatus = async (req, res) => {
           const additionalStock = Number(item.quantity || 0);
           const newStock = currentStock + additionalStock;
 
-          // B. Update master product stock count
+          // Update master product stock count and avg cost
           await supabase
             .from("inventory")
-            .update({ stock: newStock })
+            .update({ 
+              stock: newStock,
+              cost_price: item.cost_price // Update last purchase cost
+            })
             .eq("id", item.inventory_id);
 
-          // C. Add to inventory_batches
+          // Add to inventory_batches
           await supabase
             .from("inventory_batches")
             .insert([{
@@ -209,21 +375,45 @@ export const updatePurchaseOrderStatus = async (req, res) => {
         }
       }
 
-      // Update supplier's outstanding balance since goods are delivered
+      // 1. Update Supplier's outstanding balance
       const { data: supplier } = await supabase
         .from("suppliers")
         .select("outstanding_balance")
         .eq("id", po.supplier_id)
         .single();
 
-      const currentBalance = Number(supplier?.outstanding_balance || 0);
-      const newBalance = currentBalance + Number(po.total_amount || 0);
-
+      const newBalance = Number(supplier?.outstanding_balance || 0) + Number(po.total_amount || 0);
       await supabase
         .from("suppliers")
         .update({ outstanding_balance: newBalance })
         .eq("id", po.supplier_id);
+
+      // 2. Finance Integration: Create Expense Entry for Accounts Payable
+      await supabase
+        .from("expenses")
+        .insert([{
+          user_id: userId,
+          store_id: storeId,
+          category: 'Purchases',
+          amount: po.total_amount,
+          date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+          description: `Purchase Order Received: ${po.order_no}`,
+          receipt_url: null,
+          supplier_id: po.supplier_id
+        }]);
     }
+
+    // Update PO status
+    const { data: updatedPo, error: updateErr } = await supabase
+      .from("purchase_orders")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    await logAudit(userId, storeId, "PurchaseOrder", id, `Status changed to ${status}`, { order_no: po.order_no });
 
     return successResponse(res, updatedPo, `Purchase order status updated to ${status}`);
   } catch (err) {

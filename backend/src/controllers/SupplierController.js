@@ -3,22 +3,42 @@ import { StoreService } from "../services/StoreService.js";
 import { successResponse, errorResponse, createdResponse } from "../utils/responseHelper.js";
 
 /**
- * Get all suppliers for active store
+ * Get all suppliers for active store with search and pagination
  */
 export const getSuppliers = async (req, res) => {
   try {
     const userId = req.user.id;
     const storeId = await StoreService.getActiveStore(userId);
 
-    const { data: suppliers, error } = await supabase
+    let query = supabase
       .from("suppliers")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("user_id", userId)
       .eq("store_id", storeId);
 
+    if (req.query.search) {
+      const searchTerm = req.query.search.trim();
+      query = query.or(`name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,gstin.ilike.%${searchTerm}%`);
+    }
+
+    // Pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    
+    query = query.range(from, to).order("created_at", { ascending: false });
+
+    const { data: suppliers, count, error } = await query;
+
     if (error) throw error;
 
-    return successResponse(res, suppliers, "Suppliers retrieved successfully");
+    return successResponse(res, suppliers, "Suppliers retrieved successfully", {
+      page,
+      limit,
+      total: count,
+      totalPages: Math.ceil(count / limit)
+    });
   } catch (err) {
     console.error("getSuppliers Error:", err);
     return errorResponse(res, err, 500, "Failed to retrieve suppliers");
@@ -64,6 +84,83 @@ export const createSupplier = async (req, res) => {
 };
 
 /**
+ * Update supplier
+ */
+export const updateSupplier = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const storeId = await StoreService.getActiveStore(userId);
+    const { id } = req.params;
+    const { name, phone, gstin, address, credit_limit } = req.body;
+
+    if (!name) {
+      return errorResponse(res, "Supplier name is required", 400);
+    }
+
+    const { data: supplier, error } = await supabase
+      .from("suppliers")
+      .update({
+        name,
+        phone,
+        gstin,
+        address,
+        credit_limit: credit_limit || 0,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .eq("store_id", storeId)
+      .select("*")
+      .single();
+
+    if (error) throw error;
+
+    return successResponse(res, supplier, "Supplier updated successfully");
+  } catch (err) {
+    console.error("updateSupplier Error:", err);
+    return errorResponse(res, err, 500, "Failed to update supplier");
+  }
+};
+
+/**
+ * Delete supplier
+ */
+export const deleteSupplier = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const storeId = await StoreService.getActiveStore(userId);
+    const { id } = req.params;
+
+    // Check if supplier has pending balance or purchase orders
+    const { data: supplier, error: fetchErr } = await supabase
+      .from("suppliers")
+      .select("outstanding_balance")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .single();
+      
+    if (fetchErr) throw fetchErr;
+    if (supplier && Number(supplier.outstanding_balance) > 0) {
+      return errorResponse(res, "Cannot delete supplier with an outstanding balance.", 400);
+    }
+
+    const { error } = await supabase
+      .from("suppliers")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId)
+      .eq("store_id", storeId);
+
+    if (error) throw error;
+
+    return successResponse(res, null, "Supplier deleted successfully");
+  } catch (err) {
+    console.error("deleteSupplier Error:", err);
+    return errorResponse(res, err, 500, "Failed to delete supplier");
+  }
+};
+
+/**
  * Get Supplier Ledger (POs and Payments list)
  */
 export const getSupplierLedger = async (req, res) => {
@@ -72,16 +169,32 @@ export const getSupplierLedger = async (req, res) => {
     const { id: supplierId } = req.params;
 
     const [posRaw, paymentsRaw] = await Promise.all([
-      supabase.from("purchase_orders").select("*").eq("user_id", userId).eq("supplier_id", supplierId),
-      supabase.from("supplier_payments").select("*").eq("user_id", userId).eq("supplier_id", supplierId)
+      supabase.from("purchase_orders").select("*").eq("user_id", userId).eq("supplier_id", supplierId).order('created_at', { ascending: false }),
+      supabase.from("supplier_payments").select("*").eq("user_id", userId).eq("supplier_id", supplierId).order('date', { ascending: false })
     ]);
 
     if (posRaw.error) throw posRaw.error;
     if (paymentsRaw.error) throw paymentsRaw.error;
 
+    const purchaseOrders = posRaw.data || [];
+    const payments = paymentsRaw.data || [];
+
+    const totalPurchases = purchaseOrders.reduce((sum, po) => sum + Number(po.total_amount || 0), 0);
+    const pendingPOs = purchaseOrders.filter(po => ['Draft', 'Sent', 'Accepted', 'Partially Received'].includes(po.status)).length;
+    const completedPOs = purchaseOrders.filter(po => ['Received', 'Completed'].includes(po.status)).length;
+    
+    // Get last purchase date (first item since they are ordered by created_at DESC)
+    const lastPurchaseDate = purchaseOrders.length > 0 ? purchaseOrders[0].created_at : null;
+
     return successResponse(res, {
-      purchaseOrders: posRaw.data,
-      payments: paymentsRaw.data
+      stats: {
+        totalPurchases,
+        pendingPOs,
+        completedPOs,
+        lastPurchaseDate
+      },
+      purchaseOrders,
+      payments
     }, "Supplier ledger retrieved");
   } catch (err) {
     console.error("getSupplierLedger Error:", err);

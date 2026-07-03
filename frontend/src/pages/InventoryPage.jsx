@@ -163,7 +163,7 @@ export default function InventoryPage() {
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-[12px] top-[10px] h-[16px] w-[16px] text-slate-400" />
             <Input 
-              placeholder="Search by name, SKU..." 
+              placeholder="Search by name, Item Code..." 
               value={searchQuery} 
               onChange={e => setSearchQuery(e.target.value)} 
               className="pl-[36px] w-full" 
@@ -183,7 +183,7 @@ export default function InventoryPage() {
              <Layers size={20} />
           </div>
           <div>
-             <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">Total SKUs</span>
+             <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">Total Items</span>
              <span className="text-[24px] font-extrabold text-[#0F172A] mt-1 block">{stats.totalItemsCount}</span>
           </div>
         </Card>
@@ -246,78 +246,106 @@ export default function InventoryPage() {
       )}
 
       {/* Catalog Table */}
-      <Card noPadding className="overflow-hidden">
+      <Card noPadding className="overflow-hidden bg-transparent border-0 md:bg-white md:border md:border-slate-100">
         <div 
           ref={parentRef}
           className="max-h-[600px] overflow-auto custom-scrollbar"
         >
           <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
-            <Table>
-              <Thead className="sticky top-0 z-20 bg-white">
-                <tr>
-                  <Th>Item & SKU</Th>
-                  <Th>Company</Th>
-                  <Th>Retail Price</Th>
-                  <Th>Est. Margin</Th>
-                  <Th>Total Stock</Th>
-                  <Th>Status</Th>
-                </tr>
-              </Thead>
-              <Tbody>
-                {loading ? (
-                  <Tr><Td colSpan="6" className="text-center py-10 text-slate-400">Loading catalog items...</Td></Tr>
-                ) : filteredItems.length === 0 ? (
-                  <Tr><Td colSpan="6" className="text-center py-10 text-slate-400">No products found in catalog.</Td></Tr>
-                ) : rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const item = filteredItems[virtualRow.index];
-                  const totalStock = (item.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), 0);
-                  const status = getStockStatus(totalStock);
-                  
-                  // Calculate Margin
-                  const cost = Number(item.cost_price || 0);
-                  const sell = Number(item.price || 0);
-                  const marginPercent = sell > 0 ? Math.round(((sell - cost) / sell) * 100) : 0;
-                  
-                  return (
-                    <Tr 
-                      key={item.id} 
-                      onClick={() => { setSelectedItem(item); setIsDrawerOpen(true); }}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: `${virtualRow.size}px`,
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
-                      className="border-b border-slate-100 hover:bg-slate-50/50 cursor-pointer"
-                    >
-                      <Td>
-                         <div className="font-semibold text-slate-900 text-sm">{item.name}</div>
-                         <div className="text-xs text-slate-400 font-mono mt-0.5">{item.sku || 'No SKU'}</div>
-                      </Td>
-                      <Td>{item.company || '-'}</Td>
-                      <Td className="font-medium text-slate-900">₹{item.price}</Td>
-                      <Td>
-                         {marginPercent > 0 ? (
-                           <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                             {marginPercent}% margin
-                           </Badge>
-                         ) : marginPercent < 0 ? (
-                           <Badge variant="danger">
-                             {marginPercent}% loss
-                           </Badge>
-                         ) : (
-                           <span className="text-slate-400 text-xs">—</span>
-                         )}
-                      </Td>
-                      <Td className="font-bold text-slate-800">{totalStock} {item.units || 'pcs'}</Td>
-                      <Td><Badge variant={status.variant}>{status.label}</Badge></Td>
-                    </Tr>
-                  );
-                })}
-              </Tbody>
-            </Table>
+            {/* Desktop Table Header */}
+            <div className="hidden md:block">
+              <Table>
+                <Thead className="sticky top-0 z-20 bg-white shadow-sm">
+                  <tr>
+                    <Th>Product & Code</Th>
+                    <Th>Retail Price</Th>
+                    <Th>Est. Margin</Th>
+                    <Th>Total Stock</Th>
+                    <Th>Status</Th>
+                    <Th>Quick Action</Th>
+                  </tr>
+                </Thead>
+              </Table>
+            </div>
+            {loading ? (
+              <div className="text-center py-10 text-slate-400">Loading catalog items...</div>
+            ) : filteredItems.length === 0 ? (
+              <div className="text-center py-10 text-slate-400">No products found in catalog.</div>
+            ) : rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const item = filteredItems[virtualRow.index];
+              const totalStock = (item.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), 0);
+              const status = getStockStatus(totalStock);
+              
+              // Calculate Margin
+              const cost = Number(item.cost_price || 0);
+              const sell = Number(item.price || 0);
+              const marginPercent = sell > 0 ? Math.round(((sell - cost) / sell) * 100) : 0;
+              
+              return (
+                <div
+                  key={item.id} 
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  className="px-0 md:px-0"
+                >
+                  {/* Mobile Card Layout */}
+                  <div className="md:hidden mx-4 my-2 bg-white rounded-2xl p-4 border border-slate-100 shadow-sm cursor-pointer" onClick={() => { setSelectedItem(item); setIsDrawerOpen(true); }}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm leading-tight">{item.name}</h4>
+                        <span className="text-[10px] text-slate-400 font-mono mt-0.5 inline-block">{item.sku || 'No Code'}</span>
+                      </div>
+                      <Badge variant={status.variant}>{status.label}</Badge>
+                    </div>
+                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-50">
+                      <div>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Price</p>
+                        <p className="font-black text-slate-800">₹{item.price}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Stock</p>
+                        <p className="font-black text-slate-800">{totalStock}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Table Row */}
+                  <div className="hidden md:flex items-center w-full bg-white border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer h-full px-6" onClick={() => { setSelectedItem(item); setIsDrawerOpen(true); }}>
+                    <div className="flex-1 min-w-[200px]">
+                       <div className="font-semibold text-slate-900 text-sm">{item.name}</div>
+                       <div className="text-xs text-slate-400 font-mono mt-0.5">{item.sku || 'No Code'}</div>
+                    </div>
+                    <div className="flex-1 font-medium text-slate-900">₹{item.price}</div>
+                    <div className="flex-1">
+                       {marginPercent > 0 ? (
+                         <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                           {marginPercent}% margin
+                         </Badge>
+                       ) : marginPercent < 0 ? (
+                         <Badge variant="danger">
+                           {marginPercent}% loss
+                         </Badge>
+                       ) : (
+                         <span className="text-slate-400 text-xs">—</span>
+                       )}
+                    </div>
+                    <div className="flex-1 font-bold text-slate-800">{totalStock} {item.units || 'pcs'}</div>
+                    <div className="flex-1"><Badge variant={status.variant}>{status.label}</Badge></div>
+                    <div className="w-[120px] text-right">
+                      <Button size="sm" variant="outline" className="text-[10px] py-1 px-2 h-7" onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setRestockForm({ quantity: "", cost_price: item.cost_price || "", selling_price: item.price || "", batch_name: "" }); setIsRestockModalOpen(true); }}>
+                        Quick Restock
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </Card>
@@ -332,7 +360,7 @@ export default function InventoryPage() {
                </div>
                <div>
                  <h3 className="text-lg font-bold text-[#0F172A]">{selectedItem.name}</h3>
-                 <p className="text-sm text-slate-500 font-mono mt-0.5">{selectedItem.sku || 'No SKU'} • {selectedItem.company || 'No Company'}</p>
+                 <p className="text-sm text-slate-500 font-mono mt-0.5">{selectedItem.sku || 'No Code'} • {selectedItem.company || 'No Company'}</p>
                </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -393,23 +421,16 @@ export default function InventoryPage() {
          </div>
       </Modal>
 
-      {/* Add Product Modal */}
+      {/* Add Product Modal (Simplified) */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="New Product">
         <form onSubmit={handleAddProduct} className="space-y-4">
-           <div className="grid grid-cols-2 gap-3">
-               <Input label="Company / Brand" placeholder="e.g. Acme Corp" value={form.company} onChange={e => setForm({...form, company: e.target.value})} />
-               <Input label="Product Name" placeholder="e.g. Blue Pen" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
-           </div>
+           <Input label="Product Name" placeholder="e.g. Rice 1kg" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
            <div className="grid grid-cols-2 gap-3">
                <Input label="Cost Price (₹)" type="number" placeholder="0.00" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} />
                <Input label="Selling Price (₹)" type="number" placeholder="0.00" value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
            </div>
-           <div className="grid grid-cols-2 gap-3">
-               <Input label="SKU / Barcode" placeholder="e.g. SKU-1001" value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} />
-               <Input label="Units" placeholder="e.g. pcs, boxes, kgs" value={form.units} onChange={e => setForm({...form, units: e.target.value})} />
-           </div>
-           <Input label="Initial Stock Level" type="number" placeholder="e.g. 50" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
-           <Button type="submit" className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700">Save Product to Catalog</Button>
+           <Input label="Initial Stock" type="number" placeholder="e.g. 50" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
+           <Button type="submit" className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700">Save Product</Button>
         </form>
       </Modal>
 

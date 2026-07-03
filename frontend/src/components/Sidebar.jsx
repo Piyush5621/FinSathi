@@ -34,7 +34,7 @@ const menuGroups = [
       { path: '/inventory', label: 'Inventory Catalog', icon: Package },
       { path: '/customers', label: 'Customer Registry', icon: Users },
       { path: '/staff', label: 'Staff Hub', icon: Users },
-      { path: '/suppliers', label: 'Procurement POs', icon: Truck },
+      { path: '/suppliers', label: 'Purchases', icon: Truck },
       { path: '/crm', label: 'CRM & Leads', icon: Target },
       { path: '/marketplace', label: 'Marketplace', icon: Globe }
     ]

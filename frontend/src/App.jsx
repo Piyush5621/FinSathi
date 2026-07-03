@@ -47,17 +47,13 @@ import ErrorBoundary from "./components/ErrorBoundary";
 const Settings = lazy(() => import("./pages/Profile/Profile")); // fallback if missing
 const Plans = lazy(() => import("./pages/Subscription/Plans"));
 
-// PHASE 5: Business Network Module
-const NetworkOverview = lazy(() => import("./pages/Network/NetworkOverview"));
-const NetworkConnections = lazy(() => import("./pages/Network/NetworkConnections"));
-const PurchaseInbox = lazy(() => import("./pages/Network/PurchaseInbox"));
-const SalesOutbox = lazy(() => import("./pages/Network/SalesOutbox"));
-const ProductPartners = lazy(() => import("./pages/Network/ProductPartners"));
-const TradeCreditPage = lazy(() => import("./pages/Network/TradeCreditPage"));
-const TradeReturns = lazy(() => import("./pages/Network/TradeReturns"));
-const SharedCatalogs = lazy(() => import("./pages/Network/SharedCatalogs"));
-const TradeHistory = lazy(() => import("./pages/Network/TradeHistory"));
-const NetworkAnalytics = lazy(() => import("./pages/Network/NetworkAnalytics"));
+// PHASE 5: Business Network Module (v2 — Redesigned)
+const NetworkHome = lazy(() => import('./pages/Network/v2/NetworkHome'));
+const BusinessDirectory = lazy(() => import('./pages/Network/v2/BusinessDirectory'));
+const BusinessExchange = lazy(() => import('./pages/Network/v2/BusinessExchange'));
+const PartnersHub = lazy(() => import('./pages/Network/v2/PartnersHub'));
+const TradeWorkspace = lazy(() => import('./pages/Network/v2/TradeWorkspace'));
+const GrowthCenter = lazy(() => import('./pages/Network/v2/GrowthCenter'));
 
 // PHASE 4: Admin Interface
 const AdminLogin = lazy(() => import("./pages/Admin/AdminLogin"));
@@ -127,17 +123,24 @@ function App() {
                 <Route path="/general" element={<GeneralPage />} />
                 <Route path="/customer-invoices/:id" element={<CustomerInvoicesPage />} />
 
-                {/* 🌐 Business Network Routes */}
-                <Route path="/network/overview" element={<NetworkOverview />} />
-                <Route path="/network/connections" element={<NetworkConnections />} />
-                <Route path="/network/inbox" element={<PurchaseInbox />} />
-                <Route path="/network/outbox" element={<SalesOutbox />} />
-                <Route path="/network/partners" element={<ProductPartners />} />
-                <Route path="/network/trade-credit" element={<TradeCreditPage />} />
-                <Route path="/network/trade-returns" element={<TradeReturns />} />
-                <Route path="/network/shared-catalogs" element={<SharedCatalogs />} />
-                <Route path="/network/trade-history" element={<TradeHistory />} />
-                <Route path="/network/analytics" element={<NetworkAnalytics />} />
+                {/* 🌐 Business Network Routes — v2 */}
+                <Route path="/network" element={<NetworkHome />} />
+                <Route path="/network/directory" element={<BusinessDirectory />} />
+                <Route path="/network/exchange" element={<BusinessExchange />} />
+                <Route path="/network/partners" element={<PartnersHub />} />
+                <Route path="/network/workspace" element={<TradeWorkspace />} />
+                <Route path="/network/growth" element={<GrowthCenter />} />
+
+                {/* Legacy redirects — preserve backward compatibility */}
+                <Route path="/network/overview" element={<Navigate to="/network" replace />} />
+                <Route path="/network/connections" element={<Navigate to="/network/partners" replace />} />
+                <Route path="/network/inbox" element={<Navigate to="/network/workspace?tab=inbox" replace />} />
+                <Route path="/network/outbox" element={<Navigate to="/network/workspace?tab=outbox" replace />} />
+                <Route path="/network/trade-credit" element={<Navigate to="/network/workspace?tab=credits" replace />} />
+                <Route path="/network/trade-returns" element={<Navigate to="/network/workspace?tab=returns" replace />} />
+                <Route path="/network/shared-catalogs" element={<Navigate to="/network/partners?tab=catalogs" replace />} />
+                <Route path="/network/trade-history" element={<Navigate to="/network/workspace" replace />} />
+                <Route path="/network/analytics" element={<Navigate to="/network?tab=analytics" replace />} />
               </Route>
 
               {/* ⚙️ Catch-all redirect (Optional) */}

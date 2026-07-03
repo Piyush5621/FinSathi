@@ -36,3 +36,10 @@ export const saleSchema = z.object({
   discount_percent: z.number().min(0).optional(),
   total: z.number().min(0).optional(),
 });
+
+export const updateProfileSchema = z.object({
+  about_text: z.string().optional().nullable(),
+  year_established: z.number().int().min(1800).max(new Date().getFullYear()).optional().nullable(),
+  website_url: z.string().url("Invalid URL").optional().nullable().or(z.literal("")),
+  trade_volume_bracket: z.string().optional().nullable(),
+});

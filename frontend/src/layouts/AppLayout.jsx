@@ -3,8 +3,8 @@ import {
   LayoutDashboard, Receipt, Package, Users, MoreHorizontal, LogOut, 
   TrendingDown, TrendingUp, Settings, Wallet, FileText, LayoutGrid, 
   MessageSquare, Search, ChevronLeft, ChevronRight, Sparkles,
-  ShoppingCart, FileSpreadsheet, ChevronDown, ShieldCheck, Settings2, Bot, HeartPulse, BarChart2, ShieldAlert, History,
-  Globe, Users2, Inbox, Send, Star, CreditCard, RotateCcw, BookOpen, CheckSquare
+  ShoppingCart, ChevronDown, ShieldCheck, Settings2, Bot, HeartPulse, BarChart2, ShieldAlert, History,
+  Globe, Users2, Inbox, Star, ArrowLeftRight, Zap, CheckSquare, Home
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useMemo, useEffect } from 'react';
@@ -13,113 +13,93 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import CommandPalette from '../components/ui/CommandPalette';
 import { WifiOff, Wifi } from 'lucide-react';
 
-const menuGroups = [
-  {
-    type: 'single',
-    path: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard
-  },
-  {
-    type: 'single',
-    path: '/founder-dashboard',
-    label: 'Founder Console',
-    icon: Sparkles
-  },
-  {
-    type: 'group',
-    label: 'Sales & Billing',
-    icon: Receipt,
-    items: [
-      { path: '/billing', label: 'POS Terminal', icon: ShoppingCart },
-      { path: '/invoice-history', label: 'Invoice Ledger', icon: FileText },
-      { path: '/payments', label: 'Payments Inflow', icon: Wallet }
-    ]
-  },
-  {
-    type: 'group',
-    label: 'Core Operations',
-    icon: Package,
-    items: [
-      { path: '/inventory', label: 'Inventory Catalog', icon: Package },
-      { path: '/customers', label: 'Customer Registry', icon: Users },
-      { path: '/crm', label: 'CRM / Loyalty', icon: MessageSquare },
-      { path: '/suppliers', label: 'Local Suppliers', icon: Package }
-    ]
-  },
-  {
-    type: 'group',
-    label: 'Finance & Analytics',
-    icon: TrendingUp,
-    items: [
-      { path: '/pnl', label: 'P&L Analytics', icon: TrendingUp },
-      { path: '/expenses', label: 'Expenses Outflow', icon: TrendingDown },
-      { path: '/health-score', label: 'Business Health', icon: HeartPulse },
-      { path: '/ai-advisor', label: 'AI Advisor', icon: Bot },
-      { path: '/executive-analytics', label: 'Executive Analytics', icon: BarChart2 }
-    ]
-  },
-  {
-    type: 'group',
-    label: 'Business Network',
-    icon: Globe,
-    items: [
-      { path: '/network/overview', label: 'Network Overview', icon: Globe },
-      { path: '/network/connections', label: 'Connections', icon: Users2 },
-      { path: '/network/inbox', label: 'Purchase Inbox', icon: Inbox },
-      { path: '/network/outbox', label: 'Sales Outbox', icon: Send },
-      { path: '/network/partners', label: 'Product Partners', icon: Star },
-      { path: '/network/trade-credit', label: 'Trade Credits', icon: CreditCard },
-      { path: '/network/trade-returns', label: 'Trade Returns', icon: RotateCcw },
-      { path: '/network/shared-catalogs', label: 'Shared Catalogs', icon: BookOpen },
-      { path: '/network/trade-history', label: 'Trade History', icon: History },
-      { path: '/network/analytics', label: 'Analytics', icon: BarChart2 }
-    ]
-  },
-  {
-    type: 'single',
-    path: '/general',
-    label: 'General Hub',
-    icon: Settings2
-  },
-  {
-    type: 'group',
-    label: 'Workforce & Access',
-    icon: Users,
-    items: [
-      { path: '/workforce/employees', label: 'Employees', icon: Users },
-      { path: '/workforce/payroll', label: 'Payroll & Attendance', icon: Wallet },
-      { path: '/workforce/roles', label: 'Roles', icon: ShieldCheck },
-      { path: '/workforce/matrix', label: 'Access Matrix', icon: LayoutGrid },
-      { path: '/workforce/approvals', label: 'Approval Workflows', icon: CheckSquare },
-      { path: '/workforce/audit', label: 'Audit Trail', icon: History }
-    ]
-  },
-  {
-    type: 'group',
-    label: 'Settings & Plans',
-    icon: Settings,
-    items: [
-      { path: '/settings', label: 'Business Profile', icon: Settings },
-      { path: '/stores', label: 'Store Management', icon: LayoutGrid },
-      { path: '/subscription/plans', label: 'Subscription Plans', icon: ShieldCheck },
-      { path: '/audit-center', label: 'Security Alerts', icon: ShieldAlert },
-      { path: '/backup-wizard', label: 'Backup & Restore', icon: History }
-    ]
-  }
-];
-
-const mobileMenu = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/billing', label: 'Billing', icon: Receipt },
-  { path: '/invoice-history', label: 'Invoices', icon: FileText },
-  { path: '/inventory', label: 'Inventory', icon: Package },
-  { path: '/customers', label: 'Customers', icon: Users },
-  { path: '/tools', label: 'More', icon: MoreHorizontal },
-];
-
 export default function AppLayout() {
   const loggedIn = localStorage.getItem('loggedIn');
+  const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  // Business Profile Feature Flags
+  const b2bTypes = ['distributor', 'manufacturer', 'wholesaler', 'b2b'];
+  const isB2B = b2bTypes.includes(userObj.business_type?.toLowerCase());
+  const hasMultiStore = userObj.multi_store_enabled === true; // Hidden by default
+
+  const menuGroups = [
+    {
+      type: 'single',
+      path: '/dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard
+    },
+    {
+      type: 'group',
+      label: 'Sales & Billing',
+      icon: Receipt,
+      items: [
+        { path: '/billing', label: 'POS Terminal', icon: ShoppingCart },
+        { path: '/invoice-history', label: 'Invoice Ledger', icon: FileText },
+        { path: '/payments', label: 'Payments Inflow', icon: Wallet }
+      ]
+    },
+    {
+      type: 'group',
+      label: 'Core Operations',
+      icon: Package,
+      items: [
+        { path: '/inventory', label: 'Inventory Catalog', icon: Package },
+        { path: '/customers', label: 'Customer Registry', icon: Users },
+        { path: '/suppliers', label: 'Local Suppliers', icon: Package },
+        ...(isB2B ? [{ path: '/crm', label: 'CRM & Pipeline', icon: MessageSquare }] : [])
+      ]
+    },
+    {
+      type: 'group',
+      label: 'Finance',
+      icon: TrendingUp,
+      items: [
+        { path: '/expenses', label: 'Expenses Outflow', icon: TrendingDown },
+        { path: '/pnl', label: 'P&L Analytics', icon: TrendingUp },
+        { path: '/health-score', label: 'Business Health', icon: HeartPulse },
+        { path: '/ai-advisor', label: 'AI Copilot', icon: Bot }
+      ]
+    },
+    {
+      type: 'group',
+      label: 'Business Network',
+      icon: Globe,
+      items: [
+        { path: '/network/directory', label: 'Business Directory', icon: Search },
+        { path: '/network/exchange', label: 'Business Exchange', icon: ArrowLeftRight },
+        { path: '/network/workspace', label: 'Trade Workspace', icon: Inbox }
+      ]
+    },
+    {
+      type: 'group',
+      label: 'Employees',
+      icon: Users,
+      items: [
+        { path: '/workforce/employees', label: 'Staff Hub', icon: Users },
+        { path: '/workforce/payroll', label: 'Attendance & Salary', icon: Wallet }
+      ]
+    },
+    {
+      type: 'group',
+      label: 'Settings',
+      icon: Settings,
+      items: [
+        { path: '/settings', label: 'Business Profile', icon: Settings },
+        ...(hasMultiStore ? [{ path: '/stores', label: 'Store Management', icon: LayoutGrid }] : []),
+        { path: '/subscription/plans', label: 'Subscription Plans', icon: ShieldCheck }
+      ]
+    }
+  ];
+
+  const mobileMenu = [
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/billing', label: 'Billing', icon: Receipt },
+    { path: '/inventory', label: 'Inventory', icon: Package },
+    { path: '/customers', label: 'Customers', icon: Users },
+    { path: '/tools', label: 'More', icon: MoreHorizontal },
+  ];
+
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -190,7 +170,6 @@ export default function AppLayout() {
     }).filter(Boolean);
   }, [searchTerm]);
 
-  const userObj = JSON.parse(localStorage.getItem('user') || '{}');
   const userInitial = userObj.name?.charAt(0).toUpperCase() || 'U';
   const userAvatar = userObj.avatar_url || userObj.logo_url;
 

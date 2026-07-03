@@ -22,14 +22,15 @@ Welcome to the **FinSathi BRAIN.md**. This document serves as the permanent sour
 15. [Workflow Diagrams](#15-workflow-diagrams)
 16. [Backend Architecture](#16-backend-architecture)
 17. [Frontend Architecture](#17-frontend-architecture)
-18. [File Responsibilities](#18-file-responsibilities)
-19. [Coding Standards](#19-coding-standards)
-20. [Deployment](#20-deployment)
-21. [Current Progress](#21-current-progress)
-22. [Roadmap](#22-roadmap)
-23. [Future Ideas](#23-future-ideas)
-24. [Change Log](#24-change-log)
-25. [AI Instructions](#25-ai-instructions)
+18. [Business Network Architecture](#18-business-network-architecture)
+19. [File Responsibilities](#19-file-responsibilities)
+20. [Coding Standards](#20-coding-standards)
+21. [Deployment](#21-deployment)
+22. [Current Progress](#22-current-progress)
+23. [Roadmap](#23-roadmap)
+24. [Future Ideas](#24-future-ideas)
+25. [Change Log](#25-change-log)
+26. [AI Instructions](#26-ai-instructions)
 
 ---
 
@@ -531,7 +532,89 @@ The frontend is a lightweight, responsive React SPA optimized for mobile viewpor
 
 ---
 
-## 18. File Responsibilities
+## 18. Business Network Architecture
+
+The **Business Network (V2)** is the flagship B2B growth and trade platform within FinSathi.
+
+### Component Tree
+```text
+Business Network (/network)
+├── NetworkHome
+├── BusinessDirectory
+├── BusinessExchange
+├── PartnersHub
+├── TradeWorkspace
+└── GrowthCenter
+```
+
+### Folder Structure (`src/pages/Network/v2/`)
+- `components/` (Shared UI: `NetworkTabs`, `AIBanner`, `KPICard`, `EmptyState`, `StatusBadge`, `SectionHeader`)
+- `modals/` (Accessible overlays: `PostListingModal`, `SendInvoiceModal`, `SetCreditModal`)
+- `utils/` (Design tokens: `networkConstants.js`)
+- `mockData/` (API payload simulations: `directory.js`, `exchange.js`, `partners.js`, `workspace.js`, `growth.js`)
+
+### Domain-Driven Backend Architecture (V2)
+
+The backend has been restructured following a strict Domain-Driven Design (DDD) to act as a highly reusable platform.
+
+**Implemented Domains:**
+- **Profile Domain**: Manages `business_network_profiles` isolating network identity from auth.
+- **Partner Domain**: Manages `business_connections` and network graphs.
+- **Marketplace Domain**: Manages unified `business_exchange_listings` via JSONB payloads.
+- **Trade Domain**: Single source of truth for transactions, credits, and returns.
+
+- **Trade Domain Scope**: Single source of truth for transactions, credits, and returns. SQL-only Repositories. Strict event payload tracking.
+
+**Reputation Domain Scope:**
+- **Architecture**: A centralized credibility engine replacing siloed scores. Raw metrics are persisted (`business_reputation_metrics` and `business_reputation_history`), and calculated via weighted formulas into a Trust Score which is cached in Redis.
+- **Formulas**: 
+  - *Trade Reliability (40%)*: Based on ratio of completed trades to disputes/cancellations.
+  - *Payment Reliability (30%)*: Penalizes for late payments and high average payment delays.
+  - *Verification (20%)*: Checks GST validity and profile completeness.
+  - *Engagement (10%)*: Connection acceptance rate and message response rate.
+- **Event Flow**: Core domains emit events (e.g., `TradeCompleted`). Background jobs process events, update `ReputationRepository`, trigger `TrustScoreService`, cache the result, and emit `TrustScoreUpdated` / `PaymentReliabilityUpdated`.
+- **Dependencies**: Depends on Trade, Partner, and Profile domains to emit raw metric events. Future AI and Notifications will consume its metrics.
+- **API Contracts**: Read-heavy endpoints (`/:userId/score`, `/:userId/metrics`, `/:userId/history`) returning strict `{ success, data, error, message }` format. Avoid recalculation during standard GET requests.
+- **Future Extension Points**: Expose structured metrics directly to the AI Intelligence Domain so it can explain *why* scores changed and suggest improvements (AI must not decide the score itself).
+
+**Growth Domain Scope (Business Growth Intelligence Engine):**
+- **Architecture**: Answers "What should this business do next to grow?" via rule engines.
+- **Rule Engines (No AI for rules)**:
+  - `EligibilityEngine`: Checks user profiles and metrics against rigid business rules to determine eligibility for government schemes and funding.
+  - `GrowthRuleEngine`: Checks business signals (e.g. inventory levels, compliance, outstanding AR) to generate ranked, actionable recommendations across 10 categories (FUNDING, COMPLIANCE, SALES, etc.).
+- **Event Flow**: Core domains emit events. Background queues process expensive logic (scheme matching, recommendation generation) and save to `GrowthRecommendationRepository`. Emits `RecommendationGenerated`.
+- **API Contracts**: Exposes `GET /api/network/growth/recommendations`, `/schemes`, `/funding`, `/milestones`.
+- **AI Responsibilities**: Only consumes the outputs of the rule engines to explain, prioritize, and summarize advice. It does *not* decide eligibility.
+
+**AI Intelligence Domain Scope (Cross-Domain Orchestration):**
+- **Architecture**: A pure orchestration layer that sits *above* all business domains. It never acts as a source of business rules or truth.
+- **Pipeline Structure**: User Request → Route/Auth → Controller → `BusinessAdvisorEngine` → `AIOrchestrator` → `AIContextBuilder` (gathers cross-domain data) → `PromptBuilderService` (injects data) → `GeminiProvider` (enforces structured output via Zod) → `ResponseFormatter` → Controller.
+- **Key Constraints**: 
+  - Never hits the database directly. 
+  - Never mutates business state (cannot approve payments, change trust scores). 
+  - Returns strictly structured JSON defined in `schemas/aiResponseSchemas.js`.
+- **Context Builder**: Minimizes token usage by selectively fetching pre-aggregated summaries from other Domain Services (Profile, Reputation, Trade, Growth).
+- **Fallback Strategy**: If Gemini is unavailable, `GeminiProvider` returns a deterministic JSON object with graceful degradation to protect the user experience.
+
+### Future API Mapping
+| UI Module | Backend Endpoint |
+|-----------|------------------|
+| NetworkHome | `GET /api/v1/network/overview` |
+| BusinessDirectory | `GET /api/v1/network/directory` |
+| BusinessExchange | `GET /api/v1/network/exchange` |
+| PartnersHub | `GET /api/v1/network/connections` |
+| TradeWorkspace | `GET /api/v1/trade/inbox`, `/outbox`, `/history` |
+| GrowthCenter | `GET /api/v1/network/growth-schemes` |
+
+### Backend Dependency Graph
+To activate the frontend, the backend requires:
+- **Repositories:** `BusinessProfileRepository`, `NetworkConnectionRepository`, `TradeTransactionRepository`, `BusinessExchangeRepository`, `TradeCreditRepository`.
+- **Services:** `DirectoryService`, `ExchangeService`, `TradeWorkspaceService`, `CreditService`, `AIGrowthService`.
+- **Caching:** Redis for `NetworkHome` KPI aggregations.
+
+---
+
+## 19. File Responsibilities
 
 | File Path | Responsibility | Key Exports | Consumers |
 | :--- | :--- | :--- | :--- |
@@ -633,6 +716,7 @@ VITE_SUPABASE_KEY=your-anon-public-key
 
 | Date | Feature | Files Modified | Reason | Impact |
 | :--- | :--- | :--- | :--- | :--- |
+| **2026-06-26** | Refactored Business Network (V2) | `NetworkHome.jsx`, `TradeWorkspace.jsx`, etc. | Production consolidation and UI extraction. | Eliminated duplicates and standardized design system. |
 | **2026-06-26** | Release Candidate 1 (v1.0.0-rc1) | Multiple files | Finalize stabilization, timezone utility, performance bundle size reductions, and bug fixes for RC1 release. | Highly stable production-ready release candidate branch. |
 | **2026-06-26** | Production Bundle Optimization | `Topbar.jsx`, `GeneralPage.jsx`, `pwa-192x192.png` | Lazy-loaded jsPDF and settings tabs, resized PWA 192x192 icon. | Reduced initial layout chunk and GeneralPage chunk sizes, optimized pre-cache weight. |
 | **2026-06-26** | Formatting Standardization | `formatNumbers.js`, `DashboardMetrics.jsx`, `BillingMetrics.jsx`, `InvoiceDrawer.jsx` | Created centralized currency/number helpers and refactored metrics components. | Removed duplicate inline formatting logic. |
@@ -644,7 +728,7 @@ VITE_SUPABASE_KEY=your-anon-public-key
 
 ---
 
-## 25. AI Instructions
+## 27. AI Instructions
 
 All AI assistants working on this repository must adhere to the following rules:
 
@@ -660,3 +744,68 @@ All AI assistants working on this repository must adhere to the following rules:
      "error": null
    }
    ```
+
+## 24. Event Pipeline & Queue Architecture (Phase 3 & 4)
+
+### 24.1 Event Infrastructure Abstraction
+FinSathi uses a robust event-driven architecture decoupled from implementation via the \EventPublisher\ interface.
+- **Location:** \ackend/src/infrastructure/events/\
+- **Implementations:** \InMemoryPublisher\ (for unit tests), \BullMQPublisher\ (production).
+- **Event Contract:** Every event strictly follows the \EventContract\ requiring \eventId\, \eventType\, \ggregateId\, \	imestamp\, \correlationId\, and a \payload\.
+- **Registry:** Event names are maintained in \EventRegistry.js\.
+
+### 24.2 Independent Namespaced Queues
+We avoid global monolithic queues in favor of domain-specific, horizontal-scalable queues.
+- \
+etwork.reputation\
+- \
+etwork.growth\
+- \
+etwork.notification\
+- \
+etwork.marketplace\
+- \
+etwork.ai\
+
+### 24.3 Single-Responsibility Workers
+Workers listen to specific namespace queues independently.
+- **Location:** \ackend/src/infrastructure/workers/\
+- **Deployability:** Can run inside the API monolithic process or separately via \worker.js\.
+- **Reliability:** Built-in exponential backoff (BullMQ), idempotency tracking, and graceful shutdown (\SIGINT\/\SIGTERM\).
+
+### 24.4 Operational Observability
+- **Correlation IDs:** Propagated from \X-Correlation-Id\ HTTP headers -> \CorrelationIdMiddleware\ -> \EventContract\ -> Background Workers, ensuring end-to-end tracing.
+- **Queue Dashboard:** Monitored via \ull-board\ at \/admin/queues\.
+
+## 25. Final Production Architecture (RC2 Freeze)
+
+As of **Phase 5 (RC2)**, the architecture is **FROZEN**. Only bug fixes and operational improvements are permitted. 
+
+### 25.1 API Version Policy
+- \1\ is the stable API version. Future versions (v2, etc.) must coexist alongside v1.
+- No endpoint replacements without a major version bump.
+
+### 25.2 Error Taxonomy
+Errors strictly inherit from \BaseError\ (\utils/errors.js\) and are caught by \errorHandler.js\.
+- \ValidationError\ -> HTTP 400
+- \AuthenticationError\ -> HTTP 401
+- \AuthorizationError\ -> HTTP 403
+- \BusinessRuleError\ -> HTTP 400
+- \InfrastructureError\ -> HTTP 500
+- \ExternalProviderError\ -> HTTP 502
+- \AIProviderError\ -> HTTP 503
+
+### 25.3 Performance Targets (Budgets)
+- **API P95 Latency:** < 300ms
+- **API P99 Latency:** < 700ms
+- **Queue Processing Time:** < 2s
+- **Health Endpoint Latency:** < 100ms
+- **Cold Start:** < 5s
+- **AI Deterministic Fallback:** < 500ms
+- **Cache Hit Rate:** > 80%
+
+### 25.4 Liveness vs Readiness Probes
+Endpoints deployed for Kubernetes Orchestration:
+- \/api/health/live\: Returns HTTP 200 if the Node process is running.
+- \/api/health/ready\: Validates connections to Supabase, Redis, and queues before returning HTTP 200. Fails with HTTP 503 if degraded.
+

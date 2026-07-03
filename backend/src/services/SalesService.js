@@ -116,8 +116,49 @@ export const SalesService = {
             console.error("WhatsApp Auto-send check failed:", autoErr);
         }
 
-        // 2. Update Inventory Stock (Batch Aware)
+        // 4. Update Customer Khata (Ledger)
+        if (customer_id && sale.payment_status !== 'paid') {
+            try {
+                const credit_amount = Number(sale.total) - Number(sale.amount_paid);
+                if (credit_amount > 0) {
+                    // Get current customer balance
+                    const { data: customer } = await supabase
+                        .from('customers')
+                        .select('outstanding_balance')
+                        .eq('id', customer_id)
+                        .single();
+                        
+                    const newBalance = Number(customer?.outstanding_balance || 0) + credit_amount;
+                    
+                    await supabase
+                        .from('customers')
+                        .update({ outstanding_balance: newBalance })
+                        .eq('id', customer_id);
+                }
+            } catch (ledgerErr) {
+                console.error("Khata Ledger Update failed:", ledgerErr);
+            }
+        }
+
+        // 5. Check and Update Inventory Stock (Batch Aware)
         if (items && Array.isArray(items)) {
+            // First pass: Validate stock
+            for (const item of items) {
+                if (!item.quantity) continue;
+                if (item.batchId) {
+                    const { data: batch } = await supabase.from('inventory_batches').select('stock').eq('id', item.batchId).single();
+                    if (!batch || batch.stock < item.quantity) {
+                        throw new Error(`Insufficient stock for batch of product ${item.productId}. Available: ${batch?.stock || 0}, Required: ${item.quantity}`);
+                    }
+                } else {
+                    const { data: inv } = await supabase.from('inventory').select('stock').eq('id', item.productId).single();
+                    if (!inv || inv.stock < item.quantity) {
+                        throw new Error(`Insufficient stock for product ${item.productId}. Available: ${inv?.stock || 0}, Required: ${item.quantity}`);
+                    }
+                }
+            }
+
+            // Second pass: Update stock
             for (const item of items) {
                 if (!item.quantity) continue;
 
@@ -177,7 +218,32 @@ export const SalesService = {
             updateData.amount_paid = updateData.total;
         }
 
+        // Fetch original sale to calculate balance difference
+        const originalSale = await SalesRepository.findById(userId, id);
+
         const sale = await SalesRepository.update(userId, id, updateData);
+
+        // Khata Adjustment on Update
+        if (originalSale && originalSale.customer_id) {
+            const oldCredit = Number(originalSale.total) - Number(originalSale.amount_paid);
+            const newCredit = Number(sale.total) - Number(sale.amount_paid);
+            const diff = newCredit - oldCredit;
+            
+            if (diff !== 0) {
+                const { data: customer } = await supabase
+                    .from('customers')
+                    .select('outstanding_balance')
+                    .eq('id', originalSale.customer_id)
+                    .single();
+                    
+                const newBalance = Number(customer?.outstanding_balance || 0) + diff;
+                await supabase
+                    .from('customers')
+                    .update({ outstanding_balance: newBalance })
+                    .eq('id', originalSale.customer_id);
+            }
+        }
+
         return sale;
     },
 
@@ -218,7 +284,30 @@ export const SalesService = {
             }
         }
 
-        // 3. Delete Sale
+        // 3. Khata Reversal
+        if (sale.customer_id && sale.payment_status !== 'paid') {
+            const credit_amount = Number(sale.total) - Number(sale.amount_paid);
+            if (credit_amount > 0) {
+                try {
+                    const { data: customer } = await supabase
+                        .from('customers')
+                        .select('outstanding_balance')
+                        .eq('id', sale.customer_id)
+                        .single();
+                        
+                    const newBalance = Number(customer?.outstanding_balance || 0) - credit_amount;
+                    
+                    await supabase
+                        .from('customers')
+                        .update({ outstanding_balance: newBalance })
+                        .eq('id', sale.customer_id);
+                } catch (ledgerErr) {
+                    console.error("Khata Reversal failed:", ledgerErr);
+                }
+            }
+        }
+
+        // 4. Delete Sale
         // We'll try to delete. If it fails due to FK, we catch it.
         try {
             // Attempt to manually delete linked items if they exist as a table (handling potential lack of Cascade)

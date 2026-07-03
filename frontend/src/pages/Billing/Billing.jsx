@@ -14,6 +14,8 @@ import logoImg from "../../assets/logo.svg";
 
 export default function Billing() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [barcodeBuffer, setBarcodeBuffer] = useState("");
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
   const [notes, setNotes] = useState("");
@@ -38,6 +40,101 @@ export default function Billing() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Global Barcode Intercept
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't intercept if user is typing in an input/textarea
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+      if (e.key === 'F2') {
+        e.preventDefault();
+        document.getElementById('customer-search-input')?.focus();
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        document.getElementById('product-search-input')?.focus();
+      } else if (e.key === 'F4') {
+        e.preventDefault();
+        document.getElementById('btn-cash')?.click();
+      } else if (e.key === 'F5') {
+        e.preventDefault();
+        document.getElementById('btn-upi')?.click();
+      } else if (e.key === 'F6') {
+        e.preventDefault();
+        document.getElementById('btn-khata')?.click();
+      } else if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        document.getElementById('save-invoice-btn')?.click();
+      } else if (e.key === 'Escape') {
+        if (items.length > 0) {
+           if (window.confirm("Cancel this invoice and clear all items?")) {
+              setItems([]);
+              setNotes("");
+              toast.success("Invoice cancelled");
+           }
+        }
+      }
+
+      if (e.key === 'Enter') {
+        if (barcodeBuffer.length > 3) {
+          // Process barcode search
+          handleBarcodeScan(barcodeBuffer);
+        }
+        setBarcodeBuffer("");
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { // Normal character
+        setBarcodeBuffer(prev => prev + e.key);
+      }
+    };
+
+    // Auto-clear buffer if typing stops for 50ms (barcodes scan extremely fast)
+    const timeout = setTimeout(() => setBarcodeBuffer(""), 50);
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(timeout);
+    };
+  }, [barcodeBuffer, summaryValues.total, items]);
+
+  // Unsaved changes warning
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (items.length > 0 && !isSaving) {
+        e.preventDefault();
+        e.returnValue = ''; // Required for modern browsers to show the prompt
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [items, isSaving]);
+
+  const handleBarcodeScan = async (code) => {
+    try {
+      const res = await API.get(`/inventory/search?q=${code}`);
+      if (res.data && res.data.length > 0) {
+        const product = res.data[0];
+        const batches = product.inventory_batches || [];
+        const initialBatch = batches.find(b => b.stock > 0) || batches[0];
+        
+        handleAddItem({
+          productId: product.id,
+          batchId: initialBatch ? initialBatch.id : null,
+          name: product.name,
+          code: initialBatch ? (initialBatch.sku_variant || product.sku) : product.sku,
+          unit: product.units || product.unit || "",
+          quantity: 1,
+          price: Number(initialBatch ? initialBatch.selling_price : product.price),
+          cost_price: Number(initialBatch ? initialBatch.cost_price : product.cost_price),
+          gst_percent: product.gst_percent || 0,
+        });
+        toast.success(`Scanned: ${product.name}`);
+      } else {
+        toast.error(`Barcode not found: ${code}`);
+      }
+    } catch (e) {
+      toast.error("Error scanning item");
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -86,15 +183,63 @@ export default function Billing() {
     });
   }, [summaryValues.discount_percent, updateTotals]);
 
-  const handleSaveInvoice = async () => {
+  const handleUpdateItem = useCallback((itemId, field, value) => {
+    setItems(prevItems => {
+      const updatedItems = prevItems.map(item => {
+        if (item.tableId === itemId || item.id === itemId) {
+          const updatedItem = { ...item, [field]: value };
+          if (field === 'price' || field === 'quantity') {
+            updatedItem.amount = updatedItem.price * updatedItem.quantity;
+          }
+          return updatedItem;
+        }
+        return item;
+      });
+      updateTotals(updatedItems, summaryValues.discount_percent);
+      return updatedItems;
+    });
+  }, [summaryValues.discount_percent, updateTotals]);
+
+  const handleCustomerSelect = async (customerId, newCustomerValue) => {
+    if (customerId) {
+      setSelectedCustomer(customerId);
+    } else if (newCustomerValue) {
+      // 1-Tap Ghost Customer Creation
+      setIsCreatingCustomer(true);
+      try {
+        const isPhone = /^\d+$/.test(newCustomerValue) && newCustomerValue.length >= 10;
+        const payload = isPhone 
+          ? { name: "Customer", phone: newCustomerValue }
+          : { name: newCustomerValue, phone: "" };
+        
+        const res = await API.post("/customers", payload);
+        const newCust = res.data;
+        
+        // Optimistically update customers list
+        setCustomers(prev => [...prev, newCust]);
+        setSelectedCustomer(newCust.id);
+        toast.success(`Quick Added: ${newCust.name || newCust.phone}`);
+      } catch (e) {
+        toast.error("Failed to quick-add customer");
+      } finally {
+        setIsCreatingCustomer(false);
+      }
+    } else {
+      setSelectedCustomer(null);
+    }
+  };
+
+  const handleSaveInvoice = async (paymentOverride = null) => {
     if (items.length === 0) return toast.error("Cart is empty!");
     if (!selectedCustomer) return toast.error("Please select a customer first.");
     setIsSaving(true);
     try {
+      const finalPayment = paymentOverride || paymentDetails;
       const payload = {
         customer_id: selectedCustomer,
         items: items.map(i => ({
           productId: i.id,
+          batchId: i.batchId,
           quantity: i.quantity,
           price: i.price,
           product_name: i.name
@@ -103,9 +248,9 @@ export default function Billing() {
         tax_amount: summaryValues.gst_amount,
         discount_percent: summaryValues.discount_percent,
         total: summaryValues.total,
-        payment_method: paymentDetails.method,
-        payment_status: paymentDetails.status,
-        amount_paid: paymentDetails.amountReceived,
+        payment_method: finalPayment.method,
+        payment_status: finalPayment.status,
+        amount_paid: finalPayment.amountReceived,
         notes: notes,
       };
       const response = await API.post("/sales", payload);
@@ -197,7 +342,7 @@ export default function Billing() {
             {/* Customer Selector */}
             <div className="p-5 bg-white text-slate-800 border-b border-slate-100">
                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Select Customer</label>
-               <CustomerSection customers={customers} selectedCustomer={selectedCustomer} onCustomerSelect={setSelectedCustomer} />
+               <CustomerSection customers={customers} selectedCustomer={selectedCustomer} onCustomerSelect={handleCustomerSelect} />
             </div>
 
             {/* Item Adder */}
@@ -207,7 +352,11 @@ export default function Billing() {
 
             {/* Item Table */}
             <div className="p-0">
-              <ItemTable items={items} onRemoveItem={handleRemoveItem} onEditItem={() => {}} />
+              <ItemTable 
+                items={items} 
+                onRemoveItem={handleRemoveItem} 
+                onUpdateItem={handleUpdateItem} 
+              />
             </div>
 
             {/* Notes field */}
@@ -271,25 +420,64 @@ export default function Billing() {
               />
           </Card>
 
-          {/* Action Buttons */}
-          <div className="space-y-2">
+          {/* Action Buttons (1-Tap Quick Pay) - Sticky on Mobile */}
+          <div className="fixed md:static bottom-0 left-0 right-0 p-4 md:p-0 bg-white md:bg-transparent border-t md:border-0 border-slate-200 z-50 md:z-auto md:mt-2">
+            <div className="grid grid-cols-3 gap-2">
             <Button 
-              onClick={handleSaveInvoice} 
-              disabled={isSaving}
-              className="w-full text-xs font-bold py-3 rounded-xl flex items-center justify-center gap-2"
-              icon={<CheckCircle size={15} />}
+              onClick={() => {
+                setPaymentDetails(p => ({ ...p, method: 'cash', status: 'paid', amountReceived: summaryValues.total }));
+              id="btn-cash"
+              onClick={() => {
+                const p = { method: 'cash', status: 'paid', amountReceived: summaryValues.total };
+                setPaymentDetails(p);
+                handleSaveInvoice(p);
+              }} 
+              disabled={isSaving || items.length === 0}
+              className="w-full text-xs font-bold py-3.5 rounded-xl flex flex-col items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 shadow-sm text-white"
             >
-               {isSaving ? "Saving Invoice..." : "Generate Invoice"}
+              <span>EXACT CASH (F4)</span>
             </Button>
             
-            <button
-              onClick={handleWhatsAppShare}
-              disabled={items.length === 0}
-              className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            <Button 
+              id="btn-upi"
+              onClick={() => {
+                const p = { method: 'upi', status: 'paid', amountReceived: summaryValues.total };
+                setPaymentDetails(p);
+                handleSaveInvoice(p);
+              }} 
+              disabled={isSaving || items.length === 0}
+              className="w-full text-xs font-bold py-3.5 rounded-xl flex flex-col items-center justify-center gap-1 bg-indigo-600 hover:bg-indigo-700 shadow-sm text-white"
             >
-              <MessageCircle size={14} />
-              Share via WhatsApp
-            </button>
+              <span>UPI (F5)</span>
+            </Button>
+
+            <Button 
+              id="btn-khata"
+              onClick={() => {
+                const p = { method: 'cash', status: 'unpaid', amountReceived: 0 };
+                setPaymentDetails(p);
+                handleSaveInvoice(p);
+              }} 
+              disabled={isSaving || items.length === 0}
+              className="w-full text-xs font-bold py-3.5 rounded-xl flex flex-col items-center justify-center gap-1 bg-rose-600 hover:bg-rose-700 shadow-sm text-white"
+            >
+              <span>UDHAAR (F6)</span>
+            </Button>
+            
+            {/* Hidden button for Ctrl+S */}
+            <button id="save-invoice-btn" onClick={() => handleSaveInvoice()} className="hidden"></button>
+            </div>
+            
+            <div className="mt-2">
+              <button
+                onClick={handleWhatsAppShare}
+                disabled={items.length === 0}
+                className="w-full flex items-center justify-center gap-2 py-3 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <MessageCircle size={15} />
+                Share via WhatsApp
+              </button>
+            </div>
           </div>
 
           {/* Quick Help Tip */}
