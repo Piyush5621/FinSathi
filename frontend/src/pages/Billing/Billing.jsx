@@ -424,8 +424,6 @@ export default function Billing() {
           <div className="fixed md:static bottom-0 left-0 right-0 p-4 md:p-0 bg-white md:bg-transparent border-t md:border-0 border-slate-200 z-50 md:z-auto md:mt-2">
             <div className="grid grid-cols-3 gap-2">
             <Button 
-              onClick={() => {
-                setPaymentDetails(p => ({ ...p, method: 'cash', status: 'paid', amountReceived: summaryValues.total }));
               id="btn-cash"
               onClick={() => {
                 const p = { method: 'cash', status: 'paid', amountReceived: summaryValues.total };
