@@ -26,5 +26,6 @@ router.post("/rbac/roles/:id/permissions", authorize("admin_setup"), audit, Rbac
 router.get("/rbac/staff/:id/overrides", authorize("admin_setup"), RbacController.getStaffOverrides);
 router.post("/rbac/staff/:id/overrides", authorize("admin_setup"), audit, RbacController.toggleStaffOverride);
 router.post("/rbac/staff/assign", authorize("admin_setup"), audit, RbacController.assignStaffStoreRole);
+router.get("/rbac/staff/:id/assignments", authorize("admin_setup"), RbacController.getStaffAssignments);
 
 export default router;

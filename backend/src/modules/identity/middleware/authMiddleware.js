@@ -32,7 +32,7 @@ export const authenticate = async (req, res, next) => {
       }
     } else if (decoded.staff_id) {
       const staff = await AuthRepository.findStaffById(decoded.staff_id);
-      if (!staff || !staff.is_login_enabled) {
+      if (!staff || !staff.is_login_enabled || staff.status === "suspended" || staff.status === "disabled") {
         throw new UnauthorizedError("Staff account disabled or inactive.");
       }
       if (staff.jwt_version !== decoded.jwt_version) {

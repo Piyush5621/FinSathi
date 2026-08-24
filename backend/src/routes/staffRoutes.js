@@ -6,9 +6,15 @@ const router = express.Router();
 
 router.use(authenticateToken);
 
+router.get('/me/profile', StaffController.getMyProfile);
+
 router.get('/', StaffController.getStaff);
 router.post('/', StaffController.addStaff);
+router.get('/:id', StaffController.getStaffById);
+router.put('/:id', StaffController.updateStaff);
+router.patch('/:id/status', StaffController.updateStaffStatus);
 router.delete('/:id', StaffController.deleteStaff);
+
 router.get('/attendance', StaffController.getAttendance);
 router.post('/attendance', StaffController.markAttendance);
 router.get('/payroll', StaffController.getPayroll);

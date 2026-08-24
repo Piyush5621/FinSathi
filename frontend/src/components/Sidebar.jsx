@@ -1,79 +1,148 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Package, Receipt, BarChart2, Settings, 
   Menu, X, LogOut, DollarSign, Briefcase, TrendingDown, 
   TrendingUp, ChevronDown, Target, HelpCircle, ShieldCheck, Globe,
-  Truck
+  Truck, Calendar, ShoppingCart, Lock
 } from 'lucide-react';
 
-const menuGroups = [
-  {
-    type: 'single',
-    path: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard
-  },
-  {
-    type: 'group',
-    label: 'Sales & Billing',
-    icon: Receipt,
-    items: [
-      { path: '/billing', label: 'POS Terminal', icon: Receipt },
-      { path: '/invoice-history', label: 'Invoice Ledger', icon: BarChart2 },
-      { path: '/payments', label: 'Payments Inflow', icon: DollarSign },
-      { path: '/reminders', label: 'Reminders Autopilot', icon: HelpCircle }
-    ]
-  },
-  {
-    type: 'group',
-    label: 'Core Operations',
-    icon: Briefcase,
-    items: [
-      { path: '/inventory', label: 'Inventory', icon: Package },
-      { path: '/customers', label: 'Customer Registry', icon: Users },
-      { path: '/staff', label: 'Staff Hub', icon: Users },
-      { path: '/suppliers', label: 'Purchases', icon: Truck },
-      { path: '/crm', label: 'CRM & Leads', icon: Target },
-      { path: '/marketplace', label: 'Marketplace', icon: Globe }
-    ]
-  },
-  {
-    type: 'group',
-    label: 'Finance & Analytics',
-    icon: TrendingUp,
-    items: [
-      { path: '/pnl', label: 'P&L Analytics', icon: TrendingUp },
-      { path: '/expenses', label: 'Expenses Outflow', icon: TrendingDown },
-      { path: '/reports/gst', label: 'GST Tax Reports', icon: Receipt },
-      { path: '/growth', label: 'Subsidy Matcher', icon: Target }
-    ]
-  },
-  {
-    type: 'group',
-    label: 'Settings & Plans',
-    icon: Settings,
-    items: [
-      { path: '/settings', label: 'Business Profile', icon: Settings },
-      { path: '/stores', label: 'Branch Settings', icon: Settings },
-      { path: '/rbac', label: 'Access Control', icon: ShieldCheck },
-      { path: '/subscription/plans', label: 'Subscription Plans', icon: ShieldCheck }
-    ]
+const getFilteredMenuGroups = (user) => {
+  const role = user?.role || 'Owner';
+  const isOwner = role === 'Owner' || !user?.staff_id;
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  const hasWildcard = permissions.includes('*') || isOwner;
+
+  const hasPerm = (perm) => hasWildcard || permissions.includes(perm);
+
+  // Dynamic menu construction based on real RBAC capabilities:
+  const groups = [
+    {
+      type: 'single',
+      path: '/dashboard',
+      label: isOwner ? 'Dashboard' : `${role} Workspace`,
+      icon: LayoutDashboard
+    }
+  ];
+
+  // Sales & Billing
+  const salesItems = [];
+  if (hasPerm('create_sales') || role === 'Cashier' || role === 'Manager') {
+    salesItems.push({ path: '/billing', label: 'POS Terminal', icon: Receipt });
   }
-];
+  if (hasPerm('view_billing') || role === 'Cashier' || role === 'Manager' || role === 'Accountant') {
+    salesItems.push({ path: '/invoice-history', label: 'Invoice Ledger', icon: BarChart2 });
+  }
+  if (isOwner || role === 'Cashier' || role === 'Manager' || role === 'Accountant') {
+    salesItems.push({ path: '/payments', label: 'Payments Inflow', icon: DollarSign });
+  }
+  if (isOwner || role === 'Manager') {
+    salesItems.push({ path: '/reminders', label: 'Reminders Autopilot', icon: HelpCircle });
+  }
+  if (salesItems.length > 0) {
+    groups.push({
+      type: 'group',
+      label: 'Sales & Billing',
+      icon: Receipt,
+      items: salesItems
+    });
+  }
+
+  // Core Operations & Inventory
+  const opsItems = [];
+  if (hasPerm('view_catalog') || hasPerm('edit_catalog') || hasPerm('run_counts') || role === 'Warehouse Staff' || role === 'Manager') {
+    opsItems.push({ path: '/inventory', label: 'Inventory', icon: Package });
+  }
+  if (hasPerm('view_billing') || hasPerm('create_sales') || role === 'Cashier' || role === 'Manager' || role === 'Accountant') {
+    opsItems.push({ path: '/customers', label: 'Customer Registry', icon: Users });
+  }
+  if (hasPerm('approve_po') || hasPerm('post_invoices') || role === 'Warehouse Staff' || role === 'Manager' || role === 'Accountant') {
+    opsItems.push({ path: '/suppliers', label: 'Purchases & Receiving', icon: Truck });
+  }
+  if (isOwner) {
+    opsItems.push({ path: '/crm', label: 'CRM & Leads', icon: Target });
+    opsItems.push({ path: '/marketplace', label: 'Marketplace', icon: Globe });
+  }
+  if (opsItems.length > 0) {
+    groups.push({
+      type: 'group',
+      label: 'Core Operations',
+      icon: Briefcase,
+      items: opsItems
+    });
+  }
+
+  // Staff Hub / My Work
+  if (isOwner || hasPerm('admin_setup') || role === 'Manager') {
+    groups.push({
+      type: 'single',
+      path: '/staff',
+      label: 'Staff Hub',
+      icon: Users
+    });
+  } else {
+    groups.push({
+      type: 'group',
+      label: 'My Work & Records',
+      icon: Users,
+      items: [
+        { path: '/staff?tab=attendance', label: 'My Attendance', icon: Calendar },
+        { path: '/staff?tab=payroll', label: 'My Payslips', icon: DollarSign }
+      ]
+    });
+  }
+
+  // Finance & Analytics
+  const finItems = [];
+  if (isOwner || hasPerm('adjust_costs')) {
+    finItems.push({ path: '/pnl', label: 'P&L Analytics', icon: TrendingUp });
+  }
+  if (isOwner || role === 'Accountant' || role === 'Manager') {
+    finItems.push({ path: '/expenses', label: 'Expenses Outflow', icon: TrendingDown });
+    finItems.push({ path: '/reports/gst', label: 'GST Tax Reports', icon: Receipt });
+  }
+  if (isOwner) {
+    finItems.push({ path: '/growth', label: 'Subsidy Matcher', icon: Target });
+  }
+  if (finItems.length > 0) {
+    groups.push({
+      type: 'group',
+      label: 'Finance & Analytics',
+      icon: TrendingUp,
+      items: finItems
+    });
+  }
+
+  // Settings & Plans (Owner Only)
+  if (isOwner || hasPerm('admin_setup')) {
+    groups.push({
+      type: 'group',
+      label: 'Settings & Admin',
+      icon: Settings,
+      items: [
+        { path: '/settings', label: 'Business Profile', icon: Settings },
+        { path: '/stores', label: 'Branch Settings', icon: Settings },
+        { path: '/subscription/plans', label: 'Subscription Plans', icon: ShieldCheck }
+      ]
+    });
+  }
+
+  return groups;
+};
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
   const location = useLocation();
 
-  // Auto-expand folder group on page load/navigation if a child route is active
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const menuGroups = getFilteredMenuGroups(currentUser);
+
   useEffect(() => {
     menuGroups.forEach(group => {
       if (group.type === 'group') {
-        const hasActiveChild = group.items.some(item => location.pathname === item.path);
+        const hasActiveChild = group.items?.some(item => location.pathname === item.path);
         if (hasActiveChild) {
           setOpenGroups(prev => ({ ...prev, [group.label]: true }));
         }
@@ -83,14 +152,14 @@ const Sidebar = () => {
 
   const handleGroupToggle = (label) => {
     if (isCollapsed) {
-      setIsCollapsed(false); // Expand sidebar when user expands a group
+      setIsCollapsed(false);
       setOpenGroups(prev => ({ ...prev, [label]: true }));
     } else {
       setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }));
     }
   };
 
-  const sidebarContent = (
+  return (
     <div className={`h-screen flex flex-col ${isCollapsed ? 'w-20' : 'w-72'} bg-[#0f172a] border-r border-slate-800 transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] relative z-50`}>
       {/* Brand Header */}
       <div className="flex flex-col p-6 mb-2">
@@ -110,7 +179,7 @@ const Sidebar = () => {
                   Karobar
                 </h1>
                 <p className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">
-                  Business & Stock OS
+                  {currentUser.role ? `${currentUser.role} Workspace` : 'Business OS'}
                 </p>
               </div>
             </motion.div>
@@ -146,14 +215,12 @@ const Sidebar = () => {
             );
           }
 
-          // Render group dropdown
           const GroupIcon = group.icon;
           const isGroupOpen = !!openGroups[group.label];
-          const hasActiveChild = group.items.some(item => location.pathname === item.path);
+          const hasActiveChild = group.items?.some(item => location.pathname === item.path);
 
           return (
             <div key={group.label} className="space-y-1">
-              {/* Group Header Trigger */}
               <button
                 onClick={() => handleGroupToggle(group.label)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-200 text-left ${
@@ -174,10 +241,9 @@ const Sidebar = () => {
                 )}
               </button>
 
-              {/* Group Child Items */}
               {!isCollapsed && isGroupOpen && (
                 <div className="pl-4 ml-5 border-l border-slate-800/80 space-y-1 my-1">
-                  {group.items.map((subItem) => {
+                  {group.items?.map((subItem) => {
                     const SubIcon = subItem.icon;
                     const isSubActive = location.pathname === subItem.path;
                     return (
@@ -190,7 +256,7 @@ const Sidebar = () => {
                             : 'text-slate-400 hover:text-white hover:bg-slate-800/10'
                         }`}
                       >
-                        <SubIcon size={12} className={`mr-2.5 ${isSubActive ? 'text-indigo-455' : 'text-slate-600'}`} />
+                        <SubIcon size={12} className={`mr-2.5 ${isSubActive ? 'text-indigo-400' : 'text-slate-600'}`} />
                         {subItem.label}
                       </Link>
                     );
@@ -201,63 +267,7 @@ const Sidebar = () => {
           );
         })}
       </nav>
-
-      {/* Bottom Section */}
-      <div className="p-4 border-t border-slate-800/50 bg-slate-900/30">
-        <Link
-          to="/login"
-          onClick={() => {
-            localStorage.clear();
-          }}
-          className={`flex items-center w-full p-3 rounded-xl text-slate-400 hover:text-rose-455 hover:bg-rose-500/10 transition-all duration-200 ${isCollapsed ? 'justify-center' : ''}`}
-        >
-          <LogOut className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-          {!isCollapsed && (
-            <span className="text-sm font-semibold">Sign Out</span>
-          )}
-        </Link>
-      </div>
     </div>
-  );
-
-  return (
-    <>
-      <div className="hidden lg:block shrink-0 sticky top-0 h-screen">
-        {sidebarContent}
-      </div>
-
-      {/* Mobile menu controls */}
-      <button
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="fixed top-4 left-4 z-50 p-2.5 rounded-xl bg-slate-800 text-white shadow-xl border border-slate-700 lg:hidden"
-      >
-        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
-
-      {/* Mobile side menu drawer */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 left-0 z-50 lg:hidden h-full shadow-2xl"
-            >
-              {sidebarContent}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </>
   );
 };
 

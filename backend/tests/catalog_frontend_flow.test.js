@@ -165,37 +165,57 @@ describe("Karobar Product Catalog, Variants & POS Flow Integration Tests", () =>
       let filterOrg = null;
       let filterUser = null;
       let filterBarcode = null;
+      let filterSearch = null;
 
       const builder = {
-        select: (cols) => ({
-          eq: (col, val) => {
-            if (col === "id") filterId = val;
-            if (col === "organization_id") filterOrg = val;
-            if (col === "user_id") filterUser = val;
-            if (col === "barcode_value") filterBarcode = val;
-            return builder.select(cols);
-          },
-          is: () => builder.select(cols),
-          or: () => builder.select(cols),
-          order: () => builder.select(cols),
-          limit: () => builder.select(cols),
-          range: () => builder.select(cols),
-          maybeSingle: async () => {
-            if (tableName === "users") return { data: mockUsers.find(x => x.id === filterId || x.id === filterUser) || null, error: null };
-            if (tableName === "warehouses") return { data: mockWarehouses[0] || null, error: null };
-            if (tableName === "customers") return { data: mockCustomers.find(x => x.id === filterId) || null, error: null };
-            if (tableName === "organization_preferences") return { data: { preferences: { batchSelectionStrategy: "FIFO" } }, error: null };
-            if (tableName === "organizations") return { data: { business_type: "Grocery" }, error: null };
-            if (tableName === "categories" || tableName === "brands") return { data: null, error: null };
-            if (tableName === "product_media") return { data: [], error: null };
-            if (tableName === "inventory") return { data: mockProducts.find(p => p.id === filterId) || null, error: null };
-            if (tableName === "product_barcodes") return { data: mockBarcodes.find(b => b.barcode_value === filterBarcode) || null, error: null };
-            return { data: null, error: null };
-          },
-          single: async () => {
-            return await builder.select(cols).maybeSingle();
-          }
-        }),
+        select: (cols) => {
+          const selectObj = {
+            eq: (col, val) => {
+              if (col === "id") filterId = val;
+              if (col === "organization_id") filterOrg = val;
+              if (col === "user_id") filterUser = val;
+              if (col === "barcode_value") filterBarcode = val;
+              return selectObj;
+            },
+            is: () => selectObj,
+            or: (cond) => {
+              const match = cond.match(/ilike\.%([^%]+)%/);
+              if (match) filterSearch = match[1];
+              return selectObj;
+            },
+            order: () => selectObj,
+            limit: () => selectObj,
+            range: () => selectObj,
+            maybeSingle: async () => {
+              if (tableName === "users") return { data: mockUsers.find(x => x.id === filterId || x.id === filterUser) || null, error: null };
+              if (tableName === "warehouses") return { data: mockWarehouses[0] || null, error: null };
+              if (tableName === "customers") return { data: mockCustomers.find(x => x.id === filterId) || null, error: null };
+              if (tableName === "organization_preferences") return { data: { preferences: { batchSelectionStrategy: "FIFO" } }, error: null };
+              if (tableName === "organizations") return { data: { business_type: "Grocery" }, error: null };
+              if (tableName === "categories" || tableName === "brands") return { data: null, error: null };
+              if (tableName === "product_media") return { data: [], error: null };
+              if (tableName === "inventory") return { data: mockProducts.find(p => p.id === filterId) || null, error: null };
+              if (tableName === "product_barcodes") return { data: mockBarcodes.find(b => b.barcode_value === filterBarcode) || null, error: null };
+              return { data: null, error: null };
+            },
+            single: async () => {
+              return await selectObj.maybeSingle();
+            },
+            then: (resolve) => {
+              if (tableName === "inventory") {
+                let list = [...mockProducts];
+                if (filterOrg) list = list.filter(p => p.organization_id === filterOrg);
+                if (filterSearch) list = list.filter(p => p.name?.toLowerCase().includes(filterSearch.toLowerCase()) || p.sku?.toLowerCase().includes(filterSearch.toLowerCase()));
+                return resolve({ data: list, count: list.length, error: null });
+              }
+              if (tableName === "product_media") {
+                return resolve({ data: [], error: null });
+              }
+              resolve({ data: [], count: 0, error: null });
+            }
+          };
+          return selectObj;
+        },
         insert: (data) => {
           const arr = Array.isArray(data) ? data : [data];
           const records = arr.map(item => ({
@@ -449,5 +469,69 @@ describe("Karobar Product Catalog, Variants & POS Flow Integration Tests", () =>
     assert.ok(mvt2);
     assert.equal(mvt2.variant_id, var2.id);
     assert.equal(mvt2.quantity, -5);
+  });
+
+  test("4. GET /api/catalog/products?limit=100 — Returns product catalog with limit support", async () => {
+    const orgId = "org-1";
+    const userId = "user-1";
+
+    // Create 3 products
+    await ProductService.createProduct(orgId, { name: "Mustard Oil 1L", sellingPrice: 150.00 }, userId);
+    await ProductService.createProduct(orgId, { name: "Wheat Flour 10kg", sellingPrice: 380.00 }, userId);
+    await ProductService.createProduct(orgId, { name: "Sugar 1kg", sellingPrice: 45.00 }, userId);
+
+    const searchRes = await ProductService.search(orgId, { limit: 100, page: 1 });
+    assert.ok(searchRes.data);
+    assert.equal(searchRes.data.length >= 3, true);
+    assert.equal(searchRes.count >= 3, true);
+  });
+
+  test("5. GET /api/catalog/products?query=Flour — Filters catalog by search term", async () => {
+    const orgId = "org-1";
+    const userId = "user-1";
+
+    await ProductService.createProduct(orgId, { name: "Wheat Flour 10kg", sku: "FLOUR-10KG", sellingPrice: 380.00 }, userId);
+
+    const searchRes = await ProductService.search(orgId, { query: "Flour", limit: 100 });
+    assert.ok(searchRes.data);
+    const match = searchRes.data.find(p => p.name.includes("Flour"));
+    assert.ok(match);
+    assert.equal(match.name, "Wheat Flour 10kg");
+  });
+
+  test("6. GET /api/catalog/products?barcode=8901 — Returns barcode-matched product details", async () => {
+    const orgId = "org-1";
+    const userId = "user-1";
+
+    const parent = await ProductService.createProduct(orgId, { name: "Premium Tea", productType: "variant" }, userId);
+    await ProductService.createVariant(parent.id, orgId, {
+      name: "250g",
+      sellingPrice: 85.00,
+      barcodes: [{ value: "890555", isPrimary: true }]
+    }, userId);
+
+    const searchRes = await ProductService.search(orgId, { barcode: "890555" });
+    assert.ok(searchRes.data);
+    assert.equal(searchRes.data.length, 1);
+    assert.equal(searchRes.data[0].id, parent.id);
+  });
+
+  test("7. Tenant Isolation: Organization A cannot access Organization B's products", async () => {
+    const orgA = "org-1";
+    const orgB = "org-2";
+    const userA = "user-1";
+    const userB = "user-2";
+
+    await ProductService.createProduct(orgA, { name: "Org A Secret Blend", sellingPrice: 999.00 }, userA);
+    await ProductService.createProduct(orgB, { name: "Org B Special Spice", sellingPrice: 500.00 }, userB);
+
+    const searchA = await ProductService.search(orgA, { limit: 100 });
+    const searchB = await ProductService.search(orgB, { limit: 100 });
+
+    const aHasBProduct = searchA.data.some(p => p.name === "Org B Special Spice");
+    const bHasAProduct = searchB.data.some(p => p.name === "Org A Secret Blend");
+
+    assert.equal(aHasBProduct, false, "Org A must not see Org B products");
+    assert.equal(bHasAProduct, false, "Org B must not see Org A products");
   });
 });

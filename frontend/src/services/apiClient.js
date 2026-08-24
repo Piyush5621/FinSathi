@@ -124,10 +124,8 @@ API.interceptors.response.use(
       } else if (error.response.data?.error === 'ACCOUNT_SUSPENDED') {
         localStorage.clear();
         window.location.href = "/suspended";
-      } else if (!isLoginPage) {
-        localStorage.clear();
-        window.location.href = "/login?expired=true";
       }
+      // Generic 403: Do NOT log out or clear storage. Pass error to caller.
     }
 
     return Promise.reject(error);

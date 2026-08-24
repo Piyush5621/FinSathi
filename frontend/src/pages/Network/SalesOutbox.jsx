@@ -82,11 +82,11 @@ export default function SalesOutbox() {
             <Send size={22} className="text-blue-600" /> Sales Outbox
           </h1>
           <p className="text-sm text-slate-500 font-medium mt-1">
-            Track invoices you've sent to connected buyers.
+            Track invoices you've sent to connected buyers. You can also transmit existing invoices directly from <span className="font-bold text-indigo-600">Invoice History</span>.
           </p>
         </div>
         <Button onClick={() => setShowSendModal(true)} className="bg-blue-600 text-white border-none hover:bg-blue-700 font-bold flex items-center gap-2">
-          <Plus size={15} /> Send Invoice
+          <Plus size={15} /> Create & Send New Trade Invoice
         </Button>
       </div>
 
@@ -96,9 +96,9 @@ export default function SalesOutbox() {
         <Card className="p-16 text-center rounded-[24px] border-slate-100 shadow-sm">
           <Send size={40} className="text-slate-200 mx-auto mb-3" />
           <p className="text-slate-400 font-semibold text-sm">No invoices sent yet</p>
-          <p className="text-slate-300 text-xs mt-1">Send your first invoice to a connected buyer</p>
+          <p className="text-slate-300 text-xs mt-1">Send an existing invoice from Invoice History or create a manual trade invoice</p>
           <Button onClick={() => setShowSendModal(true)} className="mt-4 bg-blue-600 text-white border-none hover:bg-blue-700 font-bold">
-            Send Invoice
+            Create & Send New Trade Invoice
           </Button>
         </Card>
       ) : (

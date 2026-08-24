@@ -2,6 +2,7 @@ import express from "express";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import {
   sendTradeTransaction,
+  sendSaleTradeTransaction,
   getPurchaseInbox,
   getSalesOutbox,
   getTransactionDetail,
@@ -13,6 +14,7 @@ const router = express.Router();
 router.use(authenticateToken);
 
 router.post("/send", sendTradeTransaction);
+router.post("/send-sale", sendSaleTradeTransaction);
 router.get("/inbox", getPurchaseInbox);
 router.get("/outbox", getSalesOutbox);
 router.get("/history", getTradeHistory);

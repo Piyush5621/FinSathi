@@ -2,6 +2,7 @@ import express from 'express';
 import TradeController from '../../controllers/network/TradeController.js';
 import {
   sendTradeTransaction,
+  sendSaleTradeTransaction,
   getPurchaseInbox,
   getSalesOutbox,
   getTransactionDetail,
@@ -34,6 +35,7 @@ router.put('/credit/:id', updateCreditOutstanding);
 
 // Trade Transactions & Status
 router.post('/send', sendTradeTransaction);
+router.post('/send-sale', sendSaleTradeTransaction);
 router.post('/', TradeController.createTrade);
 router.put('/:id/accept', TradeController.acceptTrade);
 router.get('/:id', getTransactionDetail);

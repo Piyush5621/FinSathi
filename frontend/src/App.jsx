@@ -35,12 +35,7 @@ const SupplierHub = lazyWithRetry(() => import("./pages/SupplierHub"));
 const CrmPage = lazyWithRetry(() => import("./pages/CrmPage"));
 
 // Workforce & Access Management
-const EmployeesList = lazyWithRetry(() => import("./pages/Workforce/EmployeesList"));
-const PayrollAttendance = lazyWithRetry(() => import("./pages/Workforce/PayrollAttendance"));
-const RoleManagement = lazyWithRetry(() => import("./pages/Workforce/RoleManagement"));
-const AccessMatrix = lazyWithRetry(() => import("./pages/Workforce/AccessMatrix"));
-const ApprovalWorkflows = lazyWithRetry(() => import("./pages/Workforce/ApprovalWorkflows"));
-const AuditTrail = lazyWithRetry(() => import("./pages/Workforce/AuditTrail"));
+const StaffHub = lazyWithRetry(() => import("./pages/Workforce/StaffHub"));
 const AuditCenter = lazyWithRetry(() => import("./pages/Audit/AuditCenter"));
 const BackupWizard = lazyWithRetry(() => import("./pages/Backup/BackupWizard"));
 const ExecutiveAnalytics = lazyWithRetry(() => import("./pages/Analytics/ExecutiveAnalytics"));
@@ -101,13 +96,16 @@ function App() {
                 <Route path="/suppliers" element={<SupplierHub />} />
                 <Route path="/crm" element={<CrmPage />} />
                 
-                {/* Workforce & Access */}
-                <Route path="/workforce/employees" element={<EmployeesList />} />
-                <Route path="/workforce/payroll" element={<PayrollAttendance />} />
-                <Route path="/workforce/roles" element={<RoleManagement />} />
-                <Route path="/workforce/matrix" element={<AccessMatrix />} />
-                <Route path="/workforce/approvals" element={<ApprovalWorkflows />} />
-                <Route path="/workforce/audit" element={<AuditTrail />} />
+                {/* Staff & Access Management — 4-Pillar Architecture */}
+                <Route path="/staff" element={<StaffHub />} />
+                <Route path="/rbac" element={<Navigate to="/staff?tab=roles" replace />} />
+                <Route path="/workforce/employees" element={<Navigate to="/staff?tab=team" replace />} />
+                <Route path="/workforce/payroll" element={<Navigate to="/staff?tab=payroll" replace />} />
+                <Route path="/workforce/attendance" element={<Navigate to="/staff?tab=attendance" replace />} />
+                <Route path="/workforce/roles" element={<Navigate to="/staff?tab=roles" replace />} />
+                <Route path="/workforce/matrix" element={<Navigate to="/staff?tab=roles" replace />} />
+                <Route path="/workforce/approvals" element={<Navigate to="/staff?tab=roles" replace />} />
+                <Route path="/workforce/audit" element={<Navigate to="/staff?tab=roles" replace />} />
                 
                 <Route path="/audit-center" element={<AuditCenter />} />
                 <Route path="/backup-wizard" element={<BackupWizard />} />

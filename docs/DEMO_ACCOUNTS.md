@@ -132,6 +132,28 @@ All demo accounts share the standard development password: **`Karobar@12345`**
 
 ---
 
+### 🌐 Workflow 7: Karobar Business Network (5 Pillars Workspace — `/network`)
+1. **Login**: Sign in with `demo.owner@karobar.test` / `Karobar@12345`.
+2. **Partners Hub**:
+   - **Connected Partners**: View Verma Wholesale Traders (APMC Vashi), Gupta FMCG Distributors (Delhi), and UrbanWear Store (Bengaluru).
+   - **Pending Requests**: Review incoming request from *Apex Bio-Packaging Solutions* and click **Accept & Connect**.
+   - **Find Businesses**: Search verified businesses across India by typing $\ge 2$ characters (e.g. `Verma`, `Gupta`, `07`, `98`).
+3. **Trade Inbox**:
+   - Inspect incoming bill `#TRD-2026-IN-01` from *Gupta FMCG* in `Pending` state.
+   - Click **Review & Import** $\rightarrow$ Match products $\rightarrow$ Import directly into Karobar stock via `StockService`.
+   - View historical `Viewed`, `Imported`, and `Rejected` digital invoices.
+4. **Trade Outbox**:
+   - View dispatched invoices to *UrbanWear Store* (`#TRD-2026-OUT-01` to `03`).
+   - Click **Send Digital Bill** to create and dispatch a new multi-item invoice.
+5. **Trade Credit**:
+   - **Credit Given**: Track ₹1,00,000 credit line to *UrbanWear Store* with upcoming due date in 6 days.
+   - **Credit Received**: Track ₹2,50,000 credit limit from *Verma Wholesale* and ₹1,50,000 from *Gupta FMCG*.
+   - Click **Set Credit Terms** to update credit limit and net payment days.
+6. **Trust Score**:
+   - Inspect live 94/100 Reputation Score with breakdown across Trade Reliability (40/40), Payment Reliability (30/30), Verification (15/20), and Engagement (9/10).
+
+---
+
 ## 🔄 How to Re-Seed or Reset Demo Data
 
 The seed script is fully **idempotent** and can be run at any time to restore the demo environment to its pristine starting state:
@@ -142,4 +164,4 @@ cd backend
 npm run seed:demo
 ```
 
-This will safely clear and re-populate all `@karobar.test` demo organizations, accounts, products, batches, customer ledgers, POs, invoices, and notifications without affecting any non-demo user data.
+This will safely clear and re-populate all `@karobar.test` demo organizations, accounts, products, batches, customer ledgers, POs, invoices, Business Network partners, digital bills, credit accounts, and trust scores without affecting any non-demo user data.

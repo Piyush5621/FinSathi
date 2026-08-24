@@ -2,7 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Printer, Trash2, MessageCircle, Plus, Edit,
-  FileText, Download, Mail, Clock, ChevronRight, Filter, RotateCcw
+  FileText, Download, Mail, Clock, ChevronRight, Filter, RotateCcw,
+  Globe, Share2, Building2, Send, Sparkles, Check, X, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../../services/apiClient';
@@ -53,6 +54,14 @@ export default function InvoiceHistory() {
   const [returnModalInvoice, setReturnModalInvoice] = useState(null);
   const [sendingWhatsapp, setSendingWhatsapp] = useState(null);
 
+  // Business Network Send Modal State
+  const [networkModalInvoice, setNetworkModalInvoice] = useState(null);
+  const [connections, setConnections] = useState([]);
+  const [loadingConnections, setLoadingConnections] = useState(false);
+  const [selectedReceiverId, setSelectedReceiverId] = useState('');
+  const [networkNotes, setNetworkNotes] = useState('');
+  const [sendingNetwork, setSendingNetwork] = useState(false);
+
   useEffect(() => { fetchInvoices(); }, []);
 
   const fetchInvoices = async () => {
@@ -102,6 +111,71 @@ export default function InvoiceHistory() {
     }
   };
 
+  // Open Network Send Modal
+  const handleOpenSendNetwork = async (inv, e) => {
+    if (e) e.stopPropagation();
+    setNetworkModalInvoice(inv);
+    setSelectedReceiverId('');
+    setNetworkNotes('');
+    setLoadingConnections(true);
+    try {
+      const res = await API.get('/network/connections');
+      const conns = res.data?.data || [];
+      const accepted = conns.filter(c => c.status === 'accepted');
+      setConnections(accepted);
+
+      // Auto-select if customer name matches connected partner
+      if (inv.customers?.name && accepted.length > 0) {
+        const match = accepted.find(c => {
+          const pName = (c.partner?.business_name || c.receiver?.business_name || c.requester?.business_name || '').toLowerCase();
+          return pName.includes(inv.customers.name.toLowerCase()) || inv.customers.name.toLowerCase().includes(pName);
+        });
+        if (match) {
+          const partnerId = match.partner_id || (match.requester_id === inv.user_id ? match.receiver_id : match.requester_id);
+          setSelectedReceiverId(partnerId || match.receiver_id || match.requester_id);
+        } else if (accepted.length === 1) {
+          const pId = accepted[0].partner_id || accepted[0].receiver_id || accepted[0].requester_id;
+          setSelectedReceiverId(pId);
+        }
+      } else if (accepted.length === 1) {
+        const pId = accepted[0].partner_id || accepted[0].receiver_id || accepted[0].requester_id;
+        setSelectedReceiverId(pId);
+      }
+    } catch {
+      toast.error('Failed to load connected business partners');
+    } finally {
+      setLoadingConnections(false);
+    }
+  };
+
+  // Submit Send to Network
+  const handleSendToNetwork = async (e) => {
+    e.preventDefault();
+    if (!selectedReceiverId) {
+      return toast.error('Please select a connected business partner');
+    }
+    if (!networkModalInvoice) return;
+
+    setSendingNetwork(true);
+    try {
+      const res = await API.post('/network/trade/send-sale', {
+        sale_id: networkModalInvoice.id,
+        receiver_id: selectedReceiverId,
+        notes: networkNotes
+      });
+
+      const partner = connections.find(c => (c.partner_id || c.receiver_id || c.requester_id) === selectedReceiverId);
+      const partnerName = partner?.partner?.business_name || partner?.receiver?.business_name || partner?.requester?.business_name || 'Partner';
+
+      toast.success(`🎉 Invoice #${networkModalInvoice.invoice_no || networkModalInvoice.id} sent to ${partnerName}!`, { duration: 5000 });
+      setNetworkModalInvoice(null);
+    } catch (err) {
+      toast.error(err.response?.data?.summary || err.response?.data?.message || err.response?.data?.error || 'Failed to send invoice via Business Network');
+    } finally {
+      setSendingNetwork(false);
+    }
+  };
+
   const filteredInvoices = useMemo(() => {
     let list = invoices;
     if (search.trim()) {
@@ -118,33 +192,31 @@ export default function InvoiceHistory() {
 
   const stats = useMemo(() => ({
     total: invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0),
-    paid: invoices.filter(inv => inv.resolvedStatus === 'paid').length,
-    unpaid: invoices.filter(inv => inv.resolvedStatus === 'unpaid').length,
-    overdue: invoices.filter(inv => inv.resolvedStatus === 'overdue').length,
+    paid: invoices.filter(i => i.resolvedStatus === 'paid').length,
+    unpaid: invoices.filter(i => i.resolvedStatus === 'unpaid').length,
+    overdue: invoices.filter(i => i.resolvedStatus === 'overdue').length,
   }), [invoices]);
 
   return (
-    <div className="flex flex-col gap-6 h-full">
-      {/* ─── Page Header ─── */}
+    <div className="space-y-6 max-w-[1400px] mx-auto pb-16">
+
+      {/* ─── Header ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Invoices</h1>
-          <p className="text-sm text-slate-500 font-medium mt-0.5">Manage and track your billing operations.</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <FileText size={22} className="text-indigo-600" />
+            Invoice History & Ledger
+          </h1>
+          <p className="text-sm text-slate-500 font-medium mt-1">
+            Track, export, return, and transmit sales invoices across all branches & B2B network.
+          </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Stats summary pills */}
-          <div className="hidden sm:flex items-center gap-2">
-            <StatPill label="Total" value={`₹${stats.total.toLocaleString('en-IN')}`} color="text-slate-700" />
-            <StatPill label="Paid" value={stats.paid} color="text-emerald-600" />
-            <StatPill label="Unpaid" value={stats.unpaid} color="text-amber-600" />
-            {stats.overdue > 0 && <StatPill label="Overdue" value={stats.overdue} color="text-red-600" />}
-          </div>
           <button
             onClick={() => navigate('/billing')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-sm shadow-indigo-600/25 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm hover:shadow transition-all cursor-pointer"
           >
-            <Plus size={16} />
-            New Invoice
+            <Plus size={14} /> New POS Bill
           </button>
         </div>
       </div>
@@ -250,53 +322,48 @@ export default function InvoiceHistory() {
                       <p className={`text-xs font-extrabold ${inv.resolvedStatus === 'overdue' ? 'text-red-600' : 'text-slate-800'}`}>
                         ₹{Number(inv.total || 0).toLocaleString('en-IN')}
                       </p>
-                      {inv.resolvedStatus === 'partial' && (
-                        <p className="text-[9px] text-amber-600 font-bold mt-0.5">
-                          Paid: ₹{Number(inv.amount_paid || 0).toLocaleString('en-IN')}
-                        </p>
+                      {inv.payment_method && (
+                        <p className="text-[9px] text-slate-400 uppercase font-semibold mt-0.5">{inv.payment_method}</p>
                       )}
                     </div>
 
-                    {/* Status Badge */}
+                    {/* Status */}
                     <div>
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-lg border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusCfg.dot}`} />
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-lg ${statusCfg.bg} ${statusCfg.text} border ${statusCfg.border}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
                         {statusCfg.label}
                       </span>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                      {inv.payment_status !== 'paid' && (
-                        <button
-                          onClick={() => handleSendWhatsApp(inv)}
-                          disabled={sendingWhatsapp === inv.id}
-                          className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all cursor-pointer"
-                          title="WhatsApp Reminder"
-                        >
-                          <MessageCircle size={13} />
-                        </button>
-                      )}
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                       <button
-                        onClick={() => setEditingInvoice(inv)}
-                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all cursor-pointer"
-                        title="Edit Invoice"
+                        onClick={() => handleOpenSendNetwork(inv)}
+                        title="Send to Business Network Partner"
+                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-all cursor-pointer"
                       >
-                        <Edit size={13} />
+                        <Globe size={14} />
                       </button>
                       <button
                         onClick={() => setPreviewInvoice(inv)}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer"
-                        title="Print / Preview"
+                        title="Download / View PDF"
+                        className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all cursor-pointer"
                       >
-                        <Printer size={13} />
+                        <Download size={14} />
+                      </button>
+                      <button
+                        onClick={() => setEditingInvoice(inv)}
+                        title="Edit Invoice"
+                        className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all cursor-pointer"
+                      >
+                        <Edit size={14} />
                       </button>
                       <button
                         onClick={(e) => handleDeleteInvoice(inv.id, e)}
-                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                        title="Delete"
+                        title="Delete Invoice"
+                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-all cursor-pointer"
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
@@ -305,46 +372,33 @@ export default function InvoiceHistory() {
             )}
           </div>
 
-          {/* Footer */}
-          {filteredInvoices.length > 0 && (
-            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/30">
-              <span className="text-[10px] font-semibold text-slate-400">
-                Showing {filteredInvoices.length} of {invoices.length} invoices
-              </span>
-              <span className="text-[10px] font-extrabold text-slate-700">
-                Total: ₹{filteredInvoices.reduce((s, inv) => s + Number(inv.total || 0), 0).toLocaleString('en-IN')}
-              </span>
-            </div>
-          )}
         </div>
 
-        {/* ═══ RIGHT PANEL ═══ */}
-        <div className="w-full lg:w-[300px] shrink-0 flex flex-col gap-4">
-
-          {/* Latest Generated Preview */}
+        {/* ═══ RIGHT PANEL: Invoice Detail Preview ═══ */}
+        <div className="w-full lg:w-[360px] shrink-0 space-y-4">
+          
           <div className="bg-white rounded-[20px] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Latest Generated</h3>
-            </div>
-
             {selectedInvoice ? (
               <>
-                {/* Mini Invoice Card */}
-                <div className="p-4 flex-1">
-                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-[11px]">
-                    {/* Mini header */}
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-indigo-600 rounded-lg flex items-center justify-center overflow-hidden">
-                          <img src={logoImg} alt="FS" className="w-full h-full object-contain p-0.5" />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-800">
-                          {selectedInvoice.customers?.name || 'Customer'}
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-bold text-indigo-500 font-mono">
-                        #{(selectedInvoice.invoice_no || `FS-${selectedInvoice.id}`).replace(/^FS-/, 'INV-')}
-                      </span>
+                {/* Header */}
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Selected Invoice</span>
+                    <h2 className="text-sm font-black text-slate-900 mt-0.5">
+                      #{(selectedInvoice.invoice_no || `FS-${selectedInvoice.id}`).replace(/^FS-/, 'INV-')}
+                    </h2>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-lg">
+                    {new Date(selectedInvoice.date || selectedInvoice.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                  </span>
+                </div>
+
+                {/* Mini Receipt Preview */}
+                <div className="p-4">
+                  <div className="bg-slate-50/80 rounded-xl p-3 border border-dashed border-slate-200 font-mono">
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+                      <img src={logoImg} alt="Logo" className="w-4 h-4 object-contain" />
+                      <span className="text-[10px] font-black text-slate-800 tracking-wider">OFFICIAL TAX INVOICE</span>
                     </div>
 
                     {/* Bill info */}
@@ -355,7 +409,7 @@ export default function InvoiceHistory() {
                       </div>
                     </div>
 
-                    {/* Items list (truncated) */}
+                    {/* Items list */}
                     <div className="border-t border-slate-200 pt-3 mb-3">
                       <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-wider mb-2">
                         <span>Item Description</span>
@@ -396,10 +450,18 @@ export default function InvoiceHistory() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="px-4 pb-4 flex gap-2">
+                <div className="px-4 pb-4 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleOpenSendNetwork(selectedInvoice)}
+                    className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all cursor-pointer"
+                    title="Transmit to Connected Business Buyer"
+                  >
+                    <Globe size={13} />
+                    Send to Network
+                  </button>
                   <button
                     onClick={() => setPreviewInvoice(selectedInvoice)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer"
                   >
                     <Download size={13} />
                     PDF
@@ -407,14 +469,14 @@ export default function InvoiceHistory() {
                   <button
                     onClick={() => handleSendWhatsApp(selectedInvoice)}
                     disabled={!selectedInvoice.customers?.phone}
-                    className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <MessageCircle size={13} />
                     WhatsApp
                   </button>
                   <button
                     onClick={() => setReturnModalInvoice(selectedInvoice)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-xl hover:bg-rose-100 transition-all cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-xl hover:bg-rose-100 transition-all cursor-pointer"
                     title="Process Sales Return"
                   >
                     <RotateCcw size={13} />
@@ -483,13 +545,152 @@ export default function InvoiceHistory() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* ─── MODALS ─── */}
+
+      {/* Send to Business Network Partner Modal */}
+      {networkModalInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[28px] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 flex flex-col animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-blue-50/50 via-indigo-50/30 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+                  <Globe size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 tracking-tight">Send to Business Network</h3>
+                  <p className="text-xs text-slate-500 font-medium">Transmit existing invoice directly to buyer's Trade Inbox</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setNetworkModalInvoice(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSendToNetwork} className="p-6 space-y-5">
+              {/* Invoice Summary Card */}
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/60 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-medium">Invoice Number:</span>
+                  <span className="font-mono font-black text-indigo-600">
+                    #{(networkModalInvoice.invoice_no || `FS-${networkModalInvoice.id}`).replace(/^FS-/, 'INV-')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-medium">Customer / Billed To:</span>
+                  <span className="font-bold text-slate-800">{networkModalInvoice.customers?.name || 'Walk-in Customer'}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-medium">Invoice Date:</span>
+                  <span className="font-semibold text-slate-700">
+                    {new Date(networkModalInvoice.date || networkModalInvoice.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-200">
+                  <span className="text-slate-700 font-bold">Total Invoice Amount:</span>
+                  <span className="text-sm font-black text-slate-900">
+                    ₹{Number(networkModalInvoice.total || 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Connected Buyer Selection */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Select Connected Business Partner *</span>
+                  <span className="text-[10px] text-blue-600 font-semibold">
+                    {connections.length} connected partners
+                  </span>
+                </label>
+                {loadingConnections ? (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin text-indigo-600" /> Loading connected partners...
+                  </div>
+                ) : connections.length === 0 ? (
+                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-800 space-y-2">
+                    <p className="font-bold">No accepted Business Network connections found.</p>
+                    <p className="text-[11px] text-amber-700">
+                      Connect with buyers first in <span className="font-bold">Business Network → Partners</span> to transmit digital invoices.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedReceiverId}
+                    onChange={e => setSelectedReceiverId(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2.5 text-xs font-semibold bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800"
+                  >
+                    <option value="">-- Choose connected partner --</option>
+                    {connections.map(c => {
+                      const partner = c.partner || (c.requester_id === networkModalInvoice.user_id ? c.receiver : c.requester) || c.receiver || c.requester;
+                      const partnerId = c.partner_id || (c.requester_id === networkModalInvoice.user_id ? c.receiver_id : c.requester_id) || c.receiver_id || c.requester_id;
+                      return (
+                        <option key={c.id} value={partnerId}>
+                          {partner?.business_name || 'Business Partner'} {partner?.city ? `(${partner.city})` : ''} • {c.connection_type || 'Partner'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+              </div>
+
+              {/* Delivery / Dispatch Notes */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Dispatch Notes (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Dispatched via APMC tempo #44, driver contact: 98111..."
+                  value={networkNotes}
+                  onChange={e => setNetworkNotes(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-400 text-slate-800"
+                />
+              </div>
+
+              {/* Footer CTA */}
+              <div className="pt-3 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNetworkModalInvoice(null)}
+                  className="flex-1 py-2.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingNetwork || connections.length === 0 || !selectedReceiverId}
+                  className="flex-2 flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                >
+                  {sendingNetwork ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" /> Transmitting Invoice...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={14} /> Send Existing Invoice
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Preview Modal */}
       {previewInvoice && (
         <InvoicePreviewModal
           invoice={previewInvoice}
           onClose={() => setPreviewInvoice(null)}
         />
       )}
+
+      {/* Invoice Editor Modal */}
       {editingInvoice && (
         <InvoiceEditorModal
           invoice={editingInvoice}
@@ -497,23 +698,20 @@ export default function InvoiceHistory() {
           onSaved={fetchInvoices}
         />
       )}
+
+      {/* Sales Return Modal */}
       {returnModalInvoice && (
         <SalesReturnModal
-          invoice={returnModalInvoice}
+          sale={returnModalInvoice}
           isOpen={!!returnModalInvoice}
           onClose={() => setReturnModalInvoice(null)}
-          onReturnSuccess={fetchInvoices}
+          onReturnSuccess={() => {
+            setReturnModalInvoice(null);
+            fetchInvoices();
+          }}
         />
       )}
-    </div>
-  );
-}
 
-function StatPill({ label, value, color }) {
-  return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-100 rounded-xl">
-      <span className="text-[9px] font-bold text-slate-400 uppercase">{label}</span>
-      <span className={`text-xs font-black ${color}`}>{value}</span>
     </div>
   );
 }

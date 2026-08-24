@@ -173,6 +173,7 @@ app.use("/admin/auth", adminAuthRoutes);
 app.use("/admin/users", adminAuth, auditLog, adminUsersRoutes);
 
 // Modular Subsystems
+app.use("/api/catalog", catalogRouter);
 app.use("/api/v1/catalog", catalogRouter);
 app.use("/api/v1", mastersRouter);
 app.use("/api", mastersRouter);
@@ -183,6 +184,7 @@ app.use("/api", inventoryRouter);
 
 import catalogRoutes from "./routes/catalogRoutes.js";
 app.use("/api/catalog", catalogRoutes);
+app.use("/api/public-catalog", catalogRoutes);
 
 // 🔐 Protected Routes (FORCED ISOLATION)
 app.use(authenticateToken);

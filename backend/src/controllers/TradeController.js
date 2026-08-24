@@ -4,13 +4,188 @@ import { successResponse, errorResponse, createdResponse } from "../utils/respon
 
 /**
  * TradeController — Cross-business invoice exchange
- * Handles: send invoice, purchase inbox, sales outbox, status updates, trade history
+ * Handles: send invoice, send existing sale, purchase inbox, sales outbox, status updates, trade history
  */
 
-// Supplier pushes an invoice to a connected buyer
+// Send existing sales invoice from POS/Billing to connected buyer
+export const sendSaleTradeTransaction = async (req, res) => {
+  try {
+    const senderId = req.user.id || req.user.user_id;
+    const orgId = req.tenantId || req.user?.organization_id || req.user?.tenant_id;
+    const { sale_id, receiver_id, notes } = req.body;
+
+    if (!sale_id || !receiver_id) {
+      return errorResponse(res, "sale_id and receiver_id are required", 400);
+    }
+
+    // 1. Fetch existing sale and items
+    let saleQuery = supabase
+      .from("sales")
+      .select("*, sale_items(*, products(*))")
+      .eq("id", sale_id);
+
+    if (orgId) {
+      saleQuery = saleQuery.or(`organization_id.eq.${orgId},user_id.eq.${senderId}`);
+    } else {
+      saleQuery = saleQuery.eq("user_id", senderId);
+    }
+
+    const { data: sale, error: saleErr } = await saleQuery.single();
+
+    if (saleErr || !sale) {
+      return errorResponse(res, "Existing sale invoice not found or unauthorized", 404);
+    }
+
+    const items = sale.sale_items || [];
+    if (!items || items.length === 0) {
+      return errorResponse(res, "Sale invoice contains no items to send", 400);
+    }
+
+    // 2. Verify connection exists with receiver
+    const { data: conn } = await supabase
+      .from("business_connections")
+      .select("id")
+      .or(`and(requester_id.eq.${senderId},receiver_id.eq.${receiver_id}),and(requester_id.eq.${receiver_id},receiver_id.eq.${senderId})`)
+      .eq("status", "accepted")
+      .maybeSingle();
+
+    if (!conn) {
+      return errorResponse(res, "You must be connected with this business partner to send invoices", 403);
+    }
+
+    // 3. Idempotency check: Check if this sale invoice has already been sent to this receiver
+    const invoiceNumber = sale.invoice_no || `INV-${String(sale.id).slice(0, 8)}`;
+    const { data: existingTx } = await supabase
+      .from("trade_transactions")
+      .select("id, status")
+      .eq("sender_id", senderId)
+      .eq("receiver_id", receiver_id)
+      .eq("invoice_no", invoiceNumber)
+      .maybeSingle();
+
+    if (existingTx) {
+      return errorResponse(res, `Invoice #${invoiceNumber} has already been sent to this partner (Status: ${existingTx.status})`, 409);
+    }
+
+    // 4. Calculate items line values
+    let totalAmount = 0;
+    let taxAmount = 0;
+    const normalizedItems = items.map(item => {
+      const qty = Number(item.quantity || 1);
+      const unitPrice = Number(item.unit_price || item.price || (item.total ? item.total / qty : 0));
+      const gst = Number(item.gst_rate || item.gst_percent || item.tax_rate || 0);
+      const lineTotal = qty * unitPrice;
+      const lineTax = lineTotal * (gst / 100);
+      totalAmount += lineTotal + lineTax;
+      taxAmount += lineTax;
+
+      const prodName = item.products?.name || item.product_name || item.name || "Product Item";
+      const sku = item.products?.sku || item.sku || null;
+      const category = item.products?.category || item.category || null;
+      const unit = item.products?.unit || item.unit || "pcs";
+      const batchName = item.batch_name || item.batch_number || null;
+      const expiryDate = item.expiry_date || null;
+
+      return {
+        product_name: prodName,
+        sku,
+        quantity: qty,
+        purchase_price: unitPrice,
+        gst_percent: gst,
+        category,
+        batch_name: batchName,
+        expiry_date: expiryDate,
+        unit,
+        total: lineTotal + lineTax
+      };
+    });
+
+    const finalTotal = Number(sale.total) || totalAmount;
+
+    // 5. Insert trade transaction
+    const { data: transaction, error: txErr } = await supabase
+      .from("trade_transactions")
+      .insert({
+        sender_id: senderId,
+        receiver_id,
+        connection_id: conn.id,
+        invoice_no: invoiceNumber,
+        invoice_date: sale.date ? String(sale.date).split("T")[0] : (sale.created_at ? String(sale.created_at).split("T")[0] : new Date().toISOString().split("T")[0]),
+        total_amount: finalTotal,
+        tax_amount: taxAmount,
+        status: "Pending",
+        notes: notes || `Sent from Sale Invoice #${invoiceNumber}`
+      })
+      .select()
+      .single();
+
+    if (txErr) throw txErr;
+
+    // 6. Insert transaction items
+    const itemsPayload = normalizedItems.map(item => ({
+      transaction_id: transaction.id,
+      product_name: item.product_name,
+      sku: item.sku,
+      quantity: item.quantity,
+      purchase_price: item.purchase_price,
+      gst_percent: item.gst_percent,
+      category: item.category,
+      batch_name: item.batch_name,
+      expiry_date: item.expiry_date,
+      unit: item.unit,
+      total: item.total
+    }));
+
+    const { error: itemsErr } = await supabase
+      .from("trade_transaction_items")
+      .insert(itemsPayload);
+
+    if (itemsErr) {
+      await supabase.from("trade_transactions").delete().eq("id", transaction.id);
+      throw itemsErr;
+    }
+
+    // 7. Update connection trade volume
+    try {
+      const { data: currentConn } = await supabase
+        .from("business_connections")
+        .select("trade_volume")
+        .eq("id", conn.id)
+        .single();
+      const newVolume = Number(currentConn?.trade_volume || 0) + finalTotal;
+      await supabase
+        .from("business_connections")
+        .update({ trade_volume: newVolume })
+        .eq("id", conn.id);
+    } catch {}
+
+    // 8. Notify buyer
+    const { data: sender } = await supabase
+      .from("users")
+      .select("business_name, name")
+      .eq("id", senderId)
+      .single();
+
+    await NetworkService.notifyUser(
+      receiver_id,
+      "invoice_received",
+      "New Invoice Received",
+      `${sender?.business_name || "A supplier"} sent you invoice #${invoiceNumber} for ₹${finalTotal.toLocaleString("en-IN")}.`,
+      transaction.id,
+      "trade_transaction"
+    );
+
+    return createdResponse(res, transaction, "Existing sale invoice sent to partner successfully");
+  } catch (err) {
+    console.error("sendSaleTradeTransaction error:", err);
+    return errorResponse(res, err, 500, "Failed to send existing sale invoice");
+  }
+};
+
+// Supplier pushes a manual invoice to a connected buyer (Fallback)
 export const sendTradeTransaction = async (req, res) => {
   try {
-    const senderId = req.user.id;
+    const senderId = req.user.id || req.user.user_id;
     const { receiver_id, invoice_no, invoice_date, items, notes } = req.body;
 
     if (!receiver_id || !items || !Array.isArray(items) || items.length === 0) {
@@ -126,7 +301,7 @@ export const sendTradeTransaction = async (req, res) => {
 // Buyer's purchase inbox — all received invoices
 export const getPurchaseInbox = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id || req.user.user_id;
     const { status } = req.query;
 
     let query = supabase
@@ -150,7 +325,7 @@ export const getPurchaseInbox = async (req, res) => {
 // Supplier's sales outbox — all sent invoices
 export const getSalesOutbox = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id || req.user.user_id;
     const { status } = req.query;
 
     let query = supabase
@@ -174,7 +349,7 @@ export const getSalesOutbox = async (req, res) => {
 // Get a trade transaction's full details with items
 export const getTransactionDetail = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id || req.user.user_id;
     const { id } = req.params;
 
     const { data: transaction, error: txErr } = await supabase
@@ -220,7 +395,7 @@ export const getTransactionDetail = async (req, res) => {
 // Buyer updates status of a trade transaction (Accept / Reject)
 export const updateTransactionStatus = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id || req.user.user_id;
     const { id } = req.params;
     const { status, notes } = req.body;
 
@@ -247,7 +422,6 @@ export const updateTransactionStatus = async (req, res) => {
 
     if (error) throw error;
 
-    // Notify sender
     const { data: buyer } = await supabase
       .from("users").select("business_name").eq("id", userId).single();
 
@@ -271,7 +445,7 @@ export const updateTransactionStatus = async (req, res) => {
 // Get full trade history (both sent and received) with filters
 export const getTradeHistory = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id || req.user.user_id;
     const { partner_id, status, from_date, to_date } = req.query;
 
     let query = supabase

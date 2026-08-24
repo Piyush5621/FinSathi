@@ -354,4 +354,111 @@ describe("Automatic Access Token Refresh Flow & Queueing Tests", () => {
     const shouldAttemptRefresh = !originalRequest._retry;
     assert.strictEqual(shouldAttemptRefresh, false, "Must block retry loop when _retry is already true");
   });
+
+  test("6. Generic 403 Forbidden preserves authentication state and does NOT log out", async () => {
+    let storageCleared = false;
+    let redirectedUrl = null;
+
+    const mockLocalStorage = {
+      clear: () => { storageCleared = true; },
+      getItem: (k) => k === "token" ? "valid-jwt-token" : null
+    };
+
+    // Simulate response interceptor logic
+    const handleResponseError = (error) => {
+      if (error.response && error.response.status === 403) {
+        if (error.response.data?.error === 'PLAN_LIMIT_REACHED') {
+          redirectedUrl = "/subscription/plans";
+        } else if (error.response.data?.error === 'ACCOUNT_SUSPENDED') {
+          mockLocalStorage.clear();
+          redirectedUrl = "/suspended";
+        }
+        // Generic 403: Do NOT log out or clear storage. Pass error to caller.
+      }
+      return Promise.reject(error);
+    };
+
+    const generic403Error = {
+      response: {
+        status: 403,
+        data: { error: "Access Denied: Lacks 'edit_catalog' permission." }
+      }
+    };
+
+    await assert.rejects(
+      async () => handleResponseError(generic403Error),
+      (err) => err.response.status === 403
+    );
+
+    // Verify localStorage was NOT cleared and NO redirect happened
+    assert.strictEqual(storageCleared, false, "Generic 403 must NOT clear localStorage");
+    assert.strictEqual(redirectedUrl, null, "Generic 403 must NOT redirect to /login");
+  });
+
+  test("7. Suspended account 403 clears auth and redirects to /suspended", async () => {
+    let storageCleared = false;
+    let redirectedUrl = null;
+
+    const mockLocalStorage = {
+      clear: () => { storageCleared = true; }
+    };
+
+    const handleResponseError = (error) => {
+      if (error.response && error.response.status === 403) {
+        if (error.response.data?.error === 'PLAN_LIMIT_REACHED') {
+          redirectedUrl = "/subscription/plans";
+        } else if (error.response.data?.error === 'ACCOUNT_SUSPENDED') {
+          mockLocalStorage.clear();
+          redirectedUrl = "/suspended";
+        }
+      }
+      return Promise.reject(error);
+    };
+
+    const suspendedError = {
+      response: {
+        status: 403,
+        data: { error: "ACCOUNT_SUSPENDED" }
+      }
+    };
+
+    await assert.rejects(async () => handleResponseError(suspendedError));
+
+    assert.strictEqual(storageCleared, true, "Suspended account must clear auth");
+    assert.strictEqual(redirectedUrl, "/suspended");
+  });
+
+  test("8. Plan Limit 403 preserves auth and redirects to /subscription/plans", async () => {
+    let storageCleared = false;
+    let redirectedUrl = null;
+
+    const mockLocalStorage = {
+      clear: () => { storageCleared = true; }
+    };
+
+    const handleResponseError = (error) => {
+      if (error.response && error.response.status === 403) {
+        if (error.response.data?.error === 'PLAN_LIMIT_REACHED') {
+          redirectedUrl = "/subscription/plans";
+        } else if (error.response.data?.error === 'ACCOUNT_SUSPENDED') {
+          mockLocalStorage.clear();
+          redirectedUrl = "/suspended";
+        }
+      }
+      return Promise.reject(error);
+    };
+
+    const planLimitError = {
+      response: {
+        status: 403,
+        data: { error: "PLAN_LIMIT_REACHED" }
+      }
+    };
+
+    await assert.rejects(async () => handleResponseError(planLimitError));
+
+    assert.strictEqual(storageCleared, false, "Plan limit must NOT clear auth storage");
+    assert.strictEqual(redirectedUrl, "/subscription/plans");
+  });
 });
+

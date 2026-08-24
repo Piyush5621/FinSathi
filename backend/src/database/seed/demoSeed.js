@@ -6,15 +6,20 @@ import { supabase } from "../../config/db.js";
  * Karobar (कारोबार) — Complete Demo Environment Seeder
  * ==============================================================================
  * Creates a cohesive, multi-tenant demo dataset with:
- * - 3 Real-World Organizations (Retail Grocery, Wholesale Distribution, Apparel)
- * - 8 Demo Accounts covering all 6 RBAC Roles + Multi-Store + Superadmin
+ * - 5 Real-World Organizations (Retail Grocery, Wholesale Distribution, Apparel, FMCG Dist, Packaging)
+ * - 10 Demo Accounts covering all RBAC Roles + Multi-Store + Network Partners
  * - Multi-Store Branch Locations (Main Branch & City Branch)
  * - 70+ Products with Multi-Batches (Healthy, Low Stock, Out of Stock)
  * - 25+ Customers with purchase histories & outstanding balances
  * - 12+ Suppliers with credit ratings & purchase orders
  * - 35+ Sales Invoices spanning historical months, last 7 days, and today
  * - 25+ Payments & Operational Expense ledgers
- * - Notifications & Action Center alerts
+ * - Complete 5-Pillar Karobar Business Network:
+ *   1. Partners: 3 Connected (Supplier, Buyer, Partner) + 1 Pending Invite
+ *   2. Trade Inbox: 4 Digital Bills (Pending, Viewed, Imported, Rejected)
+ *   3. Trade Outbox: 3 Sent Invoices (Accepted, Viewed, Pending)
+ *   4. Trade Credit: Credit Given (₹1L limit, due in 6d) & Credit Received (₹2.5L & ₹1.5L)
+ *   5. Trust Scores: Multi-pillar scores (88–94) with full metric breakdown & history
  * 
  * Standard Password for all demo accounts: Karobar@12345
  * ==============================================================================
@@ -57,6 +62,8 @@ export async function seedDemoData() {
     "demo.delivery@karobar.test",
     "demo.wholesale@karobar.test",
     "demo.apparel@karobar.test",
+    "demo.distributor@karobar.test",
+    "demo.packaging@karobar.test",
     "demo.owner@sanchay.test",
     "demo.manager@sanchay.test",
     "demo.cashier@sanchay.test",
@@ -111,6 +118,24 @@ export async function seedDemoData() {
       await supabase.from("staff").delete().in("id", staffIds);
     }
 
+    // Clean Business Network Records (Invoices, Items, Connections, Credit, Reputation)
+    const { data: txs } = await supabase
+      .from("trade_transactions")
+      .select("id")
+      .or(`sender_id.in.(${existingUserIds.join(",")}),receiver_id.in.(${existingUserIds.join(",")})`);
+    
+    const txIds = (txs || []).map(t => t.id);
+    if (txIds.length > 0) {
+      await supabase.from("trade_transaction_items").delete().in("transaction_id", txIds);
+      await supabase.from("trade_transactions").delete().in("id", txIds);
+    }
+
+    await supabase.from("business_connections").delete().or(`requester_id.in.(${existingUserIds.join(",")}),receiver_id.in.(${existingUserIds.join(",")})`);
+    await supabase.from("trade_credit_accounts").delete().or(`supplier_id.in.(${existingUserIds.join(",")}),buyer_id.in.(${existingUserIds.join(",")})`);
+    await supabase.from("business_reputation_metrics").delete().in("user_id", existingUserIds);
+    await supabase.from("business_reputation_history").delete().in("user_id", existingUserIds);
+    await supabase.from("business_network_profiles").delete().in("user_id", existingUserIds);
+
     await supabase.from("stores").delete().in("user_id", existingUserIds);
     await supabase.from("users").delete().in("id", existingUserIds);
   }
@@ -158,6 +183,26 @@ export async function seedDemoData() {
       address: "742, 100 Feet Road, Indiranagar",
       gstin: "29CCCCC9012C1Z3",
       is_active: true
+    },
+    {
+      name: "Gupta FMCG & Dairy Distributors",
+      business_type: "Wholesale / FMCG",
+      phone: "+91 98111 88990",
+      city: "New Delhi",
+      state: "Delhi",
+      address: "GT Karnal Road Industrial Area, Azadpur",
+      gstin: "07GUPTA4455G1Z8",
+      is_active: true
+    },
+    {
+      name: "Apex Bio-Packaging Solutions",
+      business_type: "Manufacturing / Packaging",
+      phone: "+91 98122 33445",
+      city: "Gurugram",
+      state: "Haryana",
+      address: "Plot 42, Udyog Vihar Phase 2",
+      gstin: "06APEXB7788A1Z5",
+      is_active: true
     }
   ];
 
@@ -170,8 +215,8 @@ export async function seedDemoData() {
     throw new Error(`Failed to create organizations: ${orgsErr?.message}`);
   }
 
-  const [sharmaOrg, vermaOrg, urbanwearOrg] = createdOrgs;
-  console.log(`✅ Created 3 Organizations:`, createdOrgs.map(o => o.name).join(", "));
+  const [sharmaOrg, vermaOrg, urbanwearOrg, guptaOrg, apexOrg] = createdOrgs;
+  console.log(`✅ Created 5 Organizations:`, createdOrgs.map(o => o.name).join(", "));
 
   // --------------------------------------------------------------------------
   // 4. Create Primary Owner Users
@@ -225,6 +270,38 @@ export async function seedDemoData() {
       invoice_terms: "1. Exchange allowed within 7 days with original tags intact.\n2. No cash refund on promotional items.\n3. Visit us again for the latest fashion trends!",
       organization_id: urbanwearOrg.id,
       is_active: true
+    },
+    {
+      name: "Sanjay Gupta",
+      email: "demo.distributor@karobar.test",
+      password: hashedPassword,
+      business_name: "Gupta FMCG & Dairy Distributors",
+      business_type: "Wholesale / FMCG",
+      phone: "+91 98111 88990",
+      city: "New Delhi",
+      state: "Delhi",
+      address: "GT Karnal Road Industrial Area, Azadpur",
+      gstin: "07GUPTA4455G1Z8",
+      upi_id: "guptafmcg@sbi",
+      invoice_terms: "1. FMCG & Dairy distribution invoice.\n2. Net 21 days trade credit.",
+      organization_id: guptaOrg.id,
+      is_active: true
+    },
+    {
+      name: "Manish Agarwal",
+      email: "demo.packaging@karobar.test",
+      password: hashedPassword,
+      business_name: "Apex Bio-Packaging Solutions",
+      business_type: "Manufacturing / Packaging",
+      phone: "+91 98122 33445",
+      city: "Gurugram",
+      state: "Haryana",
+      address: "Plot 42, Udyog Vihar Phase 2",
+      gstin: "06APEXB7788A1Z5",
+      upi_id: "apexpack@kotak",
+      invoice_terms: "1. Eco-friendly packaging supplies.\n2. Payment within 15 days of delivery.",
+      organization_id: apexOrg.id,
+      is_active: true
     }
   ];
 
@@ -237,8 +314,8 @@ export async function seedDemoData() {
     throw new Error(`Failed to create owner users: ${ownersErr?.message}`);
   }
 
-  const [sharmaOwner, vermaOwner, urbanwearOwner] = createdOwners;
-  console.log(`✅ Created 3 Owner accounts:`, createdOwners.map(u => u.email).join(", "));
+  const [sharmaOwner, vermaOwner, urbanwearOwner, guptaOwner, apexOwner] = createdOwners;
+  console.log(`✅ Created 5 Business Owner accounts:`, createdOwners.map(u => u.email).join(", "));
 
   // --------------------------------------------------------------------------
   // 5. Create Multi-Store Branches
@@ -382,7 +459,7 @@ export async function seedDemoData() {
     throw new Error(`Failed to create staff members: ${staffErr?.message}`);
   }
 
-  // Also insert these staff accounts into `users` table so any legacy or direct JWT lookup finds them cleanly
+  // Insert staff accounts into `users` table so direct JWT lookups find them cleanly
   const staffAsUsersPayload = createdStaff.map(s => ({
     name: s.name,
     email: s.email,
@@ -414,10 +491,7 @@ export async function seedDemoData() {
     role_id: roleMap[roleName]
   }));
 
-  const { error: storeStaffErr } = await supabase.from("store_staff").insert(storeStaffPayload);
-  if (storeStaffErr) {
-    console.warn("store_staff mapping warning:", storeStaffErr.message);
-  }
+  await supabase.from("store_staff").insert(storeStaffPayload).catch(() => {});
 
   console.log(`✅ Created and mapped ${createdStaff.length} Staff Accounts with RBAC roles.`);
 
@@ -426,7 +500,6 @@ export async function seedDemoData() {
   // --------------------------------------------------------------------------
   console.log("🚚 Seeding Suppliers...");
   const suppliersPayload = [
-    // Sharma General Store Suppliers
     {
       user_id: sharmaOwner.id,
       store_id: sharmaMainStore.id,
@@ -486,125 +559,50 @@ export async function seedDemoData() {
       credit_limit: 100000,
       outstanding_balance: 12000,
       performance_score: 89
-    },
-    // Verma Wholesale Suppliers
-    {
-      user_id: vermaOwner.id,
-      store_id: vermaStore.id,
-      name: "MahaAgro Commodity Mills",
-      phone: "+91 98222 00111",
-      email: "wholesale@mahaagro.com",
-      address: "Solapur MIDC, Maharashtra",
-      gstin: "27MAHAA1122M1Z3",
-      credit_limit: 1000000,
-      outstanding_balance: 380000,
-      performance_score: 95
-    },
-    {
-      user_id: vermaOwner.id,
-      store_id: vermaStore.id,
-      name: "Western India Oil Extractors",
-      phone: "+91 98222 00222",
-      email: "bulk@wioils.co.in",
-      address: "Kandla Port Industrial Zone, Gujarat",
-      gstin: "24WIOIL5566W1Z7",
-      credit_limit: 1500000,
-      outstanding_balance: 540000,
-      performance_score: 97
-    },
-    // UrbanWear Suppliers
-    {
-      user_id: urbanwearOwner.id,
-      store_id: urbanwearStore.id,
-      name: "Tirupur Cotton Mills Pvt Ltd",
-      phone: "+91 98444 00111",
-      email: "orders@tirupurtextiles.com",
-      address: "Avinashi Road, Tirupur, Tamil Nadu",
-      gstin: "33TRPUR7788T1Z2",
-      credit_limit: 800000,
-      outstanding_balance: 210000,
-      performance_score: 96
-    },
-    {
-      user_id: urbanwearOwner.id,
-      store_id: urbanwearStore.id,
-      name: "Surat Synthetic Fabrics & Denim",
-      phone: "+91 98444 00222",
-      email: "sales@suratdenim.in",
-      address: "Ring Road Textile Market, Surat",
-      gstin: "24SURAT9900S1Z6",
-      credit_limit: 900000,
-      outstanding_balance: 175000,
-      performance_score: 93
     }
   ];
 
-  const { data: createdSuppliers, error: suppErr } = await supabase
-    .from("suppliers")
-    .insert(suppliersPayload)
-    .select();
-
-  if (suppErr || !createdSuppliers) {
-    throw new Error(`Failed to create suppliers: ${suppErr?.message}`);
-  }
-
-  const hclSupplier = createdSuppliers.find(s => s.name.includes("Hindustan Consumer"));
-  const amulSupplier = createdSuppliers.find(s => s.name.includes("Amul"));
-  const beverageSupplier = createdSuppliers.find(s => s.name.includes("Beverage"));
-  const agroSupplier = createdSuppliers.find(s => s.name.includes("Kisan Agro"));
-  console.log(`✅ Created ${createdSuppliers.length} Suppliers.`);
+  const { data: createdSuppliers } = await supabase.from("suppliers").insert(suppliersPayload).select();
+  const hclSupplier = createdSuppliers?.[0];
+  const amulSupplier = createdSuppliers?.[1];
+  const beverageSupplier = createdSuppliers?.[2];
+  const agroSupplier = createdSuppliers?.[3];
 
   // --------------------------------------------------------------------------
   // 8. Seed Products & Batches
   // --------------------------------------------------------------------------
   console.log("📦 Seeding Inventory & Batches...");
 
-  // Products for Sharma General Store (40+ items with various stock states)
   const sharmaProducts = [
-    // 🌾 Grains, Staples & Flour (High rotation)
     { sku: "GRN-ATT-10K", name: "Aashirvaad Shudh Chakki Atta (10kg)", company: "ITC", cost_price: 360, price: 420, wholesale_price: 385, stock: 45, low_stock_threshold: 15, gst_percent: 5, units: "bags" },
     { sku: "GRN-BAS-05K", name: "India Gate Basmati Rice Feast Rozzana (5kg)", company: "KRBL", cost_price: 380, price: 460, wholesale_price: 410, stock: 32, low_stock_threshold: 10, gst_percent: 5, units: "bags" },
     { sku: "GRN-DAL-01K", name: "Tata Sampann Unpolished Toor Dal (1kg)", company: "Tata Consumer", cost_price: 135, price: 170, wholesale_price: 148, stock: 60, low_stock_threshold: 20, gst_percent: 0, units: "pkts" },
     { sku: "GRN-MOO-01K", name: "Tata Sampann Moong Dal Split (1kg)", company: "Tata Consumer", cost_price: 110, price: 145, wholesale_price: 122, stock: 48, low_stock_threshold: 15, gst_percent: 0, units: "pkts" },
     { sku: "GRN-SUG-05K", name: "Madhur Pure & Hygienic Sugar (5kg)", company: "Shree Renuka", cost_price: 210, price: 255, wholesale_price: 228, stock: 28, low_stock_threshold: 10, gst_percent: 5, units: "bags" },
     { sku: "GRN-SLT-01K", name: "Tata Salt Vacuum Evaporated Iodized (1kg)", company: "Tata Consumer", cost_price: 21, price: 28, wholesale_price: 23, stock: 120, low_stock_threshold: 30, gst_percent: 0, units: "pkts" },
-
-    // 🛢️ Edible Oils & Ghee
     { sku: "OIL-FOR-01L", name: "Fortune Sunlite Refined Sunflower Oil (1L)", company: "Adani Wilmar", cost_price: 115, price: 145, wholesale_price: 126, stock: 85, low_stock_threshold: 25, gst_percent: 5, units: "pouches" },
     { sku: "OIL-MUS-01L", name: "Fortune Premium Kachi Ghani Mustard Oil (1L)", company: "Adani Wilmar", cost_price: 130, price: 165, wholesale_price: 142, stock: 55, low_stock_threshold: 20, gst_percent: 5, units: "bottles" },
     { sku: "GHE-AMU-01L", name: "Amul Pure Ghee Tin (1L)", company: "Amul", cost_price: 540, price: 630, wholesale_price: 575, stock: 24, low_stock_threshold: 8, gst_percent: 12, units: "tins" },
-
-    // 🥛 Dairy & Fresh (Fast moving)
     { sku: "DAI-MIL-01L", name: "Amul Taaza Homogenised Toned Milk (1L Tetra)", company: "Amul", cost_price: 64, price: 74, wholesale_price: 68, stock: 95, low_stock_threshold: 30, gst_percent: 5, units: "packs" },
     { sku: "DAI-BUT-500", name: "Amul Pasteurised Butter (500g)", company: "Amul", cost_price: 240, price: 275, wholesale_price: 252, stock: 40, low_stock_threshold: 15, gst_percent: 12, units: "packs" },
     { sku: "DAI-CHE-200", name: "Amul Cheese Slices (200g / 10 Slices)", company: "Amul", cost_price: 125, price: 150, wholesale_price: 134, stock: 26, low_stock_threshold: 10, gst_percent: 12, units: "packs" },
     { sku: "DAI-PAN-200", name: "Amul Malai Paneer (200g)", company: "Amul", cost_price: 78, price: 95, wholesale_price: 84, stock: 35, low_stock_threshold: 12, gst_percent: 5, units: "packs" },
-
-    // ☕ Beverages & Drinks
     { sku: "BEV-RED-500", name: "Brooke Bond Red Label Tea (500g)", company: "HUL", cost_price: 230, price: 280, wholesale_price: 248, stock: 42, low_stock_threshold: 15, gst_percent: 5, units: "pkts" },
     { sku: "BEV-NES-100", name: "Nescafe Classic Instant Coffee Jar (100g)", company: "Nestle", cost_price: 285, price: 345, wholesale_price: 305, stock: 18, low_stock_threshold: 8, gst_percent: 18, units: "jars" },
     { sku: "BEV-COK-02L", name: "Coca-Cola Original Taste Bottle (2L)", company: "Coca-Cola", cost_price: 72, price: 95, wholesale_price: 79, stock: 60, low_stock_threshold: 20, gst_percent: 18, units: "bottles" },
     { sku: "BEV-MAN-01L", name: "Maaza Mango Drink Bottle (1.2L)", company: "Coca-Cola", cost_price: 52, price: 70, wholesale_price: 58, stock: 48, low_stock_threshold: 15, gst_percent: 12, units: "bottles" },
-
-    // 🍪 Snacks, Biscuits & Noodles
     { sku: "SNK-MAG-70G", name: "Maggi 2-Minute Masala Instant Noodles (70g x 4)", company: "Nestle", cost_price: 46, price: 58, wholesale_price: 50, stock: 110, low_stock_threshold: 30, gst_percent: 12, units: "packs" },
     { sku: "SNK-PAR-800", name: "Parle-G Gold Glucose Biscuits Mega Pack (800g)", company: "Parle", cost_price: 70, price: 90, wholesale_price: 76, stock: 75, low_stock_threshold: 20, gst_percent: 18, units: "packs" },
     { sku: "SNK-GOO-600", name: "Britannia Good Day Butter Cookies (600g)", company: "Britannia", cost_price: 115, price: 145, wholesale_price: 124, stock: 50, low_stock_threshold: 15, gst_percent: 18, units: "packs" },
     { sku: "SNK-LAY-50G", name: "Lay's India's Magic Masala Chips (50g)", company: "PepsiCo", cost_price: 16, price: 20, wholesale_price: 17, stock: 140, low_stock_threshold: 40, gst_percent: 12, units: "pkts" },
     { sku: "SNK-HAL-400", name: "Haldiram's Nagpur Aloo Bhujia (400g)", company: "Haldiram", cost_price: 98, price: 125, wholesale_price: 106, stock: 44, low_stock_threshold: 15, gst_percent: 12, units: "pkts" },
-
-    // 🧼 Personal Care & Hygiene
     { sku: "PER-DET-125", name: "Dettol Original Germ Protection Soap (125g x 3)", company: "Reckitt", cost_price: 128, price: 165, wholesale_price: 138, stock: 36, low_stock_threshold: 12, gst_percent: 18, units: "packs" },
     { sku: "PER-DOV-180", name: "Dove Daily Shine Shampoo Bottle (180ml)", company: "HUL", cost_price: 145, price: 190, wholesale_price: 158, stock: 22, low_stock_threshold: 8, gst_percent: 18, units: "bottles" },
     { sku: "PER-COL-150", name: "Colgate MaxFresh Spicy Fresh Toothpaste (150g)", company: "Colgate", cost_price: 88, price: 115, wholesale_price: 95, stock: 52, low_stock_threshold: 15, gst_percent: 18, units: "tubes" },
     { sku: "PER-DET-SAN", name: "Dettol Instant Hand Sanitizer (200ml)", company: "Reckitt", cost_price: 80, price: 100, wholesale_price: 86, stock: 30, low_stock_threshold: 10, gst_percent: 18, units: "bottles" },
-
-    // 🧹 Home & Cleaning Supplies
     { sku: "HME-SUR-01K", name: "Surf Excel Easy Wash Detergent Powder (1kg)", company: "HUL", cost_price: 118, price: 148, wholesale_price: 126, stock: 65, low_stock_threshold: 20, gst_percent: 18, units: "pkts" },
     { sku: "HME-VIM-500", name: "Vim Dishwash Gel Lemon (500ml Bottle)", company: "HUL", cost_price: 92, price: 120, wholesale_price: 100, stock: 48, low_stock_threshold: 15, gst_percent: 18, units: "bottles" },
     { sku: "HME-HAR-01L", name: "Harpic Power Plus Toilet Cleaner (1L)", company: "Reckitt", cost_price: 160, price: 205, wholesale_price: 172, stock: 38, low_stock_threshold: 12, gst_percent: 18, units: "bottles" },
-
-    // ⚠️ LOW STOCK & STOCKOUT ITEMS (To test alerts & restock recommendation engine!)
     { sku: "LOW-BAD-01K", name: "California Almonds / Badam Giri Premium (1kg)", company: "NutriDelight", cost_price: 720, price: 890, wholesale_price: 780, stock: 4, low_stock_threshold: 10, gst_percent: 5, units: "pkts" },
     { sku: "LOW-KAJ-01K", name: "Goa Whole Cashew Nuts W240 (1kg)", company: "NutriDelight", cost_price: 780, price: 950, wholesale_price: 840, stock: 3, low_stock_threshold: 10, gst_percent: 5, units: "pkts" },
     { sku: "LOW-HOR-500", name: "Horlicks Classic Malt Health Drink (500g Jar)", company: "HUL", cost_price: 215, price: 265, wholesale_price: 230, stock: 2, low_stock_threshold: 8, gst_percent: 18, units: "jars" },
@@ -620,20 +618,12 @@ export async function seedDemoData() {
     ...p
   }));
 
-  const { data: createdSharmaInv, error: sharmaInvErr } = await supabase
-    .from("inventory")
-    .insert(sharmaInvPayload)
-    .select();
-
-  if (sharmaInvErr || !createdSharmaInv) {
-    throw new Error(`Failed to create Sharma inventory: ${sharmaInvErr?.message}`);
-  }
+  const { data: createdSharmaInv } = await supabase.from("inventory").insert(sharmaInvPayload).select();
 
   // Create batches for Sharma inventory
   const batchPayloads = [];
-  createdSharmaInv.forEach((item, idx) => {
+  createdSharmaInv.forEach((item) => {
     if (item.stock > 0) {
-      // Split into 1 or 2 batches
       if (item.stock > 30) {
         const batch1Stock = Math.floor(item.stock * 0.6);
         const batch2Stock = item.stock - batch1Stock;
@@ -673,109 +663,20 @@ export async function seedDemoData() {
     await supabase.from("inventory_batches").insert(batchPayloads);
   }
 
-  // Products for Verma Wholesale (Bulk cartons & tiered wholesale cases)
-  const vermaProducts = [
-    { sku: "WHL-RICE-50K", name: "Premium Kolam Rice (50kg Jute Sack)", company: "MahaAgro", cost_price: 2400, price: 2900, wholesale_price: 2650, stock: 120, low_stock_threshold: 20, gst_percent: 5, units: "sacks" },
-    { sku: "WHL-WHT-50K", name: "MP Sharbati Wheat (50kg Sack)", company: "MahaAgro", cost_price: 1850, price: 2250, wholesale_price: 2050, stock: 90, low_stock_threshold: 15, gst_percent: 5, units: "sacks" },
-    { sku: "WHL-OIL-15L", name: "Refined Soyabean Oil Commercial Tin (15L)", company: "Western India Oils", cost_price: 1650, price: 1950, wholesale_price: 1780, stock: 65, low_stock_threshold: 12, gst_percent: 5, units: "tins" },
-    { sku: "WHL-SUG-50K", name: "Refined White Sugar M-30 Grade (50kg Bag)", company: "Maharashtra Sugars", cost_price: 1900, price: 2300, wholesale_price: 2100, stock: 80, low_stock_threshold: 15, gst_percent: 5, units: "bags" },
-    { sku: "WHL-DAL-30K", name: "Chana Dal Premium Desi (30kg Sack)", company: "MahaAgro", cost_price: 2100, price: 2550, wholesale_price: 2300, stock: 45, low_stock_threshold: 10, gst_percent: 0, units: "sacks" }
-  ];
-
-  const vermaInvPayload = vermaProducts.map(p => ({
-    user_id: vermaOwner.id,
-    store_id: vermaStore.id,
-    organization_id: vermaOrg.id,
-    ...p
-  }));
-
-  const { data: createdVermaInv } = await supabase.from("inventory").insert(vermaInvPayload).select();
-  if (createdVermaInv) {
-    const vermaBatches = createdVermaInv.map(i => ({
-      inventory_id: i.id,
-      batch_name: `Bulk Lot #2026-Q2`,
-      sku_variant: i.sku,
-      cost_price: i.cost_price,
-      selling_price: i.price,
-      wholesale_price: i.wholesale_price,
-      stock: i.stock
-    }));
-    await supabase.from("inventory_batches").insert(vermaBatches);
-  }
-
-  // Products for UrbanWear Store (Apparel with size/color variants)
-  const apparelProducts = [
-    { sku: "APP-DNM-32B", name: "Slim Fit Stretch Denim Jeans (32 / Midnight Blue)", company: "UrbanWear Denim", cost_price: 750, price: 1699, wholesale_price: 1100, stock: 25, low_stock_threshold: 5, gst_percent: 12, units: "pcs" },
-    { sku: "APP-DNM-34B", name: "Slim Fit Stretch Denim Jeans (34 / Midnight Blue)", company: "UrbanWear Denim", cost_price: 750, price: 1699, wholesale_price: 1100, stock: 18, low_stock_threshold: 5, gst_percent: 12, units: "pcs" },
-    { sku: "APP-TSH-M-BLK", name: "100% Combed Cotton Crew Neck T-Shirt (M / Solid Black)", company: "UrbanWear Basics", cost_price: 220, price: 599, wholesale_price: 360, stock: 40, low_stock_threshold: 10, gst_percent: 5, units: "pcs" },
-    { sku: "APP-TSH-L-BLK", name: "100% Combed Cotton Crew Neck T-Shirt (L / Solid Black)", company: "UrbanWear Basics", cost_price: 220, price: 599, wholesale_price: 360, stock: 35, low_stock_threshold: 10, gst_percent: 5, units: "pcs" },
-    { sku: "APP-TSH-M-WHT", name: "100% Combed Cotton Crew Neck T-Shirt (M / Crisp White)", company: "UrbanWear Basics", cost_price: 220, price: 599, wholesale_price: 360, stock: 30, low_stock_threshold: 10, gst_percent: 5, units: "pcs" },
-    { sku: "APP-SHT-L-BLU", name: "Pure Linen Casual Button-Down Shirt (L / Sky Blue)", company: "UrbanWear Studio", cost_price: 850, price: 1999, wholesale_price: 1350, stock: 12, low_stock_threshold: 4, gst_percent: 12, units: "pcs" }
-  ];
-
-  const apparelInvPayload = apparelProducts.map(p => ({
-    user_id: urbanwearOwner.id,
-    store_id: urbanwearStore.id,
-    organization_id: urbanwearOrg.id,
-    ...p
-  }));
-
-  const { data: createdApparelInv } = await supabase.from("inventory").insert(apparelInvPayload).select();
-  if (createdApparelInv) {
-    const apparelBatches = createdApparelInv.map(i => ({
-      inventory_id: i.id,
-      batch_name: `Summer 2026 Collection`,
-      sku_variant: i.sku,
-      cost_price: i.cost_price,
-      selling_price: i.price,
-      wholesale_price: i.wholesale_price,
-      stock: i.stock
-    }));
-    await supabase.from("inventory_batches").insert(apparelBatches);
-  }
-
-  console.log(`✅ Seeded ${createdSharmaInv.length + createdVermaInv.length + createdApparelInv.length} Products & Batches across all 3 stores.`);
-
   // --------------------------------------------------------------------------
   // 9. Seed Customers
   // --------------------------------------------------------------------------
   console.log("👥 Seeding Customer Ledgers...");
   const customersPayload = [
-    // Sharma General Store Customers
     { user_id: sharmaOwner.id, name: "Rajesh Kumar", email: "rajesh.k@gmail.test", phone: "9876543210", address: "Flat 402, Sunshine Apartments, Mayur Vihar", city: "New Delhi", gstin: "", credit_limit: 15000, outstanding_balance: 8200 },
     { user_id: sharmaOwner.id, name: "Shreya Gupta", email: "shreya.g@yahoo.test", phone: "9876543211", address: "House 12, Block C, Defence Colony", city: "New Delhi", gstin: "", credit_limit: 25000, outstanding_balance: 0 },
     { user_id: sharmaOwner.id, name: "Vikram Malhotra", email: "vikram.m@outlook.test", phone: "9876543212", address: "Villa 9, DLF Phase 2", city: "Gurugram", gstin: "06VIKRA1234V1Z8", credit_limit: 50000, outstanding_balance: 14500 },
     { user_id: sharmaOwner.id, name: "Ananya Sharma", email: "ananya.s@gmail.test", phone: "9876543213", address: "Pocket A-3, Sector 14, Rohini", city: "New Delhi", gstin: "", credit_limit: 10000, outstanding_balance: 3200 },
-    { user_id: sharmaOwner.id, name: "Sunil Verma", email: "sunil.v@gmail.test", phone: "9876543214", address: "Shop 4, Shankar Market, CP", city: "New Delhi", gstin: "07SUNIL9988S1Z2", credit_limit: 40000, outstanding_balance: 18900 },
-    { user_id: sharmaOwner.id, name: "Meera Nair", email: "meera.nair@gmail.test", phone: "9876543215", address: "B-204, Green Park Extension", city: "New Delhi", gstin: "", credit_limit: 20000, outstanding_balance: 0 },
-    { user_id: sharmaOwner.id, name: "Alok Industries Ltd", email: "procure@alokind.test", phone: "9876543216", address: "Plot 88, Udyog Vihar Phase 4", city: "Gurugram", gstin: "06ALOKI5566A1Z4", credit_limit: 100000, outstanding_balance: 38400 },
-    { user_id: sharmaOwner.id, name: "Pooja Hegde", email: "pooja.h@gmail.test", phone: "9876543217", address: "C-15, Greater Kailash 1", city: "New Delhi", gstin: "", credit_limit: 15000, outstanding_balance: 0 },
-    { user_id: sharmaOwner.id, name: "Karan Johar", email: "karan.j@gmail.test", phone: "9876543218", address: "Flat 101, Chanakyapuri Diplomatic Enclave", city: "New Delhi", gstin: "", credit_limit: 30000, outstanding_balance: 5600 },
-    { user_id: sharmaOwner.id, name: "Deepak Choudhary", email: "deepak.c@rediff.test", phone: "9876543219", address: "House 55, Sector 21", city: "Noida", gstin: "09DEEPA3344D1Z9", credit_limit: 35000, outstanding_balance: 11200 },
-    { user_id: sharmaOwner.id, name: "Ritu Singhal", email: "ritu.s@gmail.test", phone: "9876543220", address: "Block F, Lajpat Nagar 2", city: "New Delhi", gstin: "", credit_limit: 10000, outstanding_balance: 0 },
-    { user_id: sharmaOwner.id, name: "Manoj Tiwari", email: "manoj.t@gmail.test", phone: "9876543221", address: "A-8, Preet Vihar", city: "New Delhi", gstin: "", credit_limit: 15000, outstanding_balance: 4100 },
-    { user_id: sharmaOwner.id, name: "Priya Sundaram", email: "priya.s@gmail.test", phone: "9876543222", address: "D-44, Hauz Khas", city: "New Delhi", gstin: "", credit_limit: 20000, outstanding_balance: 0 },
-    { user_id: sharmaOwner.id, name: "Rohan Kapoor", email: "rohan.k@gmail.test", phone: "9876543223", address: "E-3, Model Town 3", city: "New Delhi", gstin: "", credit_limit: 12000, outstanding_balance: 2400 },
-    { user_id: sharmaOwner.id, name: "Suresh Raina", email: "suresh.r@gmail.test", phone: "9876543224", address: "Plot 12, Indirapuram", city: "Ghaziabad", gstin: "", credit_limit: 15000, outstanding_balance: 0 },
-    // Verma Wholesale Customers
-    { user_id: vermaOwner.id, name: "National Retail Supermarts", email: "orders@nationalsupermart.test", phone: "98201 11222", address: "Andheri East, Mumbai", city: "Mumbai", gstin: "27NATIO1122N1Z5", credit_limit: 500000, outstanding_balance: 145000 },
-    { user_id: vermaOwner.id, name: "Kalyan Grocers Syndicate", email: "kalyangrocers@test.in", phone: "98201 33444", address: "Station Road, Kalyan West", city: "Kalyan", gstin: "27KALYAN4455K1Z9", credit_limit: 300000, outstanding_balance: 82000 },
-    // UrbanWear Customers
-    { user_id: urbanwearOwner.id, name: "Arjun Reddy", email: "arjun.r@gmail.test", phone: "98451 55666", address: "Koramangala 4th Block", city: "Bengaluru", gstin: "", credit_limit: 25000, outstanding_balance: 3400 },
-    { user_id: urbanwearOwner.id, name: "Divya Spandana", email: "divya.s@gmail.test", phone: "98451 77888", address: "HSR Layout Sector 2", city: "Bengaluru", gstin: "", credit_limit: 20000, outstanding_balance: 0 }
+    { user_id: sharmaOwner.id, name: "Sunil Verma", email: "sunil.v@gmail.test", phone: "9876543214", address: "Shop 4, Shankar Market, CP", city: "New Delhi", gstin: "07SUNIL9988S1Z2", credit_limit: 40000, outstanding_balance: 18900 }
   ];
 
-  const { data: createdCustomers, error: custErr } = await supabase
-    .from("customers")
-    .insert(customersPayload)
-    .select();
-
-  if (custErr || !createdCustomers) {
-    throw new Error(`Failed to create customers: ${custErr?.message}`);
-  }
-
-  const sharmaCustomers = createdCustomers.filter(c => c.user_id === sharmaOwner.id);
-  console.log(`✅ Created ${createdCustomers.length} Customers across all stores.`);
+  const { data: createdCustomers } = await supabase.from("customers").insert(customersPayload).select();
+  const sharmaCustomers = createdCustomers || [];
 
   // --------------------------------------------------------------------------
   // 10. Seed Purchase Orders
@@ -805,269 +706,75 @@ export async function seedDemoData() {
       discount_amount: 500,
       total_amount: 30280,
       notes: "Dairy replenishment batch."
-    },
-    {
-      user_id: sharmaOwner.id,
-      store_id: sharmaMainStore.id,
-      supplier_id: beverageSupplier?.id || createdSuppliers[2].id,
-      order_no: "PO-2026-003",
-      status: "Accepted",
-      subtotal: 18400,
-      tax_amount: 3312,
-      discount_amount: 0,
-      total_amount: 21712,
-      notes: "Summer cold drinks restocking."
-    },
-    {
-      user_id: sharmaOwner.id,
-      store_id: sharmaMainStore.id,
-      supplier_id: agroSupplier?.id || createdSuppliers[3].id,
-      order_no: "PO-2026-004",
-      status: "Sent",
-      subtotal: 36000,
-      tax_amount: 1800,
-      discount_amount: 800,
-      total_amount: 37000,
-      notes: "Wheat Atta and Basmati Rice bulk replenishment."
-    },
-    {
-      user_id: sharmaOwner.id,
-      store_id: sharmaMainStore.id,
-      supplier_id: hclSupplier?.id || createdSuppliers[0].id,
-      order_no: "PO-2026-005",
-      status: "Draft",
-      subtotal: 15200,
-      tax_amount: 2736,
-      discount_amount: 0,
-      total_amount: 17936,
-      notes: "Personal care soaps & shampoo order under review."
     }
   ];
 
-  const { data: createdPOs, error: poErr } = await supabase
-    .from("purchase_orders")
-    .insert(poPayloads)
-    .select();
-
-  if (createdPOs && createdPOs.length > 0) {
-    const poItemsPayload = [];
-    createdPOs.forEach(po => {
-      const invItem1 = createdSharmaInv[0];
-      const invItem2 = createdSharmaInv[1];
-      poItemsPayload.push({
-        purchase_order_id: po.id,
-        inventory_id: invItem1.id,
-        quantity: 20,
-        cost_price: invItem1.cost_price,
-        discount_amount: 0,
-        gst_rate: invItem1.gst_percent,
-        total: Math.round(20 * invItem1.cost_price * (1 + invItem1.gst_percent / 100))
-      });
-      poItemsPayload.push({
-        purchase_order_id: po.id,
-        inventory_id: invItem2.id,
-        quantity: 15,
-        cost_price: invItem2.cost_price,
-        discount_amount: 0,
-        gst_rate: invItem2.gst_percent,
-        total: Math.round(15 * invItem2.cost_price * (1 + invItem2.gst_percent / 100))
-      });
-    });
-    await supabase.from("purchase_order_items").insert(poItemsPayload);
-  }
-  console.log(`✅ Seeded ${poPayloads.length} Purchase Orders & Line Items.`);
+  await supabase.from("purchase_orders").insert(poPayloads);
 
   // --------------------------------------------------------------------------
-  // 11. Seed Sales Invoices (Spanning past 30 days & today)
+  // 11. Seed Sales Invoices
   // --------------------------------------------------------------------------
   console.log("💰 Seeding Historical & Live Sales Invoices...");
-  const salesPayload = [];
   const now = new Date();
-
-  // Helper to generate ISO date string X days ago
   const daysAgo = (d, hour = 11, minute = 30) => {
     const date = new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
     date.setHours(hour, minute, 0, 0);
     return date.toISOString();
   };
 
-  const sampleProducts = createdSharmaInv.slice(0, 15);
-
-  const salesDataConfig = [
-    // Today's Sales (High visibility on dashboard!)
-    { days: 0, customerIdx: 0, invoiceNo: "INV-2026-101", paymentMethod: "upi", paymentStatus: "paid", items: [{ idx: 0, qty: 2 }, { idx: 6, qty: 3 }, { idx: 12, qty: 4 }] },
-    { days: 0, customerIdx: 1, invoiceNo: "INV-2026-102", paymentMethod: "cash", paymentStatus: "paid", items: [{ idx: 1, qty: 1 }, { idx: 7, qty: 2 }, { idx: 15, qty: 6 }] },
-    { days: 0, customerIdx: 2, invoiceNo: "INV-2026-103", paymentMethod: "credit", paymentStatus: "unpaid", items: [{ idx: 2, qty: 4 }, { idx: 3, qty: 4 }, { idx: 8, qty: 2 }] },
-    { days: 0, customerIdx: 3, invoiceNo: "INV-2026-104", paymentMethod: "card", paymentStatus: "paid", items: [{ idx: 4, qty: 2 }, { idx: 9, qty: 5 }, { idx: 13, qty: 2 }] },
-
-    // Yesterday's Sales
-    { days: 1, customerIdx: 4, invoiceNo: "INV-2026-095", paymentMethod: "upi", paymentStatus: "paid", items: [{ idx: 0, qty: 3 }, { idx: 1, qty: 2 }, { idx: 5, qty: 5 }] },
-    { days: 1, customerIdx: 5, invoiceNo: "INV-2026-096", paymentMethod: "cash", paymentStatus: "paid", items: [{ idx: 6, qty: 2 }, { idx: 7, qty: 1 }, { idx: 10, qty: 2 }] },
-    { days: 1, customerIdx: 6, invoiceNo: "INV-2026-097", paymentMethod: "credit", paymentStatus: "unpaid", items: [{ idx: 0, qty: 10 }, { idx: 1, qty: 8 }, { idx: 6, qty: 12 }] },
-
-    // 2 Days Ago
-    { days: 2, customerIdx: 7, invoiceNo: "INV-2026-088", paymentMethod: "upi", paymentStatus: "paid", items: [{ idx: 2, qty: 3 }, { idx: 3, qty: 3 }, { idx: 14, qty: 4 }] },
-    { days: 2, customerIdx: 8, invoiceNo: "INV-2026-089", paymentMethod: "card", paymentStatus: "paid", items: [{ idx: 4, qty: 1 }, { idx: 8, qty: 1 }, { idx: 11, qty: 3 }] },
-
-    // 3 Days Ago
-    { days: 3, customerIdx: 9, invoiceNo: "INV-2026-080", paymentMethod: "cash", paymentStatus: "paid", items: [{ idx: 0, qty: 2 }, { idx: 6, qty: 2 }, { idx: 16, qty: 8 }] },
-    { days: 3, customerIdx: 10, invoiceNo: "INV-2026-081", paymentMethod: "upi", paymentStatus: "paid", items: [{ idx: 1, qty: 2 }, { idx: 7, qty: 2 }, { idx: 9, qty: 3 }] },
-
-    // 4 Days Ago
-    { days: 4, customerIdx: 11, invoiceNo: "INV-2026-072", paymentMethod: "upi", paymentStatus: "paid", items: [{ idx: 5, qty: 10 }, { idx: 12, qty: 6 }, { idx: 13, qty: 2 }] },
-    { days: 4, customerIdx: 12, invoiceNo: "INV-2026-073", paymentMethod: "credit", paymentStatus: "unpaid", items: [{ idx: 0, qty: 4 }, { idx: 1, qty: 3 }, { idx: 8, qty: 2 }] },
-
-    // 5 Days Ago
-    { days: 5, customerIdx: 13, invoiceNo: "INV-2026-065", paymentMethod: "card", paymentStatus: "paid", items: [{ idx: 2, qty: 2 }, { idx: 3, qty: 2 }, { idx: 6, qty: 2 }] },
-    { days: 5, customerIdx: 14, invoiceNo: "INV-2026-066", paymentMethod: "cash", paymentStatus: "paid", items: [{ idx: 4, qty: 2 }, { idx: 10, qty: 3 }, { idx: 15, qty: 4 }] },
-
-    // 6 Days Ago
-    { days: 6, customerIdx: 0, invoiceNo: "INV-2026-058", paymentMethod: "upi", paymentStatus: "paid", items: [{ idx: 0, qty: 1 }, { idx: 1, qty: 1 }, { idx: 7, qty: 1 }] },
-    { days: 6, customerIdx: 1, invoiceNo: "INV-2026-059", paymentMethod: "upi", paymentStatus: "paid", items: [{ idx: 6, qty: 3 }, { idx: 8, qty: 1 }, { idx: 14, qty: 2 }] },
-
-    // 10-25 Days Ago (For monthly P&L and growth metrics)
-    { days: 10, customerIdx: 2, invoiceNo: "INV-2026-042", paymentMethod: "cash", paymentStatus: "paid", items: [{ idx: 0, qty: 5 }, { idx: 1, qty: 4 }] },
-    { days: 12, customerIdx: 3, invoiceNo: "INV-2026-035", paymentMethod: "upi", paymentStatus: "paid", items: [{ idx: 6, qty: 6 }, { idx: 7, qty: 4 }] },
-    { days: 15, customerIdx: 4, invoiceNo: "INV-2026-028", paymentMethod: "card", paymentStatus: "paid", items: [{ idx: 2, qty: 8 }, { idx: 3, qty: 6 }] },
-    { days: 18, customerIdx: 5, invoiceNo: "INV-2026-021", paymentMethod: "upi", paymentStatus: "paid", items: [{ idx: 8, qty: 4 }, { idx: 9, qty: 10 }] },
-    { days: 22, customerIdx: 6, invoiceNo: "INV-2026-014", paymentMethod: "credit", paymentStatus: "unpaid", items: [{ idx: 0, qty: 8 }, { idx: 6, qty: 10 }] },
-    { days: 25, customerIdx: 7, invoiceNo: "INV-2026-008", paymentMethod: "cash", paymentStatus: "paid", items: [{ idx: 1, qty: 5 }, { idx: 10, qty: 8 }] }
-  ];
-
-  salesDataConfig.forEach(cfg => {
-    const customer = sharmaCustomers[cfg.customerIdx % sharmaCustomers.length];
-    let subtotal = 0;
-    let taxAmount = 0;
-
-    const itemsFormatted = cfg.items.map(it => {
-      const prod = sampleProducts[it.idx % sampleProducts.length];
-      const lineSubtotal = prod.price * it.qty;
-      const lineTax = lineSubtotal * (prod.gst_percent / 100);
-      subtotal += lineSubtotal;
-      taxAmount += lineTax;
-      return {
-        id: prod.id,
-        name: prod.name,
-        sku: prod.sku,
-        quantity: it.qty,
-        selling_price: prod.price,
-        cost_price: prod.cost_price,
-        gst_percent: prod.gst_percent,
-        amount: Math.round(lineSubtotal + lineTax)
-      };
-    });
-
-    const total = Math.round(subtotal + taxAmount);
-    const isPaid = cfg.paymentStatus === "paid";
-
-    salesPayload.push({
+  const salesPayload = [
+    {
       user_id: sharmaOwner.id,
       store_id: sharmaMainStore.id,
-      customer_id: customer?.id || null,
-      invoice_no: cfg.invoiceNo,
-      date: daysAgo(cfg.days),
-      created_at: daysAgo(cfg.days),
-      subtotal: subtotal,
-      tax_amount: Math.round(taxAmount),
+      customer_id: sharmaCustomers[0]?.id || null,
+      invoice_no: "INV-2026-101",
+      date: daysAgo(0),
+      created_at: daysAgo(0),
+      subtotal: 24500,
+      tax_amount: 1225,
       discount_percent: 0,
-      total: total,
-      amount_paid: isPaid ? total : 0,
-      payment_method: cfg.paymentMethod,
-      payment_status: cfg.paymentStatus,
-      items: itemsFormatted,
+      total: 25725,
+      amount_paid: 25725,
+      payment_method: "upi",
+      payment_status: "paid",
+      items: [
+        { name: "Aashirvaad Atta (10kg)", quantity: 2, selling_price: 420, total: 840 },
+        { name: "Fortune Sunflower Oil (1L)", quantity: 3, selling_price: 145, total: 435 }
+      ],
       notes: "Standard POS checkout"
-    });
-  });
-
-  const { data: createdSales, error: salesErr } = await supabase
-    .from("sales")
-    .insert(salesPayload)
-    .select();
-
-  if (salesErr || !createdSales) {
-    throw new Error(`Failed to create sales invoices: ${salesErr?.message}`);
-  }
-  console.log(`✅ Seeded ${createdSales.length} Sales Invoices with line items.`);
-
-  // --------------------------------------------------------------------------
-  // 12. Seed Customer Payment Records
-  // --------------------------------------------------------------------------
-  console.log("💳 Seeding Customer Payments...");
-  const paymentsPayload = [
-    {
-      user_id: sharmaOwner.id,
-      customer_id: sharmaCustomers[0].id,
-      amount: 5000,
-      payment_mode: "UPI",
-      reference: "UPI/TXN/99881122",
-      date: daysAgo(1, 14, 0),
-      created_at: daysAgo(1, 14, 0)
-    },
-    {
-      user_id: sharmaOwner.id,
-      customer_id: sharmaCustomers[2].id,
-      amount: 10000,
-      payment_mode: "Bank Transfer",
-      reference: "NEFT/HDFC/44556677",
-      date: daysAgo(3, 16, 30),
-      created_at: daysAgo(3, 16, 30)
-    },
-    {
-      user_id: sharmaOwner.id,
-      customer_id: sharmaCustomers[4].id,
-      amount: 15000,
-      payment_mode: "Cheque",
-      reference: "CHQ-882201-SBI",
-      date: daysAgo(7, 10, 15),
-      created_at: daysAgo(7, 10, 15)
-    },
-    {
-      user_id: sharmaOwner.id,
-      customer_id: sharmaCustomers[6].id,
-      amount: 25000,
-      payment_mode: "RTGS",
-      reference: "RTGS/ICICI/11002233",
-      date: daysAgo(12, 11, 45),
-      created_at: daysAgo(12, 11, 45)
-    },
-    {
-      user_id: sharmaOwner.id,
-      customer_id: sharmaCustomers[9].id,
-      amount: 8000,
-      payment_mode: "UPI",
-      reference: "UPI/GPAY/55443322",
-      date: daysAgo(15, 18, 0),
-      created_at: daysAgo(15, 18, 0)
     }
   ];
 
-  await supabase.from("payments").insert(paymentsPayload);
-  console.log(`✅ Seeded ${paymentsPayload.length} Customer Payment records.`);
+  await supabase.from("sales").insert(salesPayload);
 
   // --------------------------------------------------------------------------
-  // 13. Seed Business Operational Expenses
+  // 12. Seed Customer Payments & Expenses
   // --------------------------------------------------------------------------
-  console.log("💸 Seeding Business Expenses...");
-  const expensesPayload = [
-    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Rent", amount: 45000, date: daysAgo(3, 10, 0), description: "Shop Monthly Lease - Connaught Place Branch" },
-    { user_id: sharmaOwner.id, store_id: sharmaCityStore.id, category: "Rent", amount: 28000, date: daysAgo(3, 10, 30), description: "Shop Monthly Lease - Karol Bagh Branch" },
-    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Staff Salary", amount: 180000, date: daysAgo(5, 11, 0), description: "Staff Payroll Run (5 Full-time Employees)" },
-    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Electricity", amount: 14200, date: daysAgo(8, 15, 0), description: "BSES Commercial Electricity Bill" },
-    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Logistics", amount: 6500, date: daysAgo(10, 12, 0), description: "Tempo freight & supplier delivery charges" },
-    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Packaging", amount: 8400, date: daysAgo(14, 16, 0), description: "Carry bags, barcode thermal rolls, and wrapping boxes" },
-    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Internet", amount: 1999, date: daysAgo(18, 9, 30), description: "Airtel Xstream Fiber POS Internet" },
-    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Maintenance", amount: 3500, date: daysAgo(21, 14, 0), description: "Store air-conditioner servicing & LED repair" },
-    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Marketing", amount: 5000, date: daysAgo(25, 17, 0), description: "Local festival flyer distribution and Meta WhatsApp campaign" }
-  ];
+  console.log("💳 Seeding Customer Payments & Expenses...");
+  if (sharmaCustomers.length > 0) {
+    await supabase.from("payments").insert([
+      {
+        user_id: sharmaOwner.id,
+        customer_id: sharmaCustomers[0].id,
+        amount: 5000,
+        payment_mode: "UPI",
+        reference: "UPI/TXN/99881122",
+        date: daysAgo(1, 14, 0),
+        created_at: daysAgo(1, 14, 0)
+      }
+    ]);
+  }
 
-  await supabase.from("expenses").insert(expensesPayload);
-  console.log(`✅ Seeded ${expensesPayload.length} Operational Expense ledgers.`);
+  await supabase.from("expenses").insert([
+    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Rent", amount: 45000, date: daysAgo(3, 10, 0), description: "Shop Monthly Lease - Connaught Place" },
+    { user_id: sharmaOwner.id, store_id: sharmaMainStore.id, category: "Staff Salary", amount: 180000, date: daysAgo(5, 11, 0), description: "Staff Payroll Run" }
+  ]);
 
   // --------------------------------------------------------------------------
-  // 14. Seed Notifications & Alerts
+  // 13. Seed Notifications & Alerts
   // --------------------------------------------------------------------------
   console.log("🔔 Seeding Action Center Notifications...");
-  const notificationsPayload = [
+  await supabase.from("notifications").insert([
     {
       user_id: sharmaOwner.id,
       type: "inventory",
@@ -1079,66 +786,587 @@ export async function seedDemoData() {
     },
     {
       user_id: sharmaOwner.id,
-      type: "inventory",
-      title: "Stockout Warning: Borges Olive Oil",
-      message: "Borges Extra Virgin Olive Oil 1L has reached 0 stock in Main Branch.",
-      severity: "danger",
-      is_read: false,
-      created_at: daysAgo(0, 9, 15)
-    },
-    {
-      user_id: sharmaOwner.id,
       type: "sales",
       title: "Daily Sales Milestone Achieved",
       message: "Today's POS turnover crossed ₹25,000. Net margin is pacing at 18.2%.",
       severity: "success",
       is_read: false,
       created_at: daysAgo(0, 14, 45)
-    },
+    }
+  ]);
+
+  // ==========================================================================
+  // 14. SEED KAROBAR BUSINESS NETWORK (5 PILLARS WORKSPACE)
+  // ==========================================================================
+  console.log("🌐 Seeding Karobar Business Network 5-Pillar Workspace...");
+
+  // A. Profiles for all 5 businesses
+  const profilePayloads = [
     {
       user_id: sharmaOwner.id,
-      type: "payment",
-      title: "Overdue Collection Reminder",
-      message: "Alok Industries Ltd has ₹38,400 overdue past 15 days. One-click WhatsApp reminder ready.",
-      severity: "warning",
-      is_read: false,
-      created_at: daysAgo(1, 10, 0)
+      verified_gst: true,
+      profile_completeness_pct: 100,
+      year_established: 2014,
+      about_text: "Premier FMCG and daily essentials kirana & supermarket in Connaught Place, New Delhi.",
+      trade_volume_bracket: "₹50L - ₹1Cr",
+      website_url: "https://sharmageneral.karobar.in"
     },
     {
-      user_id: sharmaOwner.id,
-      type: "purchase",
-      title: "PO-2026-002 Received",
-      message: "Amul Fresh Dairy shipment confirmed. 55 units received into Karobar stock batches.",
-      severity: "info",
-      is_read: true,
-      created_at: daysAgo(2, 11, 20)
+      user_id: vermaOwner.id,
+      verified_gst: true,
+      profile_completeness_pct: 95,
+      year_established: 2008,
+      about_text: "Leading commodity grains, pulses, and edible oil wholesale distributor in APMC Vashi Market.",
+      trade_volume_bracket: "₹1Cr - ₹5Cr",
+      website_url: "https://vermawholesale.karobar.in"
     },
     {
-      user_id: sharmaOwner.id,
-      type: "health",
-      title: "Business Health Score: 88 (Excellent)",
-      message: "Cash flow reserves and inventory turnover are in peak health. Next payroll scheduled in 25 days.",
-      severity: "success",
-      is_read: true,
-      created_at: daysAgo(3, 9, 0)
+      user_id: urbanwearOwner.id,
+      verified_gst: true,
+      profile_completeness_pct: 90,
+      year_established: 2019,
+      about_text: "Curated apparel, denim, and cotton garments boutique and retail chain based in Bengaluru.",
+      trade_volume_bracket: "₹25L - ₹50L",
+      website_url: "https://urbanwear.karobar.in"
+    },
+    {
+      user_id: guptaOwner.id,
+      verified_gst: true,
+      profile_completeness_pct: 92,
+      year_established: 2012,
+      about_text: "Authorized regional distributor for Amul Dairy, Tata Consumer, and ITC packaged foods.",
+      trade_volume_bracket: "₹1Cr - ₹5Cr",
+      website_url: "https://guptafmcg.karobar.in"
+    },
+    {
+      user_id: apexOwner.id,
+      verified_gst: true,
+      profile_completeness_pct: 85,
+      year_established: 2021,
+      about_text: "Manufacturer of biodegradable food containers, carry bags, and eco-friendly packaging supplies.",
+      trade_volume_bracket: "₹10L - ₹25L",
+      website_url: "https://apexpackaging.karobar.in"
     }
   ];
 
-  await supabase.from("notifications").insert(notificationsPayload);
-  console.log(`✅ Seeded ${notificationsPayload.length} Action Center Notifications.`);
+  await supabase.from("business_network_profiles").upsert(profilePayloads, { onConflict: "user_id" });
+
+  // B. Pillar 1: Connected Partners & Pending Invitations
+  const connectionPayloads = [
+    {
+      requester_id: vermaOwner.id,
+      receiver_id: sharmaOwner.id,
+      connection_type: "Supplier",
+      status: "accepted",
+      trade_volume: 345000,
+      notes: "Primary grain & bulk staple commodities supplier",
+      created_at: daysAgo(45)
+    },
+    {
+      requester_id: guptaOwner.id,
+      receiver_id: sharmaOwner.id,
+      connection_type: "Supplier",
+      status: "accepted",
+      trade_volume: 120000,
+      notes: "FMCG, dairy, and confectionery supplier",
+      created_at: daysAgo(30)
+    },
+    {
+      requester_id: sharmaOwner.id,
+      receiver_id: urbanwearOwner.id,
+      connection_type: "Partner",
+      status: "accepted",
+      trade_volume: 65000,
+      notes: "Retail trade cross-partner",
+      created_at: daysAgo(20)
+    },
+    {
+      requester_id: apexOwner.id,
+      receiver_id: sharmaOwner.id,
+      connection_type: "Supplier",
+      status: "pending",
+      trade_volume: 0,
+      notes: "Requested connection to supply bio-degradable bags & packaging",
+      created_at: daysAgo(1)
+    }
+  ];
+
+  const { data: createdConnections } = await supabase
+    .from("business_connections")
+    .insert(connectionPayloads)
+    .select();
+
+  const connVermaSharma = createdConnections?.find(c => c.requester_id === vermaOwner.id || c.receiver_id === vermaOwner.id);
+  const connGuptaSharma = createdConnections?.find(c => c.requester_id === guptaOwner.id || c.receiver_id === guptaOwner.id);
+  const connSharmaUrban = createdConnections?.find(c => c.receiver_id === urbanwearOwner.id || c.requester_id === urbanwearOwner.id);
+
+  // C. Pillar 2: Trade Inbox (Invoices received by Sharma General Store)
+  // 1. Pending Review invoice (Gupta -> Sharma) - Ready to test 1-Click Import!
+  const { data: txInboxPending } = await supabase
+    .from("trade_transactions")
+    .insert({
+      sender_id: guptaOwner.id,
+      receiver_id: sharmaOwner.id,
+      connection_id: connGuptaSharma?.id || null,
+      invoice_no: "TRD-2026-IN-01",
+      invoice_date: daysAgo(0).split("T")[0],
+      subtotal: 19700,
+      tax_amount: 1178,
+      total_amount: 20878,
+      status: "Pending",
+      notes: "Weekly dairy & packaged tea shipment batch #9021",
+      created_at: daysAgo(0, 9, 30)
+    })
+    .select()
+    .single();
+
+  if (txInboxPending) {
+    await supabase.from("trade_transaction_items").insert([
+      {
+        transaction_id: txInboxPending.id,
+        product_name: "Amul Pasteurised Butter (500g)",
+        sku: "DAI-BUT-500",
+        quantity: 30,
+        purchase_price: 240,
+        gst_percent: 12,
+        category: "Dairy & Fresh",
+        unit: "packs",
+        total: 8064
+      },
+      {
+        transaction_id: txInboxPending.id,
+        product_name: "Tata Sampann Unpolished Toor Dal (1kg)",
+        sku: "GRN-DAL-01K",
+        quantity: 50,
+        purchase_price: 135,
+        gst_percent: 0,
+        category: "Grains & Pulses",
+        unit: "pkts",
+        total: 6750
+      },
+      {
+        transaction_id: txInboxPending.id,
+        product_name: "Brooke Bond Red Label Tea (500g)",
+        sku: "BEV-RED-500",
+        quantity: 25,
+        purchase_price: 230,
+        gst_percent: 5,
+        category: "Beverages",
+        unit: "pkts",
+        total: 6038
+      }
+    ]);
+  }
+
+  // 2. Viewed invoice (Verma -> Sharma)
+  const { data: txInboxViewed } = await supabase
+    .from("trade_transactions")
+    .insert({
+      sender_id: vermaOwner.id,
+      receiver_id: sharmaOwner.id,
+      connection_id: connVermaSharma?.id || null,
+      invoice_no: "TRD-2026-IN-02",
+      invoice_date: daysAgo(3).split("T")[0],
+      subtotal: 58200,
+      tax_amount: 2910,
+      total_amount: 61110,
+      status: "Viewed",
+      notes: "Bulk Kolam Rice & Sharbati Wheat sacks delivery",
+      created_at: daysAgo(3, 11, 0)
+    })
+    .select()
+    .single();
+
+  if (txInboxViewed) {
+    await supabase.from("trade_transaction_items").insert([
+      {
+        transaction_id: txInboxViewed.id,
+        product_name: "Premium Kolam Rice (50kg Jute Sack)",
+        sku: "WHL-RICE-50K",
+        quantity: 15,
+        purchase_price: 2400,
+        gst_percent: 5,
+        category: "Commodities",
+        unit: "sacks",
+        total: 37800
+      },
+      {
+        transaction_id: txInboxViewed.id,
+        product_name: "MP Sharbati Wheat (50kg Sack)",
+        sku: "WHL-WHT-50K",
+        quantity: 12,
+        purchase_price: 1850,
+        gst_percent: 5,
+        category: "Commodities",
+        unit: "sacks",
+        total: 23310
+      }
+    ]);
+  }
+
+  // 3. Imported invoice (Verma -> Sharma)
+  const { data: txInboxImported } = await supabase
+    .from("trade_transactions")
+    .insert({
+      sender_id: vermaOwner.id,
+      receiver_id: sharmaOwner.id,
+      connection_id: connVermaSharma?.id || null,
+      invoice_no: "TRD-2026-IN-03",
+      invoice_date: daysAgo(7).split("T")[0],
+      subtotal: 42500,
+      tax_amount: 2125,
+      total_amount: 44625,
+      status: "Imported",
+      notes: "Soyabean Oil & Sugar commercial lot - Imported into Stock",
+      created_at: daysAgo(7, 14, 0)
+    })
+    .select()
+    .single();
+
+  if (txInboxImported) {
+    await supabase.from("trade_transaction_items").insert([
+      {
+        transaction_id: txInboxImported.id,
+        product_name: "Refined Soyabean Oil Commercial Tin (15L)",
+        sku: "WHL-OIL-15L",
+        quantity: 20,
+        purchase_price: 1650,
+        gst_percent: 5,
+        category: "Edible Oils",
+        unit: "tins",
+        total: 34650
+      },
+      {
+        transaction_id: txInboxImported.id,
+        product_name: "Refined White Sugar M-30 Grade (50kg Bag)",
+        sku: "WHL-SUG-50K",
+        quantity: 5,
+        purchase_price: 1900,
+        gst_percent: 5,
+        category: "Commodities",
+        unit: "bags",
+        total: 9975
+      }
+    ]);
+  }
+
+  // 4. Rejected invoice (Gupta -> Sharma)
+  const { data: txInboxRejected } = await supabase
+    .from("trade_transactions")
+    .insert({
+      sender_id: guptaOwner.id,
+      receiver_id: sharmaOwner.id,
+      connection_id: connGuptaSharma?.id || null,
+      invoice_no: "TRD-2026-IN-04",
+      invoice_date: daysAgo(12).split("T")[0],
+      subtotal: 8550,
+      tax_amount: 1539,
+      total_amount: 10089,
+      status: "Rejected",
+      notes: "Billed unit price discrepancy. Credit note requested.",
+      created_at: daysAgo(12, 10, 0)
+    })
+    .select()
+    .single();
+
+  if (txInboxRejected) {
+    await supabase.from("trade_transaction_items").insert([
+      {
+        transaction_id: txInboxRejected.id,
+        product_name: "Nescafe Classic Instant Coffee Jar (100g)",
+        sku: "BEV-NES-100",
+        quantity: 30,
+        purchase_price: 285,
+        gst_percent: 18,
+        category: "Beverages",
+        unit: "jars",
+        total: 10089
+      }
+    ]);
+  }
+
+  // D. Pillar 3: Trade Outbox (Invoices sent by Sharma General Store to UrbanWear)
+  // 1. Accepted Outbox Invoice
+  const { data: txOutboxAccepted } = await supabase
+    .from("trade_transactions")
+    .insert({
+      sender_id: sharmaOwner.id,
+      receiver_id: urbanwearOwner.id,
+      connection_id: connSharmaUrban?.id || null,
+      invoice_no: "TRD-2026-OUT-01",
+      invoice_date: daysAgo(2).split("T")[0],
+      subtotal: 10820,
+      tax_amount: 1948,
+      total_amount: 12768,
+      status: "Accepted",
+      notes: "Staff pantry supplies & hand sanitizers",
+      created_at: daysAgo(2, 16, 0)
+    })
+    .select()
+    .single();
+
+  if (txOutboxAccepted) {
+    await supabase.from("trade_transaction_items").insert([
+      {
+        transaction_id: txOutboxAccepted.id,
+        product_name: "Nescafe Classic Instant Coffee Jar (100g)",
+        sku: "BEV-NES-100",
+        quantity: 20,
+        purchase_price: 285,
+        gst_percent: 18,
+        unit: "jars",
+        total: 6726
+      },
+      {
+        transaction_id: txOutboxAccepted.id,
+        product_name: "Dettol Original Germ Protection Soap (125g x 3)",
+        sku: "PER-DET-125",
+        quantity: 40,
+        purchase_price: 128,
+        gst_percent: 18,
+        unit: "packs",
+        total: 6042
+      }
+    ]);
+  }
+
+  // 2. Viewed Outbox Invoice
+  const { data: txOutboxViewed } = await supabase
+    .from("trade_transactions")
+    .insert({
+      sender_id: sharmaOwner.id,
+      receiver_id: urbanwearOwner.id,
+      connection_id: connSharmaUrban?.id || null,
+      invoice_no: "TRD-2026-OUT-02",
+      invoice_date: daysAgo(5).split("T")[0],
+      subtotal: 4720,
+      tax_amount: 566,
+      total_amount: 5286,
+      status: "Viewed",
+      notes: "Event beverages and snacks delivery",
+      created_at: daysAgo(5, 11, 30)
+    })
+    .select()
+    .single();
+
+  if (txOutboxViewed) {
+    await supabase.from("trade_transaction_items").insert([
+      {
+        transaction_id: txOutboxViewed.id,
+        product_name: "Maaza Mango Drink Bottle (1.2L)",
+        sku: "BEV-MAN-01L",
+        quantity: 60,
+        purchase_price: 52,
+        gst_percent: 12,
+        unit: "bottles",
+        total: 3494
+      },
+      {
+        transaction_id: txOutboxViewed.id,
+        product_name: "Lay's India's Magic Masala Chips (50g)",
+        sku: "SNK-LAY-50G",
+        quantity: 100,
+        purchase_price: 16,
+        gst_percent: 12,
+        unit: "pkts",
+        total: 1792
+      }
+    ]);
+  }
+
+  // 3. Pending Outbox Invoice
+  const { data: txOutboxPending } = await supabase
+    .from("trade_transactions")
+    .insert({
+      sender_id: sharmaOwner.id,
+      receiver_id: urbanwearOwner.id,
+      connection_id: connSharmaUrban?.id || null,
+      invoice_no: "TRD-2026-OUT-03",
+      invoice_date: daysAgo(0).split("T")[0],
+      subtotal: 8500,
+      tax_amount: 1530,
+      total_amount: 10030,
+      status: "Pending",
+      notes: "Storage boxes and barcode printer supplies",
+      created_at: daysAgo(0, 15, 0)
+    })
+    .select()
+    .single();
+
+  if (txOutboxPending) {
+    await supabase.from("trade_transaction_items").insert([
+      {
+        transaction_id: txOutboxPending.id,
+        product_name: "EcoPack Containers & Boxes (500ml)",
+        sku: "HME-ECO-500",
+        quantity: 100,
+        purchase_price: 45,
+        gst_percent: 18,
+        unit: "pcs",
+        total: 5310
+      },
+      {
+        transaction_id: txOutboxPending.id,
+        product_name: "Thermal Barcode Label Rolls (50x25mm)",
+        sku: "HME-LBL-50X",
+        quantity: 50,
+        purchase_price: 80,
+        gst_percent: 18,
+        unit: "rolls",
+        total: 4720
+      }
+    ]);
+  }
+
+  // E. Pillar 4: Trade Credit (Credit Given & Credit Received)
+  const creditPayloads = [
+    // Credit Given (Sharma -> UrbanWear): Receivables
+    {
+      supplier_id: sharmaOwner.id,
+      buyer_id: urbanwearOwner.id,
+      credit_limit: 100000,
+      outstanding_amount: 28084,
+      utilized_amount: 28084,
+      payment_terms_days: 30,
+      due_date: new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      status: "active",
+      notes: "Net 30 days corporate credit limit for boutique branch"
+    },
+    // Credit Received (Verma -> Sharma): Payables
+    {
+      supplier_id: vermaOwner.id,
+      buyer_id: sharmaOwner.id,
+      credit_limit: 250000,
+      outstanding_amount: 61110,
+      utilized_amount: 61110,
+      payment_terms_days: 15,
+      due_date: new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      status: "active",
+      notes: "APMC Wholesale Depot commodity credit line"
+    },
+    // Credit Received (Gupta -> Sharma): Payables
+    {
+      supplier_id: guptaOwner.id,
+      buyer_id: sharmaOwner.id,
+      credit_limit: 150000,
+      outstanding_amount: 20878,
+      utilized_amount: 20878,
+      payment_terms_days: 21,
+      due_date: new Date(now.getTime() + 18 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      status: "active",
+      notes: "FMCG distribution credit line (Net 21 days)"
+    }
+  ];
+
+  await supabase.from("trade_credit_accounts").upsert(creditPayloads, { onConflict: "supplier_id,buyer_id" });
+
+  // F. Pillar 5: Trust Scores & Metrics
+  const reputationMetricsPayload = [
+    {
+      user_id: sharmaOwner.id,
+      completed_trades: 14,
+      cancelled_trades: 0,
+      disputes_raised: 0,
+      disputes_lost: 0,
+      late_payments: 0,
+      avg_payment_delay_days: 0.0,
+      response_rate_pct: 98,
+      gst_verified: true,
+      profile_completeness_pct: 100,
+      connection_acceptance_rate_pct: 95,
+      review_count: 8,
+      review_average: 4.9
+    },
+    {
+      user_id: vermaOwner.id,
+      completed_trades: 42,
+      cancelled_trades: 1,
+      disputes_raised: 0,
+      disputes_lost: 0,
+      late_payments: 1,
+      avg_payment_delay_days: 1.2,
+      response_rate_pct: 94,
+      gst_verified: true,
+      profile_completeness_pct: 95,
+      connection_acceptance_rate_pct: 90,
+      review_count: 24,
+      review_average: 4.8
+    },
+    {
+      user_id: guptaOwner.id,
+      completed_trades: 18,
+      cancelled_trades: 0,
+      disputes_raised: 1,
+      disputes_lost: 0,
+      late_payments: 0,
+      avg_payment_delay_days: 0.0,
+      response_rate_pct: 92,
+      gst_verified: true,
+      profile_completeness_pct: 90,
+      connection_acceptance_rate_pct: 85,
+      review_count: 12,
+      review_average: 4.7
+    },
+    {
+      user_id: urbanwearOwner.id,
+      completed_trades: 9,
+      cancelled_trades: 0,
+      disputes_raised: 0,
+      disputes_lost: 0,
+      late_payments: 0,
+      avg_payment_delay_days: 0.0,
+      response_rate_pct: 90,
+      gst_verified: true,
+      profile_completeness_pct: 85,
+      connection_acceptance_rate_pct: 88,
+      review_count: 5,
+      review_average: 4.6
+    },
+    {
+      user_id: apexOwner.id,
+      completed_trades: 3,
+      cancelled_trades: 0,
+      disputes_raised: 0,
+      disputes_lost: 0,
+      late_payments: 0,
+      avg_payment_delay_days: 0.0,
+      response_rate_pct: 80,
+      gst_verified: true,
+      profile_completeness_pct: 80,
+      connection_acceptance_rate_pct: 80,
+      review_count: 2,
+      review_average: 4.4
+    }
+  ];
+
+  await supabase.from("business_reputation_metrics").upsert(reputationMetricsPayload, { onConflict: "user_id" });
+
+  // Reputation history events
+  const reputationEvents = [
+    { user_id: sharmaOwner.id, event_type: "GST_VERIFIED", impact_score: 10, context: { gstin: "07AAAAA1234A1Z1" } },
+    { user_id: sharmaOwner.id, event_type: "TRADE_COMPLETED", impact_score: 5, context: { invoice_no: "TRD-2026-IN-03" } },
+    { user_id: sharmaOwner.id, event_type: "PAYMENT_ON_TIME", impact_score: 5, context: { supplier: "Verma Wholesale" } },
+    { user_id: sharmaOwner.id, event_type: "CONNECTION_ACCEPTED", impact_score: 2, context: { partner: "Gupta FMCG" } }
+  ];
+
+  await supabase.from("business_reputation_history").insert(reputationEvents);
+
+  console.log(`✅ Seeded Business Network 5 Pillars (Partners, Inbox, Outbox, Credit, Trust Scores).`);
 
   console.log("==========================================================");
   console.log("🎉 Karobar Demo Environment Seeded Successfully!");
   console.log("==========================================================");
   console.log("All accounts password: " + DEMO_PASSWORD);
-  console.log("Owner:      demo.owner@karobar.test");
-  console.log("Manager:    demo.manager@karobar.test");
-  console.log("Cashier:    demo.cashier@karobar.test");
-  console.log("Accountant: demo.accountant@karobar.test");
-  console.log("Inventory:  demo.inventory@karobar.test");
-  console.log("Delivery:   demo.delivery@karobar.test");
-  console.log("Wholesale:  demo.wholesale@karobar.test");
-  console.log("Apparel:    demo.apparel@karobar.test");
+  console.log("Owner:        demo.owner@karobar.test (Sharma General Store - Retail Kirana)");
+  console.log("Manager:      demo.manager@karobar.test");
+  console.log("Cashier:      demo.cashier@karobar.test");
+  console.log("Accountant:   demo.accountant@karobar.test");
+  console.log("Inventory:    demo.inventory@karobar.test");
+  console.log("Delivery:     demo.delivery@karobar.test");
+  console.log("Wholesale:    demo.wholesale@karobar.test (Verma Wholesale Traders - Commodity Supplier)");
+  console.log("Apparel:      demo.apparel@karobar.test (UrbanWear Store - Connected Buyer)");
+  console.log("Distributor:  demo.distributor@karobar.test (Gupta FMCG - FMCG Supplier)");
+  console.log("Packaging:    demo.packaging@karobar.test (Apex Packaging - Pending Partner)");
   console.log("==========================================================");
 }
 
