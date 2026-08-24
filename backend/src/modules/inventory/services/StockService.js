@@ -814,4 +814,137 @@ export class StockService {
 
     return returnResults;
   }
+
+  /**
+   * Atomically receives stock from a B2B Trade Invoice Import.
+   * Acquires SELECT FOR UPDATE locks on warehouse_stock, creates/updates inventory_batches,
+   * increments warehouse_stock on_hand and available, and records immutable inward inventory_movements.
+   * 
+   * @param {string} organizationId 
+   * @param {object} params 
+   * @param {string} params.warehouseId 
+   * @param {string} params.transactionId 
+   * @param {string} params.importId 
+   * @param {string} params.invoiceNo 
+   * @param {Array} params.items 
+   * @param {string} actorUserId 
+   */
+  static async receiveTradeImportStock(organizationId, { warehouseId, transactionId, importId, invoiceNo, items }, actorUserId) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return [];
+    }
+
+    // 1. Pre-validation Pass: Validate all items before modifying any balances
+    for (const item of items) {
+      const qty = Number(item.quantity || 0);
+      if (qty <= 0) {
+        throw new ValidationError("Import quantity must be greater than zero for all items.");
+      }
+      const productId = item.productId || item.product_id || item.inventory_id;
+      if (!productId) {
+        throw new ValidationError("Product ID is required for each imported item.");
+      }
+    }
+
+    // 2. Receipt and Inward Stock Pass:
+    const receiptResults = [];
+    for (const item of items) {
+      const qty = Number(item.quantity || 0);
+      const productId = item.productId || item.product_id || item.inventory_id;
+      const variantId = item.variantId || item.variant_id || null;
+      const unitCost = Number(item.cost_price || item.costPrice || item.purchase_cost || item.purchase_price || item.unit_price || item.unitPrice || 0);
+      const sellingPrice = Number(item.selling_price || item.sellingPrice || item.price || 0);
+      const batchNumber = item.batch_number || item.batchNumber || item.batch_name || `B2B-${invoiceNo || Date.now()}-${String(productId).slice(0, 8)}`;
+      const expiryDate = item.expiry_date || item.expiryDate || null;
+
+      // Lock warehouse stock row
+      const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
+
+      // Create new inventory batch
+      let batchId = null;
+      try {
+        const { data: newBatch, error: bErr } = await adminSupabase
+          .from("inventory_batches")
+          .insert({
+            organization_id: organizationId,
+            inventory_id: productId,
+            product_id: productId,
+            variant_id: variantId,
+            warehouse_id: warehouseId,
+            batch_name: `B2B #${invoiceNo || 'Import'} - ${batchNumber}`,
+            batch_number: batchNumber,
+            cost_price: unitCost,
+            purchase_cost: unitCost,
+            selling_price: sellingPrice,
+            expiry_date: expiryDate,
+            stock: qty,
+            created_by: actorUserId
+          })
+          .select()
+          .single();
+
+        if (!bErr && newBatch) {
+          batchId = newBatch.id;
+          publisher.publish("inventory.batch.created", { id: batchId, organizationId, batchNumber });
+        }
+      } catch (bCatchErr) {
+        console.warn(`[StockService] Batch creation warning for product ${productId}:`, bCatchErr.message);
+      }
+
+      // Update warehouse stock balances
+      const newOnHand = Number(stock.on_hand) + qty;
+      const newAvailable = newOnHand - Number(stock.reserved);
+
+      const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
+        on_hand: newOnHand,
+        available: newAvailable
+      });
+
+      // Create immutable inward inventory movement record
+      const movement = await StockRepository.createMovement({
+        organization_id: organizationId,
+        warehouse_id: warehouseId,
+        product_id: productId,
+        variant_id: variantId,
+        batch_id: batchId,
+        quantity: qty, // Positive for inward movement
+        movement_type: "purchase",
+        reference_type: "trade_transactions",
+        reference_id: transactionId || importId,
+        unit_cost: unitCost,
+        total_cost: unitCost * qty,
+        valuation_method: "FIFO",
+        created_by: actorUserId
+      });
+
+      // Update legacy inventory master record for backward compatibility
+      try {
+        const { data: legacyProd } = await adminSupabase
+          .from("inventory")
+          .select("id, stock, cost_price")
+          .eq("id", productId)
+          .maybeSingle();
+
+        if (legacyProd) {
+          const currentLegacyStock = Number(legacyProd.stock || 0);
+          await adminSupabase
+            .from("inventory")
+            .update({
+              stock: currentLegacyStock + qty,
+              cost_price: unitCost > 0 ? unitCost : legacyProd.cost_price,
+              price: sellingPrice > 0 ? sellingPrice : legacyProd.price,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", productId);
+        }
+      } catch {}
+
+      publisher.publish("inventory.movement.created", { id: movement.id, organizationId });
+      publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: newOnHand });
+
+      receiptResults.push({ stock: updatedStock, movement, batchId });
+    }
+
+    return receiptResults;
+  }
 }

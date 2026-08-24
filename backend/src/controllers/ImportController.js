@@ -1,5 +1,6 @@
 import { supabase } from "../config/db.js";
 import { NetworkService } from "../services/NetworkService.js";
+import { StockService } from "../modules/inventory/services/StockService.js";
 import { successResponse, errorResponse, createdResponse } from "../utils/responseHelper.js";
 
 /**
@@ -46,7 +47,7 @@ export const createImportDraft = async (req, res) => {
     const supplierId = tx.sender_id;
 
     // Run fuzzy matching for each item
-    const enrichedItems = await Promise.all(items.map(async (item) => {
+    const enrichedItems = await Promise.all((items || []).map(async (item) => {
       const match = await NetworkService.findSimilarProduct(buyerId, item.product_name, item.sku, supplierId);
       return {
         trade_item_id: item.id,
@@ -104,32 +105,65 @@ export const createImportDraft = async (req, res) => {
   }
 };
 
-// Execute the final import — creates/updates inventory records
+// Execute the final import — creates/updates inventory records via modern StockService
 export const executeImport = async (req, res) => {
   try {
     const buyerId = req.user.id;
-    const { import_id, items } = req.body;
-    // items: [{ trade_item_id, action, inventory_id, selling_price, mrp, gst_percent, category, unit, min_stock, reorder_level, product_name, quantity, purchase_price }]
+    const orgId = req.tenantId || req.user.organization_id || req.user.id;
+    const { import_id, items, warehouse_id } = req.body;
+    // items: [{ trade_item_id, action, inventory_id, selling_price, mrp, gst_percent, category, unit, min_stock, reorder_level, product_name, quantity, purchase_price, batch_name, expiry_date }]
 
     if (!import_id || !items || !Array.isArray(items)) {
       return errorResponse(res, "import_id and items[] are required", 400);
     }
 
-    // Verify import belongs to buyer
+    // 1. Verify import belongs to buyer
     const { data: importRecord, error: importErr } = await supabase
       .from("purchase_imports")
       .select("*, trade_transactions(id, sender_id, invoice_no)")
       .eq("id", import_id)
       .eq("buyer_id", buyerId)
-      .eq("status", "Draft")
       .single();
 
-    if (importErr || !importRecord) return errorResponse(res, "Import draft not found or already processed", 404);
+    if (importErr || !importRecord) {
+      return errorResponse(res, "Import draft not found", 404);
+    }
+
+    // 2. Idempotency Guard: Prevent duplicate stock increments for already completed imports
+    if (importRecord.status === "Completed") {
+      return errorResponse(res, "This invoice has already been imported", 409);
+    }
+
+    if (importRecord.status !== "Draft") {
+      return errorResponse(res, `Import cannot be executed from status '${importRecord.status}'`, 400);
+    }
+
+    // 3. Resolve active warehouse
+    let whId = warehouse_id;
+    if (!whId) {
+      try {
+        const { data: wh } = await supabase
+          .from("warehouses")
+          .select("id")
+          .or(`organization_id.eq.${orgId},user_id.eq.${buyerId}`)
+          .eq("is_active", true)
+          .order("is_main_hub", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        whId = wh?.id;
+      } catch {}
+
+      if (!whId) {
+        whId = "00000000-0000-0000-0000-000000000001";
+      }
+    }
 
     let createdCount = 0;
     let matchedCount = 0;
     let ignoredCount = 0;
     const savedLinks = [];
+    const itemsToStock = [];
+    const supplierId = importRecord.trade_transactions?.sender_id;
 
     for (const item of items) {
       if (item.action === "ignore") {
@@ -137,42 +171,53 @@ export const executeImport = async (req, res) => {
         continue;
       }
 
-      const supplierId = importRecord.trade_transactions?.sender_id;
+      let targetInventoryId = item.inventory_id;
 
       if (item.action === "create") {
-        // Create a new inventory product
+        // Create a new master inventory product record
         const { data: newProduct, error: createErr } = await supabase
           .from("inventory")
           .insert({
             user_id: buyerId,
             name: item.product_name,
             sku: item.sku || null,
-            price: item.selling_price || item.purchase_price * 1.2,
-            cost_price: item.purchase_price,
+            price: item.selling_price || (Number(item.purchase_price || 0) * 1.2),
+            cost_price: Number(item.purchase_price || 0),
             gst_percent: item.gst_percent || 0,
             category: item.category || "General",
             unit: item.unit || "pcs",
-            stock: item.quantity,
+            stock: 0, // Stock balance is maintained and updated via StockService
             low_stock_threshold: item.min_stock || 5,
             reorder_level: item.reorder_level || 10
           })
           .select()
           .single();
 
-        if (createErr) {
-          console.warn(`[ImportController] Failed to create product ${item.product_name}:`, createErr.message);
+        if (createErr || !newProduct) {
+          console.warn(`[ImportController] Failed to create product ${item.product_name}:`, createErr?.message);
           continue;
         }
 
-        // Add inventory batch for this import
-        await supabase.from("inventory_batches").insert({
-          inventory_id: newProduct.id,
-          batch_name: importRecord.trade_transactions?.invoice_no || "Network Import",
-          sku_variant: item.sku || newProduct.sku || "",
-          cost_price: item.purchase_price,
-          selling_price: item.selling_price || item.purchase_price * 1.2,
-          stock: item.quantity
-        }).catch(() => {});
+        targetInventoryId = newProduct.id;
+        createdCount++;
+        savedLinks.push({ product_name: item.product_name, inventory_id: targetInventoryId, action: "created" });
+      } else if (item.action === "match" && targetInventoryId) {
+        matchedCount++;
+        savedLinks.push({ product_name: item.product_name, inventory_id: targetInventoryId, action: "matched" });
+      }
+
+      if (targetInventoryId) {
+        itemsToStock.push({
+          productId: targetInventoryId,
+          inventory_id: targetInventoryId,
+          quantity: Number(item.quantity || 0),
+          cost_price: Number(item.purchase_price || 0),
+          purchase_cost: Number(item.purchase_price || 0),
+          selling_price: Number(item.selling_price || 0),
+          batch_name: item.batch_name || importRecord.trade_transactions?.invoice_no || "B2B Import",
+          batch_number: item.batch_name || `B2B-${importRecord.trade_transactions?.invoice_no || Date.now()}-${String(targetInventoryId).slice(0, 8)}`,
+          expiry_date: item.expiry_date || null
+        });
 
         // Save supplier product link for future auto-matching
         if (supplierId) {
@@ -181,61 +226,26 @@ export const executeImport = async (req, res) => {
             buyer_id: buyerId,
             supplier_product_name: item.product_name,
             supplier_sku: item.sku || null,
-            buyer_inventory_id: newProduct.id,
+            buyer_inventory_id: targetInventoryId,
             auto_import: true,
             confidence_score: 1.0
           }, { onConflict: "supplier_id,buyer_id,supplier_product_name" }).catch(() => {});
         }
-
-        createdCount++;
-        savedLinks.push({ product_name: item.product_name, inventory_id: newProduct.id, action: "created" });
-
-      } else if (item.action === "match" && item.inventory_id) {
-        // Match to existing product — add stock
-        const { data: existing } = await supabase
-          .from("inventory")
-          .select("stock")
-          .eq("id", item.inventory_id)
-          .eq("user_id", buyerId)
-          .single();
-
-        if (existing) {
-          const newStock = Number(existing.stock || 0) + Number(item.quantity || 0);
-          await supabase
-            .from("inventory")
-            .update({ stock: newStock })
-            .eq("id", item.inventory_id);
-
-          // Add batch
-          await supabase.from("inventory_batches").insert({
-            inventory_id: item.inventory_id,
-            batch_name: importRecord.trade_transactions?.invoice_no || "Network Import",
-            sku_variant: item.sku || "",
-            cost_price: item.purchase_price,
-            selling_price: item.selling_price || item.purchase_price * 1.2,
-            stock: item.quantity
-          }).catch(() => {});
-
-          // Save/update supplier product link
-          if (supplierId) {
-            await supabase.from("supplier_product_links").upsert({
-              supplier_id: supplierId,
-              buyer_id: buyerId,
-              supplier_product_name: item.product_name,
-              supplier_sku: item.sku || null,
-              buyer_inventory_id: item.inventory_id,
-              auto_import: true,
-              confidence_score: 1.0
-            }, { onConflict: "supplier_id,buyer_id,supplier_product_name" }).catch(() => {});
-          }
-
-          matchedCount++;
-          savedLinks.push({ product_name: item.product_name, inventory_id: item.inventory_id, action: "matched" });
-        }
       }
     }
 
-    // Mark import as Completed
+    // 4. Atomically stock all received items via the modern StockService engine
+    if (itemsToStock.length > 0) {
+      await StockService.receiveTradeImportStock(orgId, {
+        warehouseId: whId,
+        transactionId: importRecord.trade_transactions?.id || importRecord.transaction_id,
+        importId: importRecord.id,
+        invoiceNo: importRecord.trade_transactions?.invoice_no,
+        items: itemsToStock
+      }, buyerId);
+    }
+
+    // 5. Mark import as Completed
     await supabase
       .from("purchase_imports")
       .update({
@@ -247,13 +257,13 @@ export const executeImport = async (req, res) => {
       })
       .eq("id", import_id);
 
-    // Mark trade transaction as Imported
+    // 6. Mark trade transaction as Imported
     await supabase
       .from("trade_transactions")
       .update({ status: "Imported", updated_at: new Date().toISOString() })
       .eq("id", importRecord.transaction_id);
 
-    // Notify supplier
+    // 7. Notify supplier
     if (importRecord.trade_transactions?.sender_id) {
       const { data: buyer } = await supabase.from("users").select("business_name").eq("id", buyerId).single();
       await NetworkService.notifyUser(
