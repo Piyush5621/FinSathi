@@ -162,7 +162,7 @@ export const AnalyticsService = {
                     const rate = Number(item.gst_percent || 0);
                     if (price && qty && rate) {
                         // Exclusive tax assumption based on current logic? 
-                        // Or implicit? Usually FinSathi uses Exclusive in item adder?
+                        // Or implicit? Usually Sanchay uses Exclusive in item adder?
                         // Let's assume (Price * Qty * Rate / 100).
                         return iSum + ((price * qty * rate) / 100);
                     }

@@ -34,7 +34,7 @@ export const SummaryService = {
                 growth > 0
                     ? `Sales increased by ${growth}% compared to last week.`
                     : `Sales decreased by ${Math.abs(growth)}%.`,
-                `${newCustomers} new customers joined FinSathi this week.`,
+                `${newCustomers} new customers visited your business this week.`,
                 growth > 20
                     ? "🔥 Great job! Your marketing efforts are paying off."
                     : growth > 0

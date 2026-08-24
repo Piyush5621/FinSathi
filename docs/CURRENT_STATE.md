@@ -1,18 +1,18 @@
-# 🗺️ FinSathi — Project Map: Current State → Final Product
+# 🗺️ Sanchay — Project Map: Current State → Final Product
 
 > **Document Type**: Plain-English Project Execution Map  
 > **Status**: Living Execution Guide  
-> **Target**: Take FinSathi from `v1.0.0-rc1` to a Production-Ready Product  
+> **Target**: Take Sanchay to a Production-Ready Product  
 > **Rule**: No complex diagrams, no heavy theory. Just what is built, what is broken, what we are doing next, and the final goal.
 
 ---
 
-# 1. FinSathi in One Page
+# 1. Sanchay in One Page
 
-### What is FinSathi?
-FinSathi is a smart, mobile-first business management app (Operating System) built for Indian shopkeepers, Kirana stores, wholesalers, and small businesses. 
+### What is Sanchay?
+Sanchay is a smart, mobile-first business management and stock platform (Operating System) built for Indian shopkeepers, Kirana stores, wholesalers, and small businesses. 
 
-Instead of writing in paper notebooks (*Bahi-Khata*) or using complicated desktop software like Tally, a shopkeeper uses FinSathi on their phone or tablet to scan barcodes, make GST bills in 10 seconds, track expiring product batches, see if they will run out of cash in the next 14 days, send payment reminders to customers on WhatsApp, and ask business questions in Hindi or Hinglish voice (*"Aaj kitna bika?"*).
+Instead of writing in paper notebooks (*Bahi-Khata*) or using complicated desktop software like Tally, a shopkeeper uses Sanchay on their phone or tablet to scan barcodes, make GST bills in 10 seconds, track expiring product batches, see if they will run out of cash in the next 14 days, send payment reminders to customers on WhatsApp, and ask business questions in Hindi or Hinglish voice (*"Aaj kitna bika?"*).
 
 ### Where are we right now?
 The backend foundation is in great shape. In our recent development sprints, we built a modern, enterprise-grade engine for organizations, users, product variants, warehouse stock, and batch expiry tracking. 

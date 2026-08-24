@@ -33,7 +33,7 @@ router.post("/send-whatsapp", authenticateToken, async (req, res) => {
     if (saleErr || !sale) return res.status(404).json({ error: "Invoice not found" });
     if (!sale.customers?.phone) return res.status(400).json({ error: "Customer phone missing" });
 
-    const shopName = sale.users?.business_name || "FinSathi";
+    const shopName = sale.users?.business_name || "Sanchay";
     const msg = `Hi ${sale.customers.name}, your invoice #${sale.invoice_no} of ₹${sale.total} is due.`;
 
     const result = await ReminderService.sendMessage(sale.customers.phone, sale, shopName, msg);

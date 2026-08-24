@@ -167,7 +167,7 @@ export default function FounderDashboard() {
             </div>
 
             <p className="text-[13px] leading-relaxed text-slate-200 font-medium my-4">
-              {brief?.summary || "Add new sales, payments, or expenses in FinSathi. Once data updates, the AI daily brief will auto-generate your morning summary."}
+              {brief?.summary || "Add new sales, payments, or expenses in Sanchay. Once data updates, the AI daily brief will auto-generate your morning summary."}
             </p>
 
             <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-[9px] text-indigo-300 font-bold tracking-widest uppercase">

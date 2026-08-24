@@ -42,7 +42,7 @@ const Topbar = ({ demoMode = false, onToggleDemo = () => { } }) => {
   const navigate = useNavigate();
 
   const storedUser = JSON.parse(localStorage.getItem("user"));
-  const userName = storedUser?.name || "FinSathi User";
+  const userName = storedUser?.name || "Sanchay User";
   const firstLetter = userName.charAt(0).toUpperCase();
 
   /** 🔔 Fetch Notifications Once */
@@ -82,14 +82,14 @@ const Topbar = ({ demoMode = false, onToggleDemo = () => { } }) => {
     try {
       if (mode === "client") {
         const { exportElementToPDF } = await import("../../../utils/exportPDF");
-        await exportElementToPDF("dashboard-root", "FinSathi-Report.pdf");
+        await exportElementToPDF("dashboard-root", "Sanchay-Report.pdf");
         toast.success("⚡ Quick Export completed (Client-side)");
       } else {
         const res = await API.get("/report/dashboard", { responseType: "blob" });
         const url = window.URL.createObjectURL(new Blob([res.data]));
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", "FinSathi-Report.pdf");
+        link.setAttribute("download", "Sanchay-Report.pdf");
         document.body.appendChild(link);
         link.click();
         link.remove();

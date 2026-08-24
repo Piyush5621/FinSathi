@@ -107,10 +107,10 @@ const Sidebar = () => {
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-                  FinSathi
+                  Sanchay
                 </h1>
                 <p className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">
-                  Business OS
+                  Business & Stock OS
                 </p>
               </div>
             </motion.div>

@@ -129,7 +129,7 @@ export default function GstReportsPage() {
              <div>
                 <p className="text-xs font-black text-amber-800 uppercase tracking-tight">Disclaimer</p>
                 <p className="text-[10px] text-amber-600 mt-1 leading-relaxed">
-                   This report is a data summary generated from your FinSathi transaction history. 
+                   This report is a data summary generated from your Sanchay transaction history. 
                    It is not an official tax filing. Please verify this data with your Chartered Accountant 
                    before submitting to the GST portal.
                 </p>

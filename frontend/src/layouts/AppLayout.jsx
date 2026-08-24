@@ -385,7 +385,7 @@ export default function AppLayout() {
 
         {/* MOBILE HEADER */}
         <header className="md:hidden flex items-center justify-between h-16 px-6 bg-[#090D16] shrink-0 border-b border-white/5 z-40">
-           <h1 className="text-base font-bold text-white tracking-tight">FinSathi</h1>
+           <h1 className="text-base font-bold text-white tracking-tight">Sanchay</h1>
            <Link to="/profile">
              <div className="w-8 h-8 rounded-xl bg-brand-blue text-white flex items-center justify-center text-xs font-black border border-white/10 overflow-hidden shadow-md">
                 {userAvatar ? <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" /> : userInitial}

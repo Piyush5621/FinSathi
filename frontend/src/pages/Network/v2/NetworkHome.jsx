@@ -415,7 +415,7 @@ export default function NetworkHome() {
                 <Card className="p-5 bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[20px] border-none shadow-xl text-white">
                   <Target size={20} className="mb-3 text-indigo-200" aria-hidden="true" />
                   <h3 id="network-health-heading" className="text-base font-black tracking-tight">Get Started</h3>
-                  <p className="text-indigo-200 text-xs mt-1 mb-5">3 steps to start growing with FinSathi Network</p>
+                  <p className="text-indigo-200 text-xs mt-1 mb-5">3 steps to start growing with Sanchay Network</p>
                   <div className="space-y-2">
                     {[
                       { step: '1', title: 'Find a Supplier', desc: 'Search by category, location, GST', link: '/network/directory' },

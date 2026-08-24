@@ -37,7 +37,7 @@ const sections = [
         label: 'Third Party API',
         icon: Database,
         title: 'Developer Portal & API Access',
-        desc: 'Connect FinSathi to your own custom software via secure REST APIs and Webhooks.',
+        desc: 'Connect Sanchay to your own custom software via secure REST APIs and Webhooks.',
         milestones: ['API Key Management', 'Webhooks Support', 'Documentation Hub'],
         status: 'Roadmap'
     }

@@ -5,11 +5,11 @@ import toast from "react-hot-toast";
 /**
  * Capture a full dashboard section as PDF
  * - Automatically splits into multiple pages if height > A4
- * - Adds FinSathi header + timestamp
+ * - Adds Sanchay header + timestamp
  * - Preserves good quality using scale: 2
  * - Shows progress using toast notifications
  */
-export async function exportElementToPDF(elementId, filename = "FinSathi-Report.pdf") {
+export async function exportElementToPDF(elementId, filename = "Sanchay-Report.pdf") {
   try {
     const toastId = toast.loading("Preparing dashboard for export...");
     
@@ -43,10 +43,10 @@ export async function exportElementToPDF(elementId, filename = "FinSathi-Report.
   let position = 60; // start below header
   let heightLeft = imgHeight;
 
-  // 🧾 Add FinSathi header with date
+  // 🧾 Add Sanchay header with date
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(16);
-  pdf.text("FinSathi Business Report", 30, 30);
+  pdf.text("Sanchay Business Report", 30, 30);
   pdf.setFontSize(10);
   pdf.setFont("helvetica", "normal");
   pdf.text(`Generated on: ${new Date().toLocaleString()}`, 30, 45);

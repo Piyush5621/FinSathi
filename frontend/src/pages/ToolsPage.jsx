@@ -86,7 +86,7 @@ export default function ToolsPage() {
           <Settings2 size={28} className="text-brand-blue" />
           Feature Hub & Modules
         </h1>
-        <p className="text-[14px] text-[#64748B] mt-[4px] font-medium">Enable powerful modular extensions to supercharge your FinSathi experience.</p>
+        <p className="text-[14px] text-[#64748B] mt-[4px] font-medium">Enable powerful modular extensions to supercharge your Sanchay experience.</p>
       </div>
 
       <div className="space-y-[48px]">

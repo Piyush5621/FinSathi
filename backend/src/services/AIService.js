@@ -59,7 +59,7 @@ async function callGemini(systemPrompt, userMessage, retryCount = 0) {
  */
 async function extractIntent(userQuery, context) {
   const today = new Date().toISOString().split("T")[0];
-  const systemPrompt = `You are an intent extraction engine for FinSathi, a business management app used by Indian small businesses.
+  const systemPrompt = `You are an intent extraction engine for Sanchay, a business and stock management app used by Indian small businesses.
   Extract the user's query intent into valid JSON.
 
   Intent Types:
@@ -362,7 +362,7 @@ async function formatResponse(data, originalQuery, language) {
       dataDesc = "I could not determine what you're asking. Please try: 'Show today sales', 'Profit this month', 'Low stock items', or 'Outstanding dues'.";
   }
 
-  const systemPrompt = `You are FinVoice, a warm, expert AI business advisor for FinSathi — an app used by Indian small business owners.
+  const systemPrompt = `You are Sanchay AI, a warm, expert AI business advisor for Sanchay — a business and stock OS used by Indian small business owners.
 
 The user asked: "${originalQuery}"
 

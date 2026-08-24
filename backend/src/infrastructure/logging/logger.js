@@ -28,7 +28,7 @@ const logFormat = combine(
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
-  defaultMeta: { service: 'finsathi-backend' },
+  defaultMeta: { service: 'sanchay-backend' },
   transports: [
     new winston.transports.Console()
   ]

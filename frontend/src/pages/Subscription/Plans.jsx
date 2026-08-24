@@ -22,7 +22,7 @@ const Plans = () => {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_placeholder",
         amount: order.amount,
         currency: order.currency,
-        name: "FinSathi",
+        name: "Sanchay",
         description: `Upgrade to ${PLANS[planKey].name} Plan`,
         order_id: order.orderId,
         handler: async function (response) {
@@ -65,7 +65,7 @@ const Plans = () => {
     <div className="max-w-6xl mx-auto p-6">
       <div className="text-center mb-10">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Plan</h1>
-        <p className="text-gray-600">Scale your business with FinSathi's powerful tools.</p>
+        <p className="text-gray-600">Scale your business with Sanchay's powerful tools.</p>
         
         <div className="mt-6 inline-flex bg-gray-100 rounded-lg p-1">
           <button 

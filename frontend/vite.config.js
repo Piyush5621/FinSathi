@@ -11,9 +11,9 @@ export default defineConfig({
       useCredentials: true,
       includeAssets: ['favicon.ico', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'FinSathi — Intelligent Business OS',
-        short_name: 'FinSathi',
-        description: 'Intelligent business management for Indian MSMEs',
+        name: 'Sanchay — Intelligent Business & Stock OS',
+        short_name: 'Sanchay',
+        description: 'Sanchay (संचय) — Intelligent business and stock management for Indian MSMEs',
         theme_color: '#0F172A',
         background_color: '#F8FAFC',
         display: 'standalone',

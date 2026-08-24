@@ -105,7 +105,7 @@ export const SalesService = {
                 
                 if (customer?.phone) {
                     const { data: userData } = await supabase.from('users').select('business_name').eq('id', userId).single();
-                    const shopName = userData?.business_name || "FinSathi";
+                    const shopName = userData?.business_name || "Sanchay";
                     const msg = `Hi ${customer.name}, your bill #${sale.invoice_no} of ₹${total} has been generated.`;
                     
                     // We don't await this to keep the API response snappy

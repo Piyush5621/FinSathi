@@ -44,7 +44,7 @@ export default function BackupWizard() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `finsathi_backup_${Date.now()}.json`);
+      link.setAttribute("download", `sanchay_backup_${Date.now()}.json`);
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);

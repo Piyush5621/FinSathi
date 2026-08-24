@@ -1,4 +1,4 @@
-# 🌐 FinSathi — Complete Project Knowledge Base & Source of Truth
+# 🌐 Sanchay — Complete Project Knowledge Base & Source of Truth
 
 > **Document Status**: `LIVING PRODUCTION SOURCE OF TRUTH`  
 > **Repository Version**: `v1.0.0-rc1 / v2.0 Modular Architecture`  
@@ -35,7 +35,7 @@
 24. [Architecture Decisions & Why (ADRs)](#24-architecture-decisions--why-adrs)
 25. [Business Rules Master Reference](#25-business-rules-master-reference)
 26. [Data Flow Diagrams](#26-data-flow-diagrams)
-27. [Edge Cases & Failure Recovery](#27-edge-cases--failure-recovery)
+27: [Edge Cases & Failure Recovery](#27-edge-cases--failure-recovery)
 28. [Known Limitations & Technical Debt](#28-known-limitations--technical-debt)
 29. [Debugging & Troubleshooting Guide](#29-debugging--troubleshooting-guide)
 30. [New Developer Onboarding Manual](#30-new-developer-onboarding-manual)
@@ -50,14 +50,14 @@
 
 # 1. Project Overview
 
-### Simple Explanation (What is FinSathi?)
-**FinSathi** is an **Intelligent Business Operating System (OS)** designed specifically for Indian Micro, Small, and Medium Enterprises (MSMEs) — such as Kirana stores, distributors, retail shopkeepers, and local wholesalers. It replaces paper ledgers (*Bahi-Khata*) and clunky desktop billing software with a mobile-first, AI-assisted platform that manages sales, inventory, cash flow, staff attendance, customer credit (*Udhaar*), WhatsApp payment reminders, and B2B trade networking.
+### Simple Explanation (What is Sanchay?)
+**Sanchay (संचय)** is an **Intelligent Business Operating System (OS) & Stock Platform** designed specifically for Indian Micro, Small, and Medium Enterprises (MSMEs) — such as Kirana stores, distributors, retail shopkeepers, and local wholesalers. It replaces paper ledgers (*Bahi-Khata*) and clunky desktop billing software with a mobile-first, AI-assisted platform that manages sales, Sanchay stock inventory, cash flow, staff attendance, customer credit (*Udhaar*), WhatsApp payment reminders, and B2B trade networking.
 
 ### Technical Explanation
-Architecturally, FinSathi is a multi-tenant, cloud-native Node.js/Express and React 18 Single-Page Application (SPA) powered by a Supabase PostgreSQL relational database, Redis-backed BullMQ job queues, and an "Action-Guarded" LLM orchestration layer utilizing Google Gemini 2.5 Flash and Deepgram Nova-2. The backend follows Domain-Driven Design (DDD) with modular subsystems (`identity`, `masters`, `catalog`, `inventory`, `network`) that enforce strict multi-tenant isolation, row-level pessimistic locking for concurrency, and partitioned immutable stock ledgers.
+Architecturally, Sanchay is a multi-tenant, cloud-native Node.js/Express and React 18 Single-Page Application (SPA) powered by a Supabase PostgreSQL relational database, Redis-backed BullMQ job queues, and an "Action-Guarded" LLM orchestration layer utilizing Google Gemini 2.5 Flash and Deepgram Nova-2. The backend follows Domain-Driven Design (DDD) with modular subsystems (`identity`, `masters`, `catalog`, `inventory`, `network`) that enforce strict multi-tenant isolation, row-level pessimistic locking for concurrency, and partitioned immutable stock ledgers.
 
 ### One-Minute Pitch (For Developers & Interviewers)
-> "FinSathi is an Intelligent Business OS for 63 million Indian MSMEs. Traditional ERPs like SAP or Tally are too desktop-heavy, complex, and passive — requiring accountants to input numbers after the fact. FinSathi turns reactive bookkeeping into proactive management: shopkeepers can generate GST invoices in under 10 seconds, track batch expiries and low stock with FIFO logic, forecast cash flow crunches 14 days ahead, recover overdue customer credit via automated WhatsApp links, and query business metrics using natural Hindi/Hinglish voice commands. It is engineered with Node.js, React, PostgreSQL with row locking, Redis queues, and AI guardrails that prevent LLM hallucinations from touching financial balances."
+> "Sanchay is an Intelligent Business OS & Stock Platform for 63 million Indian MSMEs. Traditional ERPs like SAP or Tally are too desktop-heavy, complex, and passive — requiring accountants to input numbers after the fact. Sanchay turns reactive bookkeeping into proactive management: shopkeepers can generate GST invoices in under 10 seconds, track batch expiries and low stock with FIFO logic, forecast cash flow crunches 14 days ahead, recover overdue customer credit via automated WhatsApp links, and query business metrics using natural Hindi/Hinglish voice commands. It is engineered with Node.js, React, PostgreSQL with row locking, Redis queues, and AI guardrails that prevent LLM hallucinations from touching financial balances."
 
 ### The Problem It Solves
 1. **Manual Ledger Errors & Cash Leakage**: Unrecorded sales, math errors in manual billing, and untracked discounts lead to 3–7% revenue leakage.

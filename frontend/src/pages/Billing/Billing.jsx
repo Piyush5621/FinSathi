@@ -296,7 +296,7 @@ export default function Billing() {
       `GST: ₹${summaryValues.gst_amount.toFixed(0)}\n` +
       `*Total: ₹${summaryValues.total.toFixed(0)}*\n\n` +
       `Payment: ${paymentDetails.method.toUpperCase()} • ${paymentDetails.status.toUpperCase()}\n\n` +
-      `Powered by FinSathi`
+      `Powered by Sanchay`
     );
     window.open(`https://wa.me/91${customer.phone}?text=${message}`, '_blank');
   };
@@ -322,7 +322,7 @@ export default function Billing() {
             <div className="p-5 bg-[#090D16] text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center overflow-hidden shrink-0">
-                  <img src={logoImg} alt="FinSathi" className="w-full h-full object-contain p-0.5" />
+                  <img src={logoImg} alt="Sanchay" className="w-full h-full object-contain p-0.5" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold tracking-tight">New Invoice</h2>

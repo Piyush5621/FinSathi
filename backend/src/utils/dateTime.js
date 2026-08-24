@@ -1,5 +1,5 @@
 /**
- * Centralized Timezone and DateTime Utilities for FinSathi
+ * Centralized Timezone and DateTime Utilities for Sanchay
  * Target Timezone: Indian Standard Time (IST, UTC+5:30)
  * Consistently converts date/time values without server timezone dependencies.
  */

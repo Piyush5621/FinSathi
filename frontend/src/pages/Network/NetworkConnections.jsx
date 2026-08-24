@@ -115,7 +115,7 @@ export default function NetworkConnections() {
           Business Connections
         </h1>
         <p className="text-sm text-slate-500 font-medium mt-1">
-          Connect with suppliers, distributors, and retailers on FinSathi network.
+          Connect with suppliers, distributors, and retailers on Sanchay network.
         </p>
       </div>
 

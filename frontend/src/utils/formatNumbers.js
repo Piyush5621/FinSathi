@@ -1,5 +1,5 @@
 /**
- * Centralized Currency and Number Formatting Utilities for FinSathi
+ * Centralized Currency and Number Formatting Utilities for Sanchay
  * Target Format: Indian numbering system (en-IN) / Indian Rupees (INR, ₹)
  */
 

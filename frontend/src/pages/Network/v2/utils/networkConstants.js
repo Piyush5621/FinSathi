@@ -1,4 +1,4 @@
-// Design System Constants for FinSathi Business Network
+// Design System Constants for Sanchay Business Network
 
 export const STATUS_STYLES = {
   // Inbox / Outbox

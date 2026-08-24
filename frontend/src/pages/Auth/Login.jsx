@@ -48,9 +48,9 @@ const Login = () => {
 
       <Link to="/" className="absolute top-8 left-8 z-50 flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md group-hover:bg-white/10 transition-all">
-              <img src={logo} alt="FinSathi" className="w-6 h-6 filter brightness-0 invert" style={{filter: 'brightness(0) invert(1)'}} />
+              <img src={logo} alt="Sanchay" className="w-6 h-6 filter brightness-0 invert" style={{filter: 'brightness(0) invert(1)'}} />
           </div>
-          <span className="font-extrabold text-xl tracking-tight text-white group-hover:text-blue-400 transition-colors">FinSathi</span>
+          <span className="font-extrabold text-xl tracking-tight text-white group-hover:text-blue-400 transition-colors">Sanchay</span>
       </Link>
 
       <div className="flex-1 flex flex-col justify-center items-center p-6 relative z-10 w-full lg:w-1/2">

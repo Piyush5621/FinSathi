@@ -61,7 +61,7 @@ export default function AttendanceScanPage() {
         }
     };
 
-    if (loading) return <div className="h-screen flex items-center justify-center font-bold text-brand-blue animate-pulse text-[20px]">FINSATHI SCANNER...</div>;
+    if (loading) return <div className="h-screen flex items-center justify-center font-bold text-brand-blue animate-pulse text-[20px]">SANCHAY SCANNER...</div>;
 
     if (isSuccess) {
         return (
@@ -137,7 +137,7 @@ export default function AttendanceScanPage() {
             </Card>
 
             <p className="mt-[40px] text-[12px] font-medium text-text-muted flex items-center gap-[8px]">
-               <Clock size={14} /> FinSathi Biometric Cloud v1.0
+               <Clock size={14} /> Sanchay Biometric Cloud v1.0
             </p>
         </div>
     );

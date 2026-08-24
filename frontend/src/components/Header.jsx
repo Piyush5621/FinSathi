@@ -35,7 +35,7 @@ const Header = () => {
           <div className="hidden md:block">
             <h2 className="text-lg font-medium text-text-light dark:text-text-dark">
               Your business. Your growth.{' '}
-              <span className="text-primary-600 font-semibold">Your FinSathi.</span>
+              <span className="text-primary-600 font-semibold">Your Sanchay.</span>
             </h2>
           </div>
           {stores && stores.length > 0 && (
