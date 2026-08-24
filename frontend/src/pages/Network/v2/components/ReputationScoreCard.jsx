@@ -12,7 +12,7 @@ export default function ReputationScoreCard({ userId }) {
   const fetchScore = async () => {
     setLoading(true);
     try {
-      const endpoint = userId ? `/api/network/reputation/${userId}/score` : '/api/network/reputation/score';
+      const endpoint = userId ? `/network/reputation/${userId}/score` : '/network/reputation/score';
       const res = await API.get(endpoint).catch(() => ({
         data: {
           data: {

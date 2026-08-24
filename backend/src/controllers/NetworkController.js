@@ -11,19 +11,20 @@ import { successResponse, errorResponse, createdResponse } from "../utils/respon
 export const searchBusinesses = async (req, res) => {
   try {
     const userId = req.user.id;
-    const qParam = (req.query.q || req.query.query || '').trim();
+    const qParam = (req.query.q || req.query.query || "").trim();
 
-    let queryBuilder = supabase
-      .from("users")
-      .select("id, business_name, business_type, city, state, phone, gstin, name")
-      .neq("id", userId);
-
-    if (qParam.length > 0) {
-      const term = qParam.toLowerCase();
-      queryBuilder = queryBuilder.or(`business_name.ilike.%${term}%,phone.ilike.%${term}%,gstin.ilike.%${term}%`);
+    if (!qParam || qParam.length < 2) {
+      return errorResponse(res, "Search query must be at least 2 characters", 400);
     }
 
-    const { data: results, error } = await queryBuilder.limit(20);
+    const term = qParam.toLowerCase();
+
+    const { data: results, error } = await supabase
+      .from("users")
+      .select("id, business_name, business_type, city, state, phone, gstin, name")
+      .or(`business_name.ilike.%${term}%,phone.ilike.%${term}%,gstin.ilike.%${term}%`)
+      .neq("id", userId)
+      .limit(20);
 
     if (error) throw error;
 

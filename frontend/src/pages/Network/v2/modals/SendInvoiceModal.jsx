@@ -30,7 +30,7 @@ export default function SendInvoiceModal({ isOpen, onClose, onSuccess, initialPa
   const fetchPartners = async () => {
     setLoading(true);
     try {
-      const res = await API.get('/api/network/connections?status=accepted');
+      const res = await API.get('/network/connections?status=accepted');
       setPartners(res.data?.data || []);
     } catch (err) {
       console.warn('Failed to load partners for invoice sending:', err);
@@ -76,7 +76,7 @@ export default function SendInvoiceModal({ isOpen, onClose, onSuccess, initialPa
 
     setSubmitting(true);
     try {
-      await API.post('/api/network/trade/send', {
+      await API.post('/trade/send', {
         receiver_id: partnerId,
         invoice_no: invoiceNo,
         items: items.map(i => ({

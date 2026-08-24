@@ -36,10 +36,27 @@ describe("Live Endpoint Safety Verification", () => {
     };
   });
 
-  test("1. searchBusinesses handles empty query string without throwing HTTP 400", async () => {
+  test("1. searchBusinesses rejects empty query string with HTTP 400 (preserving backend validation contract)", async () => {
     const req = {
       user: { id: "user-test-1" },
-      query: { query: "" }
+      query: { q: "" }
+    };
+    let responseStatus = 200;
+    let responseBody = null;
+    const res = {
+      status: (code) => { responseStatus = code; return res; },
+      json: (data) => { responseBody = data; return res; }
+    };
+
+    await searchBusinesses(req, res);
+    assert.equal(responseStatus, 400);
+    assert.equal(responseBody.success, false);
+  });
+
+  test("2. searchBusinesses returns matching businesses when query length >= 2", async () => {
+    const req = {
+      user: { id: "user-test-1" },
+      query: { q: "Verma" }
     };
     let responseStatus = 200;
     let responseBody = null;
@@ -54,7 +71,7 @@ describe("Live Endpoint Safety Verification", () => {
     assert.ok(Array.isArray(responseBody.data));
   });
 
-  test("2. getCreditAccounts returns creditGiven and creditReceived arrays", async () => {
+  test("3. getCreditAccounts returns creditGiven and creditReceived arrays", async () => {
     const req = {
       user: { id: "user-test-1" }
     };
@@ -73,7 +90,7 @@ describe("Live Endpoint Safety Verification", () => {
     assert.ok(Array.isArray(responseBody.data.creditReceived));
   });
 
-  test("3. getPurchaseInbox and getSalesOutbox return array-shaped responses", async () => {
+  test("4. getPurchaseInbox and getSalesOutbox return array-shaped responses", async () => {
     const req = {
       user: { id: "user-test-1" },
       query: {}

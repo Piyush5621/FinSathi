@@ -26,7 +26,7 @@ export default function SetCreditModal({ isOpen, partner, onClose, onSuccess }) 
 
   const fetchPartners = async () => {
     try {
-      const res = await API.get('/api/network/connections?status=accepted');
+      const res = await API.get('/network/connections?status=accepted');
       setPartners(res.data?.data || []);
     } catch (err) {
       console.warn('Failed to load partners:', err);
@@ -44,7 +44,7 @@ export default function SetCreditModal({ isOpen, partner, onClose, onSuccess }) 
 
     setSubmitting(true);
     try {
-      await API.post('/api/network/trade/credit', {
+      await API.post('/trade-credit', {
         buyer_id: partnerId,
         credit_limit: Number(limit),
         payment_terms_days: Number(terms),

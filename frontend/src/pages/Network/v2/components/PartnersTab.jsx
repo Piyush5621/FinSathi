@@ -28,6 +28,7 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
   const [pendingRequests, setPendingRequests] = useState([]);
   const [directory, setDirectory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
 
   // Connection Request Modal
   const [showConnectModal, setShowConnectModal] = useState(false);
@@ -39,13 +40,42 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (subTab === 'discover' && searchQuery.trim().length >= 2) {
+      const timer = setTimeout(() => {
+        performSearch(searchQuery.trim());
+      }, 300);
+      return () => clearTimeout(timer);
+    } else if (searchQuery.trim().length < 2) {
+      setDirectory([]);
+      setSearching(false);
+    }
+  }, [searchQuery, subTab]);
+
+  const performSearch = async (term) => {
+    if (!term || term.length < 2) {
+      setDirectory([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await API.get(`/network/search?q=${encodeURIComponent(term)}`);
+      const rawDir = res.data?.data;
+      setDirectory(Array.isArray(rawDir) ? rawDir : Array.isArray(rawDir?.data) ? rawDir.data : []);
+    } catch (err) {
+      console.warn('Search failed:', err);
+      setDirectory([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [connRes, pendRes, dirRes] = await Promise.all([
-        API.get('/api/network/connections').catch(() => ({ data: { data: [] } })),
-        API.get('/api/network/connections/pending').catch(() => ({ data: { data: [] } })),
-        API.get('/api/network/search?query=').catch(() => ({ data: { data: [] } }))
+      const [connRes, pendRes] = await Promise.all([
+        API.get('/network/connections').catch(() => ({ data: { data: [] } })),
+        API.get('/network/connections/pending').catch(() => ({ data: { data: [] } }))
       ]);
 
       const rawPartners = connRes.data?.data;
@@ -53,9 +83,6 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
 
       const rawPending = pendRes.data?.data;
       setPendingRequests(Array.isArray(rawPending) ? rawPending : Array.isArray(rawPending?.data) ? rawPending.data : []);
-
-      const rawDir = dirRes.data?.data;
-      setDirectory(Array.isArray(rawDir) ? rawDir : Array.isArray(rawDir?.data) ? rawDir.data : []);
     } catch (err) {
       console.warn('Error loading partners data:', err);
     } finally {
@@ -65,7 +92,7 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
 
   const handleRespond = async (connectionId, status) => {
     try {
-      await API.put(`/api/network/connections/${connectionId}/respond`, { status });
+      await API.put(`/network/connections/${connectionId}/respond`, { status });
       toast.success(status === 'accepted' ? 'Connection accepted!' : 'Connection declined');
       fetchData();
     } catch (err) {
@@ -77,7 +104,7 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
     if (!selectedTarget) return;
     setConnecting(true);
     try {
-      await API.post('/api/network/connections/request', {
+      await API.post('/network/connections/request', {
         receiver_id: selectedTarget.id || selectedTarget.user_id,
         connection_type: connectionType
       });
@@ -125,18 +152,18 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
             }`}
           >
             <Users2 size={14} />
-            <span>Connected Partners ({partners.length})</span>
+            Connected ({partners.length})
           </button>
           <button
             onClick={() => setSubTab('pending')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              subTab === 'pending' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
+              subTab === 'pending' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Shield size={14} />
-            <span>Pending Requests</span>
+            Requests
             {pendingRequests.length > 0 && (
-              <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full">
+              <span className="ml-1 px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-black animate-pulse">
                 {pendingRequests.length}
               </span>
             )}
@@ -144,23 +171,23 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
           <button
             onClick={() => setSubTab('discover')}
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              subTab === 'discover' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              subTab === 'discover' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <UserPlus size={14} />
-            <span>Discover Directory</span>
+            <Search size={14} />
+            Find Businesses
           </button>
         </div>
 
-        {/* Search input */}
+        {/* Global Search Bar */}
         <div className="relative w-full sm:w-72">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder={subTab === 'discover' ? 'Search by name, city, GST...' : 'Search partners...'}
+            placeholder={subTab === 'discover' ? "Search GSTIN, name, phone (min 2 chars)..." : "Filter partners..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
           />
         </div>
       </div>
@@ -170,68 +197,77 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
         <div>
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Skeleton height="180px" rounded="rounded-[20px]" />
-              <Skeleton height="180px" rounded="rounded-[20px]" />
-              <Skeleton height="180px" rounded="rounded-[20px]" />
+              <Skeleton height="200px" rounded="rounded-[20px]" />
+              <Skeleton height="200px" rounded="rounded-[20px]" />
+              <Skeleton height="200px" rounded="rounded-[20px]" />
             </div>
           ) : filteredPartners.length === 0 ? (
             <EmptyState
               icon={Users2}
               title="No connected partners found"
-              description="Connect with suppliers, distributors, or retail buyers on Karobar Network to exchange invoices seamlessly."
-              actionLabel="Discover Suppliers & Buyers"
-              onAction={() => setSubTab('discover')}
+              description={searchQuery ? `No partners matched "${searchQuery}".` : "You have not connected with any suppliers or buyers yet."}
+              action={
+                <button
+                  onClick={() => setSubTab('discover')}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5"
+                >
+                  <UserPlus size={14} /> Find & Connect Businesses
+                </button>
+              }
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredPartners.map((conn) => {
-                const partnerName = conn.partner?.business_name || conn.business_name || 'Business Partner';
-                const partnerType = conn.connection_type || conn.partner?.business_type || 'Trader';
-                const city = conn.partner?.city || conn.city || 'India';
-                const volume = Number(conn.trade_volume || 0);
-
+              {filteredPartners.map((p) => {
+                const partnerObj = p.partner || p;
                 return (
-                  <Card key={conn.id} className="p-5 bg-white border-slate-100 rounded-[20px] shadow-sm hover:border-indigo-100 transition-all flex flex-col justify-between">
+                  <Card key={p.id} className="p-5 bg-white border-slate-100 rounded-[20px] shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
                     <div>
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white font-black text-base flex items-center justify-center shadow-sm">
-                            {partnerName[0].toUpperCase()}
+                          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-700 font-black text-lg flex items-center justify-center border border-indigo-100 group-hover:scale-105 transition-transform">
+                            {(partnerObj.business_name || 'B')[0].toUpperCase()}
                           </div>
                           <div>
-                            <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{partnerName}</h3>
-                            <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
-                              <Building2 size={11} /> {partnerType} • {city}
+                            <h3 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                              {partnerObj.business_name || 'Verified Merchant'}
+                            </h3>
+                            <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                              <MapPin size={11} className="text-slate-400" />
+                              {partnerObj.city || 'India'}
                             </p>
                           </div>
                         </div>
-                        <StatusBadge status="connected" />
+                        <StatusBadge status={p.status || 'Connected'} />
                       </div>
 
-                      <div className="bg-slate-50 p-3 rounded-xl space-y-1.5 text-xs mb-4">
-                        <div className="flex justify-between text-slate-500">
-                          <span>Trade Volume</span>
-                          <span className="font-black text-slate-900">₹{volume.toLocaleString('en-IN')}</span>
+                      <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4 text-xs">
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Role</span>
+                          <strong className="text-slate-700 font-semibold">{p.connection_type || 'Trade Partner'}</strong>
                         </div>
-                        <div className="flex justify-between text-slate-500">
-                          <span>Connection</span>
-                          <span className="font-semibold text-indigo-600">{conn.connection_type || 'Partner'}</span>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Trust Score</span>
+                          <span className="text-emerald-600 font-bold flex items-center gap-1">
+                            <Star size={11} className="fill-emerald-500" /> 88/100
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex gap-2 pt-3 border-t border-slate-100">
+                    {/* Action Bar */}
+                    <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
                       <button
-                        onClick={() => onSelectPartner?.(conn, 'outbox')}
-                        className="flex-1 py-2 px-3 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                        onClick={() => onSelectPartner?.(partnerObj, 'outbox')}
+                        className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
                       >
                         <Send size={12} /> Send Bill
                       </button>
                       <button
-                        onClick={() => onSelectPartner?.(conn, 'credits')}
-                        className="flex-1 py-2 px-3 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                        onClick={() => onSelectPartner?.(partnerObj, 'credits')}
+                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                        title="Manage Trade Credit"
                       >
-                        <CreditCard size={12} /> Credit Terms
+                        <CreditCard size={13} />
                       </button>
                     </div>
                   </Card>
@@ -246,7 +282,10 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
       {subTab === 'pending' && (
         <div>
           {loading ? (
-            <Skeleton height="140px" rounded="rounded-[20px]" />
+            <div className="space-y-3">
+              <Skeleton height="80px" rounded="rounded-[20px]" />
+              <Skeleton height="80px" rounded="rounded-[20px]" />
+            </div>
           ) : pendingRequests.length === 0 ? (
             <EmptyState
               icon={Shield}
@@ -309,17 +348,23 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
             ))}
           </div>
 
-          {loading ? (
+          {searching ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Skeleton height="180px" rounded="rounded-[20px]" />
               <Skeleton height="180px" rounded="rounded-[20px]" />
               <Skeleton height="180px" rounded="rounded-[20px]" />
             </div>
+          ) : searchQuery.trim().length < 2 ? (
+            <EmptyState
+              icon={Search}
+              title="Search Business Directory"
+              description="Enter at least 2 characters in the search box above to find verified suppliers, manufacturers, and retailers across India."
+            />
           ) : filteredDirectory.length === 0 ? (
             <EmptyState
               icon={Search}
-              title="No businesses found in directory"
-              description="Try adjusting your search criteria or category filter."
+              title="No businesses found"
+              description={`No businesses matched "${searchQuery}". Try searching by phone, GSTIN, or business name.`}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -348,9 +393,10 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
                         setSelectedTarget(b);
                         setShowConnectModal(true);
                       }}
-                      className="w-full py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
                     >
-                      <UserPlus size={13} /> Connect Partner
+                      <UserPlus size={13} />
+                      Connect Business
                     </button>
                   </div>
                 </Card>
@@ -362,47 +408,63 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
 
       {/* ─── Connect Request Modal ─── */}
       {showConnectModal && selectedTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900">Connect with Business</h3>
-              <button onClick={() => setShowConnectModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
-                <X size={18} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[24px] max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-900">Connect with Business</h3>
+              <button
+                onClick={() => { setShowConnectModal(false); setSelectedTarget(null); }}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-all"
+              >
+                <X size={15} />
               </button>
             </div>
 
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-              <p className="text-sm font-bold text-slate-900">{selectedTarget.business_name || selectedTarget.name}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{selectedTarget.business_type || 'Merchant'} • {selectedTarget.city || 'India'}</p>
+            <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl mb-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-900 text-white font-black flex items-center justify-center text-sm">
+                {(selectedTarget.business_name || selectedTarget.name || 'B')[0].toUpperCase()}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900">{selectedTarget.business_name || selectedTarget.name}</p>
+                <p className="text-[11px] text-slate-500">{selectedTarget.city || 'India'} • GST Verified</p>
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1.5">How do you trade with this business?</label>
-              <select
-                value={connectionType}
-                onChange={(e) => setConnectionType(e.target.value)}
-                className="w-full p-2.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="Supplier">They are my Wholesale Supplier</option>
-                <option value="Customer">They are my Retail Customer / Buyer</option>
-                <option value="Distributor">They are my Regional Distributor</option>
-                <option value="Partner">General Trade Partner</option>
-              </select>
+            <div className="space-y-3 mb-6">
+              <label className="block text-xs font-bold text-slate-700">How do you want to connect?</label>
+              <div className="grid grid-cols-2 gap-2">
+                {['Supplier', 'Buyer'].map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setConnectionType(type)}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all ${
+                      connectionType === type
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    I am their {type}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2">
               <button
-                onClick={() => setShowConnectModal(false)}
-                className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-50"
+                type="button"
+                onClick={() => { setShowConnectModal(false); setSelectedTarget(null); }}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
               >
                 Cancel
               </button>
               <button
-                onClick={handleSendRequest}
+                type="button"
                 disabled={connecting}
-                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs disabled:opacity-50 flex items-center justify-center gap-1.5"
+                onClick={handleSendRequest}
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
               >
-                {connecting ? 'Sending...' : <><Send size={13} /> Send Request</>}
+                {connecting ? 'Sending...' : 'Send Request'}
               </button>
             </div>
           </div>

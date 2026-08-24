@@ -56,9 +56,9 @@ export default function NetworkHome() {
     setLoading(true);
     try {
       const [inboxRes, outboxRes, creditRes] = await Promise.all([
-        API.get('/api/network/trade/inbox').catch(() => ({ data: { data: [] } })),
-        API.get('/api/network/trade/outbox').catch(() => ({ data: { data: [] } })),
-        API.get('/api/network/trade/credit').catch(() => ({ data: { data: { creditGiven: [], creditReceived: [] } } }))
+        API.get('/trade/inbox').catch(() => ({ data: { data: [] } })),
+        API.get('/trade/outbox').catch(() => ({ data: { data: [] } })),
+        API.get('/trade-credit').catch(() => ({ data: { data: { creditGiven: [], creditReceived: [] } } }))
       ]);
 
       const rawInbox = inboxRes.data?.data;
