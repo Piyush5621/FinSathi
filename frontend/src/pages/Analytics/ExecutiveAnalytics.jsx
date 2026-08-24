@@ -214,7 +214,7 @@ export default function ExecutiveAnalytics() {
         {[
           { id: "revenue", label: "Revenue Trend", icon: TrendingUp },
           { id: "profit", label: "Profit Margins", icon: Award },
-          { id: "products", label: "Top Inventory", icon: Package },
+          { id: "products", label: "Top Stock Items", icon: Package },
           { id: "loyalty", label: "Loyal Customers", icon: Users },
           { id: "expenses", label: "Expenses Split", icon: DollarSign }
         ].map(tab => {
@@ -337,7 +337,7 @@ export default function ExecutiveAnalytics() {
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-bold text-slate-800 tracking-tight">Top 10 Selling Products</h3>
-              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Revenue per inventory item</p>
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Revenue per stock item</p>
             </div>
             {topProducts.length > 0 ? (
               <div className="h-96">
@@ -356,7 +356,7 @@ export default function ExecutiveAnalytics() {
               </div>
             ) : (
               <div className="py-20 text-center text-slate-400 text-xs">
-                No inventory sales records found yet.
+                No stock sales records found yet.
               </div>
             )}
           </div>

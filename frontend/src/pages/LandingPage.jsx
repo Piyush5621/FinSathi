@@ -25,7 +25,7 @@ const LandingPage = () => {
     const [chatMessages, setChatMessages] = useState([
         { 
             sender: 'bot', 
-            text: "Hello! I am FinVoice. You can ask me anything about your sales, margins, inventory, or customers in Hindi, English, or Hinglish.",
+            text: "Hello! I am FinVoice. You can ask me anything about your sales, margins, Sanchay stock, or customers in Hindi, English, or Hinglish.",
             timestamp: "10:32 AM" 
         }
     ]);
@@ -296,7 +296,7 @@ const LandingPage = () => {
                     transition={{ duration: 0.6, delay: 0.1 }} 
                     className="text-sm sm:text-base md:text-lg text-slate-500 max-w-2xl mb-12 font-medium leading-relaxed"
                 >
-                    FinSathi integrates high-speed POS billing, dynamic batch inventory pricing, automatic WhatsApp reminders, and eligibility calculations for Indian government grants into one premium workspace.
+                    FinSathi integrates high-speed POS billing, Sanchay dynamic batch stock pricing, automatic WhatsApp reminders, and eligibility calculations for Indian government grants into one premium workspace.
                 </motion.p>
 
                 <motion.div 
@@ -365,7 +365,7 @@ const LandingPage = () => {
                                         <Zap size={14} /> POS Invoicing
                                     </div>
                                     <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-500 cursor-not-allowed">
-                                        <Layers size={14} /> Inventory Batches
+                                        <Layers size={14} /> Sanchay Stock
                                     </div>
                                     <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-500 cursor-not-allowed">
                                         <Users size={14} /> Staff Attendance
@@ -722,7 +722,7 @@ const LandingPage = () => {
                         <FeatureBox 
                             icon={Layers} 
                             title="Digital Catalog Links" 
-                            desc="Instantly publish a customer-facing public storefront linked to your live inventory. Capture order submissions directly into your local database." 
+                            desc="Instantly publish a customer-facing public storefront linked to your live Sanchay stock. Capture order submissions directly into your local database." 
                             delay={0.4} 
                         />
                         <FeatureBox 

@@ -10,7 +10,7 @@ const sections = [
         label: 'E-Commerce',
         icon: ShoppingCart,
         title: 'Online Storefront & Digital Payments',
-        desc: 'Link your inventory to a public website where customers can order directly. Real-time sync with your POS stock.',
+        desc: 'Link your Sanchay stock to a public website where customers can order directly. Real-time sync with your POS stock.',
         milestones: ['Custom Domain Support', 'WhatsApp Order Link', 'UPI Payment Integration'],
         status: 'In Development'
     },

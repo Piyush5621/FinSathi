@@ -13,12 +13,17 @@ export const authenticateToken = async (req, res, next) => {
         const secret = process.env.JWT_SECRET || "supersecret_jwt_key_change_me_in_production";
         const verified = jwt.verify(token, secret);
         
+        // Normalize user ID across JWT variations
+        const userId = verified.id || verified.user_id || verified.sub;
+        verified.id = userId;
+        verified.user_id = userId;
+
         // Add is_active check
-        if (verified.id) {
+        if (userId) {
             const { data: user, error } = await supabase
                 .from("users")
                 .select("is_active")
-                .eq("id", verified.id)
+                .eq("id", userId)
                 .maybeSingle();
                 
             if (user && user.is_active === false) {
@@ -27,6 +32,7 @@ export const authenticateToken = async (req, res, next) => {
         }
 
         req.user = verified;
+        req.userId = userId;
         next();
     } catch (err) {
         res.status(403).json({ message: "Invalid or expired token." });

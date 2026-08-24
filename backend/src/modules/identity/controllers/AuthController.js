@@ -30,13 +30,23 @@ export class AuthController {
         orgData
       );
 
+      const requestInfo = parseRequestInfo(req);
+      const sessionData = await AuthenticationService.login(
+        email,
+        password,
+        requestInfo
+      );
+
       res.status(201).json({
         success: true,
         message: "Organization bootstrapped and owner registered successfully.",
         data: {
           organization: new OrganizationDto(organization),
-          owner: new UserDto(owner)
-        }
+          owner: new UserDto(owner),
+          ...sessionData
+        },
+        token: sessionData.accessToken,
+        user: sessionData.session
       });
     } catch (err) {
       next(err);
@@ -50,9 +60,10 @@ export class AuthController {
         throw new ValidationError("Validation failed", result.error.format());
       }
 
+      const identifier = result.data.emailOrPhone || result.data.email || result.data.phone;
       const requestInfo = parseRequestInfo(req);
       const sessionData = await AuthenticationService.login(
-        result.data.emailOrPhone,
+        identifier,
         result.data.password,
         requestInfo
       );
@@ -60,7 +71,9 @@ export class AuthController {
       res.status(200).json({
         success: true,
         message: "Login successful.",
-        data: sessionData
+        data: sessionData,
+        token: sessionData.accessToken,
+        user: sessionData.session
       });
     } catch (err) {
       next(err);

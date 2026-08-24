@@ -26,7 +26,7 @@ export const fallbackData = {
     {
       id: 1,
       type: 'warning',
-      message: 'Low inventory alert: Office Supplies',
+      message: 'Low stock alert: Office Supplies',
       timestamp: new Date().toISOString()
     },
     {

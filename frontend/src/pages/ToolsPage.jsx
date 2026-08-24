@@ -26,7 +26,7 @@ const toolSections = [
         ]
     },
     {
-        title: "Inventory & Logistics",
+        title: "Sanchay & Logistics",
         icon: Package,
         color: "text-amber-600",
         features: [

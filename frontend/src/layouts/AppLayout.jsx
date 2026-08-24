@@ -44,7 +44,7 @@ export default function AppLayout() {
       label: 'Core Operations',
       icon: Package,
       items: [
-        { path: '/inventory', label: 'Inventory Catalog', icon: Package },
+        { path: '/inventory', label: 'Sanchay', icon: Package },
         { path: '/customers', label: 'Customer Registry', icon: Users },
         { path: '/suppliers', label: 'Local Suppliers', icon: Package },
         ...(isB2B ? [{ path: '/crm', label: 'CRM & Pipeline', icon: MessageSquare }] : [])
@@ -95,7 +95,7 @@ export default function AppLayout() {
   const mobileMenu = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/billing', label: 'Billing', icon: Receipt },
-    { path: '/inventory', label: 'Inventory', icon: Package },
+    { path: '/inventory', label: 'Sanchay', icon: Package },
     { path: '/customers', label: 'Customers', icon: Users },
     { path: '/tools', label: 'More', icon: MoreHorizontal },
   ];

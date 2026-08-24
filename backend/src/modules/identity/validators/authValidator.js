@@ -21,8 +21,13 @@ export const registerSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  emailOrPhone: z.string().min(4, "Email or phone must be provided."),
+  emailOrPhone: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
   password: z.string().min(1, "Password is required.")
+}).refine(data => data.emailOrPhone || data.email || data.phone, {
+  message: "Email or phone must be provided.",
+  path: ["emailOrPhone"]
 });
 
 export const tokenRefreshSchema = z.object({

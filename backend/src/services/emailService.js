@@ -29,7 +29,7 @@ export const sendWelcomeEmail = async (email, name, businessName) => {
           </p>
 
           <p style="font-size: 16px; line-height: 1.5; margin-bottom: 30px;">
-            Start managing your billing and inventory smarter with <span style="background-color: #FDE047; color: #000; padding: 0 4px;">FinSathi</span>.
+            Start managing your billing and Sanchay stock smarter with <span style="background-color: #FDE047; color: #000; padding: 0 4px;">FinSathi</span>.
           </p>
 
           <a href="https://finsathi.com/login" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; font-size: 16px; font-weight: bold; text-decoration: none; border-radius: 6px; margin-bottom: 40px;">

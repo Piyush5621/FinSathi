@@ -93,42 +93,44 @@ app.use(express.json());
 app.use(helmet());
 app.use(compression());
 
-// Setup Bull-Board for Queue Monitoring
-const serverAdapter = new ExpressAdapter();
-serverAdapter.setBasePath('/admin/queues');
-createBullBoard({
-  queues: Object.values(QUEUES).map(q => new BullMQAdapter(getQueue(q))),
-  serverAdapter: serverAdapter,
-});
-app.use('/admin/queues', serverAdapter.getRouter());
+// Setup Bull-Board for Queue Monitoring (if Redis configured)
+if (process.env.REDIS_URL) {
+  try {
+    const serverAdapter = new ExpressAdapter();
+    serverAdapter.setBasePath('/admin/queues');
+    createBullBoard({
+      queues: Object.values(QUEUES).map(q => new BullMQAdapter(getQueue(q))),
+      serverAdapter: serverAdapter,
+    });
+    app.use('/admin/queues', serverAdapter.getRouter());
+  } catch (err) {
+    logger.warn('[BullBoard] Failed to mount queues dashboard:', err.message);
+  }
+}
 
 // Phase 4: Observability and General Security
 app.use(responseTime);
 app.use(performanceMonitor);
 app.use("/api", generalLimiter);
 
-// 🔓 Public / Private Identity Module Routes (Unified Auth & RBAC)
-app.use("/api/v1", identityRouter);
-app.use("/api", identityRouter); // Backward compatibility
-app.use("/api/v1", mastersRouter);
-app.use("/api", mastersRouter); // Backward compatibility
-app.use("/api/v1", catalogRouter);
-app.use("/api", catalogRouter); // Backward compatibility
-app.use("/api/v1", inventoryRouter);
-app.use("/api", inventoryRouter); // Backward compatibility
-app.use("/api/kiosk", kioskRoutes);
-
+// 🩺 Public Health Check & Unauthenticated Endpoints
 import healthRoutes from "./routes/healthRoutes.js";
 app.use("/api/health", healthRoutes);
-
-
-// Subscriptions have their own internal auth / webhook
-app.use("/api/subscriptions", subscriptionRoutes);
-
+app.get("/health", (req, res) => res.json({ status: "healthy", timestamp: new Date().toISOString() }));
 
 // Webhooks
 import webhookRoutes from "./routes/webhookRoutes.js";
 app.use("/api/webhooks", webhookRoutes);
+
+// Kiosk (Public employee terminal)
+app.use("/api/kiosk", kioskRoutes);
+
+// Subscriptions have their own internal auth / webhook
+app.use("/api/subscriptions", subscriptionRoutes);
+
+// 🔓 Public / Private Identity Module Routes (Unified Auth & RBAC)
+app.use("/api/v1", identityRouter);
+app.use("/api", identityRouter); // Backward compatibility
 
 // ADMIN PANEL ROUTES
 import { adminAuth } from "./admin/middleware/adminAuth.js";
@@ -138,6 +140,14 @@ import adminUsersRoutes from "./admin/routes/adminUsersRoutes.js";
 
 app.use("/admin/auth", adminAuthRoutes);
 app.use("/admin/users", adminAuth, auditLog, adminUsersRoutes);
+
+// Modular Subsystems
+app.use("/api/v1", mastersRouter);
+app.use("/api", mastersRouter);
+app.use("/api/v1", catalogRouter);
+app.use("/api", catalogRouter);
+app.use("/api/v1", inventoryRouter);
+app.use("/api", inventoryRouter);
 
 import catalogRoutes from "./routes/catalogRoutes.js";
 app.use("/api/catalog", catalogRoutes);

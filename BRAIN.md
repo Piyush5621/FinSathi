@@ -45,7 +45,7 @@ Traditional ERPs and billing tools are designed for desktop-centric, tech-savvy 
 ### Problems it Solves
 * **Manual Bookkeeping & Human Error:** Replaces offline ledger writing with automatic recording of sales, payments, and expenses.
 * **Lack of Financial Visibility:** Translates raw transaction logs into cash flow calendars, P&L statements, and credit ratings.
-* **Inventory Mismanagement:** Mitigates stockouts and dead stock through automated threshold alerts and smart reordering.
+* **Sanchay (Stock & Inventory Health):** Mitigates stockouts and dead stock through automated threshold alerts, batch expiry tracking, and smart reordering.
 * **High Accounts Receivable:** Automates due tracking and collections via automated, one-click WhatsApp payment reminders.
 * **Underutilized Government Incentives:** Matches businesses with active subsidies (e.g., MUDRA, CGTMSE) using demographic and financial data.
 
@@ -309,7 +309,7 @@ FinSathi features an Enterprise-grade Role-Based Access Control system mapped at
 ## 8. Feature List
 
 ### Completed Features
-* **POS Billing Terminal:** Real-time customer search, dynamic barcode inputs, tax calculation, payment status flags, and inventory decrementing triggers.
+* **POS Billing Terminal:** Real-time customer search, dynamic barcode inputs, tax calculation, payment status flags, and Sanchay stock decrementing triggers.
 * **Smart Business Health Score:** Algorithmic calculation of a business rating (0-100) across 5 parameters, providing 3 daily recommendations.
 * **FinVoice Voice AI:** Hindi and Hinglish voice question inputs transcribed with Deepgram and resolved with Gemini Flash.
 * **14-day Cash Flow Forecast:** Daily trend lines detailing expected payouts, cash inflows, payroll requirements, and cash crunch alerts.
@@ -331,7 +331,7 @@ FinSathi features an Enterprise-grade Role-Based Access Control system mapped at
 
 * **Invoices:** Creates custom receipts, adds taxes (CGST, SGST, IGST), applies discounts, tracks payment status (`paid`, `unpaid`, `partial`, `overdue`), and outputs PDF buffers.
 * **Customers:** Manages contact ledgers, records individual payment transactions, calculates outstanding debt, and tracks customer cities.
-* **Inventory & Batches:** Records product SKUs, tracks quantities, defines restocking thresholds, groups lots into batches with separate cost and wholesale rates.
+* **Sanchay:** FinSathi's central system for understanding and managing goods, stock levels, quantities, movement, availability, and inventory health ("Know Your Stock. Control Your Business."). Records product SKUs, tracks quantities, defines restocking thresholds, groups lots into batches with separate cost and wholesale rates.
 * **Expenses & Suppliers:** Logs business payouts, groups expenses by category, maps suppliers, and supports purchase order drafts.
 * **Workforce:** Tracks employee lists, kiosk QR-code check-ins, monthly salary structures, attendance statuses, and payroll records.
 
@@ -367,7 +367,7 @@ FinSathi features an Enterprise-grade Role-Based Access Control system mapped at
   * **Auth:** JWT Access Token
   * **Response:** `{ success: true, data: { score, rating, metrics: { dscr, workingCapitalRatio, dso }, explanation } }`
 
-### 3. POS Billing & Inventory Endpoints
+### 3. POS Billing & Sanchay Endpoints
 * **`POST /api/sales`**
   * **Auth:** JWT Access Token (Requires `create_sales` permission)
   * **Body:** `{ customer_id, items: [{ productId, quantity, price }], discount_percent, payment_method, payment_status }`

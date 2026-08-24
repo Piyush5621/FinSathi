@@ -7,7 +7,7 @@ import Topbar from "../pages/Dashboard/components/Topbar";
 const pathToName = (path) => {
   if (!path) return "Dashboard";
   if (path.startsWith("/customers")) return "Customers";
-  if (path.startsWith("/inventory")) return "Inventory";
+  if (path.startsWith("/inventory")) return "Sanchay";
   if (path.startsWith("/billing")) return "Billing";
   if (path.startsWith("/pos")) return "POS";
   if (path.startsWith("/reports")) return "Reports";

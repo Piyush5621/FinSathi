@@ -31,12 +31,12 @@ It solves:
 
 * Manual bookkeeping
 * GST complexity
-* Inventory confusion
+* Stock & inventory confusion
 * No financial visibility
 
 It provides:
 
-* Real-time inventory tracking
+* Sanchay real-time stock management
 * GST billing
 * Customer ledger
 * Smart dashboard

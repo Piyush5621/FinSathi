@@ -37,7 +37,7 @@ export default function InventoryPage() {
       const res = await API.get("/inventory");
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch {
-      toast.error("Failed to fetch inventory");
+      toast.error("Failed to fetch Sanchay stock");
     } finally {
       setLoading(false);
     }
@@ -155,9 +155,9 @@ export default function InventoryPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-[16px]">
         <div>
           <h1 className="text-[22px] font-bold text-[#0F172A] flex items-center gap-[8px]">
-            <Package size={24} className="text-[#3B82F6]" /> Inventory Master
+            <Package size={24} className="text-[#3B82F6]" /> Sanchay
           </h1>
-          <p className="text-[14px] text-[#64748B] mt-[4px]">Manage your catalog, stock levels, and batches.</p>
+          <p className="text-[14px] text-[#64748B] mt-[4px]">Know Your Stock. Control Your Business.</p>
         </div>
         <div className="flex items-center gap-[12px] w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
@@ -270,7 +270,7 @@ export default function InventoryPage() {
             {loading ? (
               <div className="text-center py-10 text-slate-400">Loading catalog items...</div>
             ) : filteredItems.length === 0 ? (
-              <div className="text-center py-10 text-slate-400">No products found in catalog.</div>
+              <div className="text-center py-10 text-slate-400">No stock items found in Sanchay.</div>
             ) : rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const item = filteredItems[virtualRow.index];
               const totalStock = (item.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), 0);
@@ -376,7 +376,7 @@ export default function InventoryPage() {
             
             <div>
                <div className="flex justify-between items-center mb-3">
-                 <h4 className="text-sm font-bold text-slate-900">Inventory Batches</h4>
+                 <h4 className="text-sm font-bold text-slate-900">Stock Batches</h4>
                  <Badge variant="gray">
                    {(selectedItem.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), 0)} units total
                  </Badge>

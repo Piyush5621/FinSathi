@@ -4,6 +4,20 @@ import Redis from 'ioredis';
 // Shared Redis connection for queues to minimize connections
 export const connection = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
   maxRetriesPerRequest: null,
+  lazyConnect: true,
+  retryStrategy: (times) => {
+    if (!process.env.REDIS_URL && times > 3) {
+      return null; // Stop retrying if no explicit Redis URL configured
+    }
+    return Math.min(times * 1000, 10000);
+  }
+});
+
+connection.on('error', (err) => {
+  // Avoid crashing on connection error if Redis is optional in current environment
+  if (process.env.NODE_ENV !== 'production' || process.env.REDIS_URL) {
+    // console.warn('[Redis] Connection warning:', err.message);
+  }
 });
 
 export const QUEUES = {

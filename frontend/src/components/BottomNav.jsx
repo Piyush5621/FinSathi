@@ -5,7 +5,7 @@ import { LayoutDashboard, Receipt, Package, DollarSign } from 'lucide-react';
 const mobileNavItems = [
   { path: '/dashboard', label: 'Dash', icon: LayoutDashboard },
   { path: '/billing', label: 'POS', icon: Receipt },
-  { path: '/inventory', label: 'Stock', icon: Package },
+  { path: '/inventory', label: 'Sanchay', icon: Package },
   { path: '/payments', label: 'Cash', icon: DollarSign },
 ];
 

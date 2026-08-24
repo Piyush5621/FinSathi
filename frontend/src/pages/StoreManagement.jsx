@@ -162,7 +162,7 @@ export default function StoreManagement() {
           <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-100 shadow-2xl w-full max-w-md space-y-6">
             <div>
               <h3 className="text-lg font-black text-slate-900 tracking-tight">Create Store Branch</h3>
-              <p className="text-xs text-slate-500 font-medium">Add another branch location to map inventory and track transactions.</p>
+              <p className="text-xs text-slate-500 font-medium">Add another branch location to map Sanchay stock and track transactions.</p>
             </div>
 
             <form onSubmit={handleAddStore} className="space-y-4">

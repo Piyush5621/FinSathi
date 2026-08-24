@@ -143,7 +143,7 @@ export default function Dashboard() {
             </div>
             <div className="flex flex-col gap-2 w-full text-xs font-semibold text-slate-600">
               <div className="flex justify-between items-center"><span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Cash Flow</span><span>✅</span></div>
-              <div className="flex justify-between items-center"><span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Inventory</span><span>{data.inventory.lowStockCount > 5 ? '⚠️' : '✅'}</span></div>
+              <div className="flex justify-between items-center"><span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Sanchay</span><span>{data.inventory.lowStockCount > 5 ? '⚠️' : '✅'}</span></div>
               <div className="flex justify-between items-center"><span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Collections</span><span>{data.metrics.outstanding > 1000 ? '⚠️' : '✅'}</span></div>
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <ActionCard label="New Bill" icon={<ShoppingCart className="text-brand-blue" size={20} />} iconBg="bg-brand-blue/10" onClick={() => navigate('/billing')} />
         <ActionCard label="Add Customer" icon={<UserPlus className="text-indigo-500" size={20} />} iconBg="bg-indigo-100" onClick={() => navigate('/customers')} />
-        <ActionCard label="Add Inventory" icon={<PackagePlus className="text-emerald-500" size={20} />} iconBg="bg-emerald-100" onClick={() => navigate('/inventory')} />
+        <ActionCard label="Add Stock" icon={<PackagePlus className="text-emerald-500" size={20} />} iconBg="bg-emerald-100" onClick={() => navigate('/inventory')} />
         <ActionCard label="Add Expense" icon={<DollarSign className="text-rose-500" size={20} />} iconBg="bg-rose-100" onClick={() => navigate('/expenses')} />
       </div>
 

@@ -271,7 +271,7 @@ export default function NetworkHome() {
     {
       title: stats?.pendingPurchases > 0 ? `${stats.pendingPurchases} invoice${stats.pendingPurchases > 1 ? 's' : ''} waiting for your review` : 'Your network is up to date',
       body: stats?.pendingPurchases > 0
-        ? 'Review and import to update your inventory automatically — no manual data entry needed.'
+        ? 'Review and import to update your Sanchay stock automatically — no manual data entry needed.'
         : 'All invoices have been reviewed. Start a new transaction or find new partners.',
       cta: stats?.pendingPurchases > 0 ? 'Review Now' : 'Find Suppliers',
       ctaLink: stats?.pendingPurchases > 0 ? '/network/workspace?tab=inbox' : '/network/directory',
@@ -420,7 +420,7 @@ export default function NetworkHome() {
                     {[
                       { step: '1', title: 'Find a Supplier', desc: 'Search by category, location, GST', link: '/network/directory' },
                       { step: '2', title: 'Receive Invoice', desc: 'Supplier sends digital invoice', link: '/network/workspace?tab=inbox' },
-                      { step: '3', title: 'One-Click Import', desc: 'Products auto-added to inventory', link: '/network/workspace?tab=inbox' },
+                      { step: '3', title: 'One-Click Import', desc: 'Products auto-added to Sanchay', link: '/network/workspace?tab=inbox' },
                     ].map(({ step, title, desc, link }) => (
                       <Link key={step} to={link} className="flex items-center gap-3 p-3 bg-white/10 backdrop-blur rounded-xl hover:bg-white/20 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
                         <div className="w-6 h-6 rounded-full bg-white/20 text-white text-xs font-black flex items-center justify-center shrink-0" aria-hidden="true">

@@ -90,7 +90,7 @@ export default function InvoiceHistory() {
 
   const handleDeleteInvoice = async (invoiceId, e) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this invoice? Inventory stock will be restored.')) return;
+    if (!window.confirm('Delete this invoice? Sanchay stock will be restored.')) return;
     try {
       await API.delete(`/sales/${invoiceId}`);
       toast.success('Invoice deleted');

@@ -179,7 +179,7 @@ function OverviewTab({ warehouses, pos, setTab }) {
                   <Card className="bg-[#3B82F6] text-white p-10 shadow-2xl shadow-brand-blue/20 flex flex-col justify-between h-[300px]">
                      <div>
                         <ShoppingCart size={40} className="mb-6 opacity-30" />
-                        <h4 className="text-[12px] font-black uppercase tracking-[0.3em] opacity-70">Inventory Commitment</h4>
+                        <h4 className="text-[12px] font-black uppercase tracking-[0.3em] opacity-70">Stock Commitment</h4>
                         <p className="text-[42px] font-black mt-1">₹{totalPosAmt.toLocaleString()}</p>
                      </div>
                      <Button variant="ghost" className="w-full bg-white/10 hover:bg-white text-white hover:text-brand-blue font-black rounded-3xl mt-4" onClick={() => setTab('pos')}>
@@ -257,7 +257,7 @@ function POTab({ pos }) {
         <Card className="noPadding overflow-hidden border-slate-100 shadow-2xl rounded-[40px]">
             <div className="p-8 bg-slate-50/50 border-b border-white flex flex-col sm:flex-row justify-between items-center gap-4">
                <div>
-                  <h3 className="text-[18px] font-black text-brand-navy">Inventory Acquisition Book</h3>
+                  <h3 className="text-[18px] font-black text-brand-navy">Stock Acquisition Book</h3>
                   <p className="text-[12px] text-slate-400 font-bold tracking-widest uppercase">Verified Purchase Orders</p>
                </div>
                <div className="flex gap-4">

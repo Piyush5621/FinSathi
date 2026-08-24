@@ -2,24 +2,27 @@ import { logger } from '../infrastructure/logging/logger.js';
 import { BaseError } from '../utils/errors.js';
 
 export const errorHandler = (err, req, res, next) => {
-  // If the error is not a known BaseError, default to a 500 InfrastructureError
-  const isOperational = err.isOperational !== undefined ? err.isOperational : false;
-  const httpCode = err.httpCode || 500;
-  const name = err.name || 'InternalServerError';
+  const httpCode = err.statusCode || err.httpCode || (err.status && typeof err.status === 'number' ? err.status : 500);
+  const isOperational = err.isOperational !== undefined 
+    ? err.isOperational 
+    : (httpCode >= 400 && httpCode < 500);
+  const name = err.name || err.code || 'InternalServerError';
 
   // Log the error via structured logger
   if (isOperational) {
-    logger.warn(err.message, { stack: err.stack, name: err.name });
+    logger.warn(err.message, { stack: err.stack, name, details: err.details });
   } else {
-    logger.error(err.message, { stack: err.stack, name: err.name });
+    logger.error(err.message, { stack: err.stack, name });
   }
 
-  // Strip sensitive info from 500s in production
+  // Build standard response structure
   const responseBody = {
     success: false,
+    message: err.message || (isOperational ? 'Invalid request' : 'An internal error occurred. Please try again later.'),
     error: {
       type: name,
-      message: isOperational ? err.message : 'An internal error occurred. Please try again later.'
+      message: err.message || 'An internal error occurred. Please try again later.',
+      details: err.details || null
     }
   };
 
