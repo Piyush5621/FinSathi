@@ -296,7 +296,7 @@ const LandingPage = () => {
                     transition={{ duration: 0.6, delay: 0.1 }} 
                     className="text-sm sm:text-base md:text-lg text-slate-500 max-w-2xl mb-12 font-medium leading-relaxed"
                 >
-                    FinSathi integrates high-speed POS billing, Sanchay dynamic batch stock pricing, automatic WhatsApp reminders, and eligibility calculations for Indian government grants into one premium workspace.
+                    FinSathi integrates high-speed POS billing, Sanchay stock management, automatic WhatsApp reminders, and eligibility calculations for Indian government grants into one premium workspace.
                 </motion.p>
 
                 <motion.div 
