@@ -31,7 +31,7 @@ const menuGroups = [
     label: 'Core Operations',
     icon: Briefcase,
     items: [
-      { path: '/inventory', label: 'Sanchay', icon: Package },
+      { path: '/inventory', label: 'Inventory', icon: Package },
       { path: '/customers', label: 'Customer Registry', icon: Users },
       { path: '/staff', label: 'Staff Hub', icon: Users },
       { path: '/suppliers', label: 'Purchases', icon: Truck },
@@ -107,7 +107,7 @@ const Sidebar = () => {
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-                  Sanchay
+                  Karobar
                 </h1>
                 <p className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">
                   Business & Stock OS

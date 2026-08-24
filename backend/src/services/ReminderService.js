@@ -79,7 +79,7 @@ export const ReminderService = {
 
     for (const config of configs) {
       const { user_id, threshold, days_past_due, template, users } = config;
-      const shopName = users?.business_name || "Sanchay";
+      const shopName = users?.business_name || "Karobar";
 
       // 2. Query unpaid sales for this user where due_date + days_past_due matches today
       const today = new Date();

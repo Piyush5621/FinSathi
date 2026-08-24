@@ -47,7 +47,7 @@ export default function PurchaseInbox() {
   const handleImportDone = () => {
     setReviewTransaction(null);
     fetchInbox();
-    toast.success('🎉 Products imported into Sanchay!', { duration: 4000 });
+    toast.success('🎉 Products imported into Karobar!', { duration: 4000 });
   };
 
   return (
@@ -60,7 +60,7 @@ export default function PurchaseInbox() {
             Purchase Inbox
           </h1>
           <p className="text-sm text-slate-500 font-medium mt-1">
-            Review supplier invoices and import products into Sanchay automatically.
+            Review supplier invoices and import products into Karobar automatically.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export default function PurchaseInbox() {
                 {tx.status === 'Imported' && (
                   <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600">
                     <CheckCircle2 size={14} className="text-indigo-500" />
-                    Already imported to Sanchay
+                    Already imported to Karobar
                   </div>
                 )}
                 {tx.status === 'Rejected' && (

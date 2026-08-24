@@ -1,23 +1,23 @@
-# 📦 Sanchay (संचय) — Complete Demo Environment, Users, Roles & Testing Guide
+# 📦 Karobar (कारोबार) — Complete Demo Environment, Users, Roles & Testing Guide
 
-Welcome to the **Sanchay Demo Environment**. This environment is pre-configured with realistic multi-tenant data, multi-branch store operations, real-world catalog items with batch management, live customer ledgers, supplier purchase workflows, sales invoices, expense trackers, and role-based access control (RBAC).
+Welcome to the **Karobar Demo Environment**. This environment is pre-configured with realistic multi-tenant data, multi-branch store operations, real-world catalog items with batch management, live customer ledgers, supplier purchase workflows, sales invoices, expense trackers, and role-based access control (RBAC).
 
 ---
 
 ## 🔑 Demo Accounts & Credentials Directory
 
-All demo accounts share the standard development password: **`Sanchay@12345`**
+All demo accounts share the standard development password: **`Karobar@12345`**
 
 | Organization | Role | Email | Password | Access Scope & Capabilities |
 | :--- | :--- | :--- | :--- | :--- |
-| **Sharma General Store** | **Owner** | `demo.owner@sanchay.test` | `Sanchay@12345` | **Full Platform Access**: Dashboard analytics, Sanchay stock, multi-store switcher, RBAC matrix, financial reports, settings |
-| **Sharma General Store** | **Manager** | `demo.manager@sanchay.test` | `Sanchay@12345` | **Store Operations**: Staff management, purchase orders approval, customer credit, stock counts, sales oversight |
-| **Sharma General Store** | **Cashier** | `demo.cashier@sanchay.test` | `Sanchay@12345` | **POS Terminal**: Fast barcode/SKU billing, customer lookup, cash/UPI receipt generation, invoice history |
-| **Sharma General Store** | **Accountant** | `demo.accountant@sanchay.test` | `Sanchay@12345` | **Finance & Tax**: P&L statements, expense categorization, GST tax reports export, customer payment ledgers |
-| **Sharma General Store** | **Inventory Manager** *(Warehouse Staff)* | `demo.inventory@sanchay.test` | `Sanchay@12345` | **Sanchay Stock Hub**: Batch tracking (FEFO/FIFO), low-stock restock recommendations, valuation, catalog updates |
-| **Sharma General Store** | **Delivery Staff** | `demo.delivery@sanchay.test` | `Sanchay@12345` | **Order Fulfillment**: Dispatched orders, delivery milestones, customer drop-off verification |
-| **Verma Wholesale Traders** | **Owner (Wholesale)** | `demo.wholesale@sanchay.test` | `Sanchay@12345` | **B2B Bulk Trade**: Sacks/cartons inventory, wholesale tiered pricing, bulk supplier credit, high-value invoicing |
-| **UrbanWear Store** | **Owner (Apparel)** | `demo.apparel@sanchay.test` | `Sanchay@12345` | **Fashion & Variants**: Multi-SKU sizes (32, 34, M, L), color variants, garment stock batches, boutique POS |
+| **Sharma General Store** | **Owner** | `demo.owner@karobar.test` | `Karobar@12345` | **Full Platform Access**: Dashboard analytics, product stock, multi-store switcher, RBAC matrix, financial reports, settings |
+| **Sharma General Store** | **Manager** | `demo.manager@karobar.test` | `Karobar@12345` | **Store Operations**: Staff management, purchase orders approval, customer credit, stock counts, sales oversight |
+| **Sharma General Store** | **Cashier** | `demo.cashier@karobar.test` | `Karobar@12345` | **POS Terminal**: Fast barcode/SKU billing, customer lookup, cash/UPI receipt generation, invoice history |
+| **Sharma General Store** | **Accountant** | `demo.accountant@karobar.test` | `Karobar@12345` | **Finance & Tax**: P&L statements, expense categorization, GST tax reports export, customer payment ledgers |
+| **Sharma General Store** | **Inventory Manager** *(Warehouse Staff)* | `demo.inventory@karobar.test` | `Karobar@12345` | **Stock & Inventory Hub**: Batch tracking (FEFO/FIFO), low-stock restock recommendations, valuation, catalog updates |
+| **Sharma General Store** | **Delivery Staff** | `demo.delivery@karobar.test` | `Karobar@12345` | **Order Fulfillment**: Dispatched orders, delivery milestones, customer drop-off verification |
+| **Verma Wholesale Traders** | **Owner (Wholesale)** | `demo.wholesale@karobar.test` | `Karobar@12345` | **B2B Bulk Trade**: Sacks/cartons inventory, wholesale tiered pricing, bulk supplier credit, high-value invoicing |
+| **UrbanWear Store** | **Owner (Apparel)** | `demo.apparel@karobar.test` | `Karobar@12345` | **Fashion & Variants**: Multi-SKU sizes (32, 34, M, L), color variants, garment stock batches, boutique POS |
 | **System Admin Portal** | **Superadmin** | `admin@finsathi.com` | `finadmin123` | **Platform Administration**: Access at `/admin/login`. Tenant supervision, user activation/suspension, audit trail |
 
 ---
@@ -52,7 +52,7 @@ All demo accounts share the standard development password: **`Sanchay@12345`**
 
 | Permission Key | Description | Owner | Manager | Cashier | Accountant | Warehouse Staff | Delivery Staff |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| `view_catalog` | View Sanchay stock & product catalog | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `view_catalog` | View stock & product catalog | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `edit_catalog` | Create, edit, and update product items | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | `delete_inventory`| Remove catalog products permanently | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `run_counts` | Run stock adjustments & batch counts | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
@@ -67,10 +67,10 @@ All demo accounts share the standard development password: **`Sanchay@12345`**
 
 ## 🧪 Role-Specific Testing Workflows
 
-### 👑 Workflow 1: Business Owner (`demo.owner@sanchay.test`)
-1. **Login**: Navigate to `/login` and enter `demo.owner@sanchay.test` / `Sanchay@12345`.
+### 👑 Workflow 1: Business Owner (`demo.owner@karobar.test`)
+1. **Login**: Navigate to `/login` and enter `demo.owner@karobar.test` / `Karobar@12345`.
 2. **Dashboard Overview**: Check today's sales KPI (₹25,000+), revenue trend sparkline, AOV, and low-stock widget.
-3. **Sanchay Stock Hub (`/inventory`)**:
+3. **Stock & Inventory Hub (`/inventory`)**:
    - Filter by *Low Stock* or *Stockout* to view items needing reorder.
    - Click **Quick Restock** to generate replenishment recommendations.
    - Inspect batch breakdown with FIFO/FEFO expiration indicators.
@@ -81,8 +81,8 @@ All demo accounts share the standard development password: **`Sanchay@12345`**
 
 ---
 
-### 🏪 Workflow 2: Store Manager (`demo.manager@sanchay.test`)
-1. **Login**: Sign in with `demo.manager@sanchay.test` / `Sanchay@12345`.
+### 🏪 Workflow 2: Store Manager (`demo.manager@karobar.test`)
+1. **Login**: Sign in with `demo.manager@karobar.test` / `Karobar@12345`.
 2. **Staff Hub (`/staff`)**:
    - View active staff roster (Cashier, Accountant, Warehouse, Delivery).
    - Check attendance logs and salary structures.
@@ -92,8 +92,8 @@ All demo accounts share the standard development password: **`Sanchay@12345`**
 
 ---
 
-### 🧾 Workflow 3: POS Cashier (`demo.cashier@sanchay.test`)
-1. **Login**: Sign in with `demo.cashier@sanchay.test` / `Sanchay@12345`.
+### 🧾 Workflow 3: POS Cashier (`demo.cashier@karobar.test`)
+1. **Login**: Sign in with `demo.cashier@karobar.test` / `Karobar@12345`.
 2. **POS Terminal (`/billing`)**:
    - Search for `Aashirvaad Atta` or `Amul Butter` via barcode or name search.
    - Select Customer `Rajesh Kumar` (`9876543210`).
@@ -103,8 +103,8 @@ All demo accounts share the standard development password: **`Sanchay@12345`**
 
 ---
 
-### 📊 Workflow 4: Tax & Financial Accountant (`demo.accountant@sanchay.test`)
-1. **Login**: Sign in with `demo.accountant@sanchay.test` / `Sanchay@12345`.
+### 📊 Workflow 4: Tax & Financial Accountant (`demo.accountant@karobar.test`)
+1. **Login**: Sign in with `demo.accountant@karobar.test` / `Karobar@12345`.
 2. **P&L Analytics (`/pnl`)**:
    - Inspect Gross Revenue, Cost of Goods Sold (COGS), Gross Profit, and Operating Expenses.
    - Review net profit margins.
@@ -113,13 +113,13 @@ All demo accounts share the standard development password: **`Sanchay@12345`**
    - Click **Add Expense** to log a new receipt.
 4. **GST Tax Reports (`/reports/gst`)**:
    - View GSTR-1 outward supplies summary with tax slab breakdowns (0%, 5%, 12%, 18%).
-   - Export GST report to Excel / CSV.
+   - Export GST report to Excel (.xlsx).
 
 ---
 
-### 📦 Workflow 5: Warehouse & Sanchay Stock Lead (`demo.inventory@sanchay.test`)
-1. **Login**: Sign in with `demo.inventory@sanchay.test` / `Sanchay@12345`.
-2. **Sanchay Stock Operations (`/inventory`)**:
+### 📦 Workflow 5: Warehouse & Stock Lead (`demo.inventory@karobar.test`)
+1. **Login**: Sign in with `demo.inventory@karobar.test` / `Karobar@12345`.
+2. **Stock Operations (`/inventory`)**:
    - Review batch health and total valuation.
    - Filter items by category (Dairy, Snacks, Grains, Personal Care).
    - Verify that administrative settings and P&L financial data are appropriately restricted under RBAC.
@@ -127,8 +127,8 @@ All demo accounts share the standard development password: **`Sanchay@12345`**
 ---
 
 ### 🚚 Workflow 6: Wholesale & Apparel Demo Owners
-- **Wholesale (`demo.wholesale@sanchay.test`)**: Test bulk sack units, wholesale price margins, and vendor purchase orders.
-- **Apparel (`demo.apparel@sanchay.test`)**: Test denim jeans and cotton t-shirt variants across sizes (32, 34, M, L) and colors (Black, White, Blue).
+- **Wholesale (`demo.wholesale@karobar.test`)**: Test bulk sack units, wholesale price margins, and vendor purchase orders.
+- **Apparel (`demo.apparel@karobar.test`)**: Test denim jeans and cotton t-shirt variants across sizes (32, 34, M, L) and colors (Black, White, Blue).
 
 ---
 
@@ -142,4 +142,4 @@ cd backend
 npm run seed:demo
 ```
 
-This will safely clear and re-populate all `@sanchay.test` demo organizations, accounts, products, batches, customer ledgers, POs, invoices, and notifications without affecting any non-demo user data.
+This will safely clear and re-populate all `@karobar.test` demo organizations, accounts, products, batches, customer ledgers, POs, invoices, and notifications without affecting any non-demo user data.

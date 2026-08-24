@@ -11,6 +11,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Logo from '../components/Logo';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import CommandPalette from '../components/ui/CommandPalette';
+import OfflineSyncIndicator from '../components/billing/OfflineSyncIndicator';
 import { WifiOff, Wifi } from 'lucide-react';
 
 export default function AppLayout() {
@@ -44,7 +45,7 @@ export default function AppLayout() {
       label: 'Core Operations',
       icon: Package,
       items: [
-        { path: '/inventory', label: 'Sanchay', icon: Package },
+        { path: '/inventory', label: 'Stock & Inventory', icon: Package },
         { path: '/customers', label: 'Customer Registry', icon: Users },
         { path: '/suppliers', label: 'Local Suppliers', icon: Package },
         ...(isB2B ? [{ path: '/crm', label: 'CRM & Pipeline', icon: MessageSquare }] : [])
@@ -95,7 +96,7 @@ export default function AppLayout() {
   const mobileMenu = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/billing', label: 'Billing', icon: Receipt },
-    { path: '/inventory', label: 'Sanchay', icon: Package },
+    { path: '/inventory', label: 'Inventory', icon: Package },
     { path: '/customers', label: 'Customers', icon: Users },
     { path: '/tools', label: 'More', icon: MoreHorizontal },
   ];
@@ -371,6 +372,7 @@ export default function AppLayout() {
            </div>
            
            <div className="flex items-center gap-4">
+              <OfflineSyncIndicator />
               <div className="hidden lg:flex flex-col items-end">
                  <p className="text-xs font-semibold text-slate-900 leading-none">{userObj.name || 'Admin'}</p>
                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Owner</p>
@@ -385,12 +387,15 @@ export default function AppLayout() {
 
         {/* MOBILE HEADER */}
         <header className="md:hidden flex items-center justify-between h-16 px-6 bg-[#090D16] shrink-0 border-b border-white/5 z-40">
-           <h1 className="text-base font-bold text-white tracking-tight">Sanchay</h1>
-           <Link to="/profile">
-             <div className="w-8 h-8 rounded-xl bg-brand-blue text-white flex items-center justify-center text-xs font-black border border-white/10 overflow-hidden shadow-md">
-                {userAvatar ? <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" /> : userInitial}
-             </div>
-           </Link>
+           <h1 className="text-base font-bold text-white tracking-tight">Karobar</h1>
+           <div className="flex items-center gap-3">
+             <OfflineSyncIndicator />
+             <Link to="/profile">
+               <div className="w-8 h-8 rounded-xl bg-brand-blue text-white flex items-center justify-center text-xs font-black border border-white/10 overflow-hidden shadow-md">
+                  {userAvatar ? <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" /> : userInitial}
+               </div>
+             </Link>
+           </div>
         </header>
 
         {/* CONTENT WRAPPER */}

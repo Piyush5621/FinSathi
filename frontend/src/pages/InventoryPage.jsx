@@ -9,7 +9,11 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
 import { Badge } from "../components/ui/Badge";
 import { Drawer } from "../components/ui/Drawer";
 import { Modal } from "../components/ui/Modal";
-import { Search, Plus, Trash2, Package, Share2, Copy, Send, AlertTriangle, TrendingUp, DollarSign, Layers } from 'lucide-react';
+import { 
+  Search, Plus, Trash2, Package, Share2, Copy, Send, 
+  AlertTriangle, TrendingUp, DollarSign, Layers, ChevronDown, 
+  ChevronRight, Barcode as BarcodeIcon, Tag, Sparkles, X 
+} from 'lucide-react';
 
 export default function InventoryPage() {
   const [items, setItems] = useState([]);
@@ -20,6 +24,7 @@ export default function InventoryPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [expandedProductIds, setExpandedProductIds] = useState({});
   const [restockForm, setRestockForm] = useState({ quantity: "", cost_price: "", selling_price: "", batch_name: "" });
 
   const parentRef = useRef();
@@ -27,17 +32,45 @@ export default function InventoryPage() {
   const catalogSlug = user.business_name?.toLowerCase().replace(/\s+/g, '-');
   const catalogUrl = `${window.location.origin}/catalog/${catalogSlug}`;
 
+  // Form State for Add Product
   const [form, setForm] = useState({
-    company: "", sku: "", name: "", price: "", wholesale_price: "", cost_price: "", stock: "", gst_percent: "", units: "pcs"
+    name: "",
+    sku: "",
+    price: "",
+    cost_price: "",
+    mrp: "",
+    barcode: "",
+    stock: "",
+    hasVariants: false
   });
+
+  const [variantList, setVariantList] = useState([
+    { name: "", attributeName: "Size", attributeValue: "", sku: "", barcode: "", price: "", cost_price: "" }
+  ]);
 
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res = await API.get("/inventory");
-      setItems(Array.isArray(res.data) ? res.data : []);
+      const res = await API.get("/catalog/products?limit=100");
+      const raw = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+      const normalized = raw.map(p => ({
+        ...p,
+        id: p.id,
+        name: p.name,
+        sku: p.sku || '',
+        price: Number(p.sellingPrice ?? p.price ?? 0),
+        cost_price: Number(p.costPrice ?? p.cost_price ?? 0),
+        mrp: Number(p.mrp ?? 0),
+        stock: Number(p.stock ?? 0),
+        variants: p.variants || [],
+        barcodes: p.barcodes || [],
+        inventory_batches: p.inventory_batches || [],
+        company: p.companyId || p.company || '',
+        units: p.units || 'pcs'
+      }));
+      setItems(normalized);
     } catch {
-      toast.error("Failed to fetch Sanchay stock");
+      toast.error("Failed to fetch catalog");
     } finally {
       setLoading(false);
     }
@@ -47,20 +80,34 @@ export default function InventoryPage() {
     fetchItems();
   }, []);
 
+  const toggleExpand = (productId, e) => {
+    e?.stopPropagation();
+    setExpandedProductIds(prev => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }));
+  };
+
   const filteredItems = useMemo(() => {
     if (!searchQuery) return items;
     const q = searchQuery.toLowerCase();
-    return items.filter(i =>
-      i.name?.toLowerCase().includes(q) ||
-      i.sku?.toLowerCase().includes(q) ||
-      i.company?.toLowerCase().includes(q)
-    );
+    return items.filter(i => {
+      const nameMatch = i.name?.toLowerCase().includes(q);
+      const skuMatch = i.sku?.toLowerCase().includes(q);
+      const barcodeMatch = (i.barcodes || []).some(b => (b.barcodeValue || b.barcode_value)?.toLowerCase().includes(q));
+      const variantMatch = (i.variants || []).some(v => 
+        v.name?.toLowerCase().includes(q) || 
+        v.sku?.toLowerCase().includes(q) ||
+        Object.values(v.attributes || {}).some(val => String(val).toLowerCase().includes(q))
+      );
+      return nameMatch || skuMatch || barcodeMatch || variantMatch;
+    });
   }, [items, searchQuery]);
 
   const rowVirtualizer = useVirtualizer({
     count: filteredItems.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 70,
+    estimateSize: () => 76,
     overscan: 10,
   });
 
@@ -70,21 +117,69 @@ export default function InventoryPage() {
     return { label: "In Stock", variant: "success" };
   };
 
+  const handleAddVariantRow = () => {
+    setVariantList(prev => [
+      ...prev,
+      { name: "", attributeName: "Size", attributeValue: "", sku: "", barcode: "", price: "", cost_price: "" }
+    ]);
+  };
+
+  const handleRemoveVariantRow = (index) => {
+    setVariantList(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleVariantChange = (index, field, value) => {
+    setVariantList(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    if (!form.name) return toast.error("Product Name required");
+    if (!form.name) return toast.error("Product Name is required");
+
     try {
-      await API.post("/inventory", {
-        ...form,
-        price: Number(form.price || 0),
-        stock: Number(form.stock || 0),
-        gst_percent: Number(form.gst_percent || 0),
-      });
-      toast.success("Product added successfully");
+      // 1. Create Parent Product
+      const productPayload = {
+        name: form.name,
+        sku: form.sku ? form.sku.trim() : undefined,
+        sellingPrice: Number(form.price || 0),
+        costPrice: Number(form.cost_price || 0),
+        mrp: Number(form.mrp || form.price || 0),
+        productType: form.hasVariants ? "variant" : "simple",
+        barcodes: form.barcode ? [{ value: form.barcode.trim(), type: "EAN-13", isPrimary: true }] : []
+      };
+
+      const res = await API.post("/catalog/products", productPayload);
+      const createdProduct = res.data?.data || res.data;
+
+      // 2. Create Variants if enabled
+      if (form.hasVariants && Array.isArray(variantList) && variantList.length > 0) {
+        for (const v of variantList) {
+          if (!v.name && !v.attributeValue) continue;
+          const variantName = v.name || `${v.attributeValue}`;
+          const variantPayload = {
+            name: variantName,
+            sku: v.sku ? v.sku.trim() : undefined,
+            sellingPrice: v.price ? Number(v.price) : Number(form.price || 0),
+            purchasePrice: v.cost_price ? Number(v.cost_price) : Number(form.cost_price || 0),
+            attributes: v.attributeName && v.attributeValue ? { [v.attributeName]: v.attributeValue } : { variant: variantName },
+            barcodes: v.barcode ? [{ value: v.barcode.trim(), type: "EAN-13", isPrimary: true }] : []
+          };
+
+          await API.post(`/catalog/products/${createdProduct.id}/variants`, variantPayload);
+        }
+      }
+
+      toast.success(form.hasVariants ? "Product & Variants created successfully!" : "Product created successfully!");
       setIsAddModalOpen(false);
+      setForm({ name: "", sku: "", price: "", cost_price: "", mrp: "", barcode: "", stock: "", hasVariants: false });
+      setVariantList([{ name: "", attributeName: "Size", attributeValue: "", sku: "", barcode: "", price: "", cost_price: "" }]);
       fetchItems();
-    } catch {
-      toast.error("Failed to add product");
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || "Failed to add product");
     }
   };
 
@@ -109,9 +204,9 @@ export default function InventoryPage() {
   };
 
   const handleDeleteProduct = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
     try {
-      await API.delete(`/inventory/${id}`);
+      await API.delete(`/catalog/products/${id}`);
       toast.success("Product deleted");
       setIsDrawerOpen(false);
       fetchItems();
@@ -128,7 +223,7 @@ export default function InventoryPage() {
     let totalVal = 0;
 
     items.forEach(item => {
-      const stock = (item.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), 0);
+      const stock = (item.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), item.stock || 0);
       if (stock === 0) outOfStockCount++;
       else if (stock <= 10) lowStockCount++;
       totalVal += (item.price || 0) * stock;
@@ -141,7 +236,7 @@ export default function InventoryPage() {
   const restockRecommendations = useMemo(() => {
     return items
       .map(item => {
-        const stock = (item.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), 0);
+        const stock = (item.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), item.stock || 0);
         return { ...item, stock };
       })
       .filter(item => item.stock <= 10)
@@ -155,18 +250,18 @@ export default function InventoryPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-[16px]">
         <div>
           <h1 className="text-[22px] font-bold text-[#0F172A] flex items-center gap-[8px]">
-            <Package size={24} className="text-[#3B82F6]" /> Sanchay
+            <Package size={24} className="text-[#3B82F6]" /> Product Catalog & Stock
           </h1>
-          <p className="text-[14px] text-[#64748B] mt-[4px]">Know Your Stock. Control Your Business.</p>
+          <p className="text-[14px] text-[#64748B] mt-[4px]">Unified Product Catalog, Variants, Barcodes & Stock Engine.</p>
         </div>
         <div className="flex items-center gap-[12px] w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
+          <div className="relative flex-1 md:w-72">
             <Search className="absolute left-[12px] top-[10px] h-[16px] w-[16px] text-slate-400" />
             <Input 
-              placeholder="Search by name, Item Code..." 
+              placeholder="Search name, SKU, Barcode, Variant..." 
               value={searchQuery} 
               onChange={e => setSearchQuery(e.target.value)} 
-              className="pl-[36px] w-full" 
+              className="pl-[36px] w-full text-xs" 
             />
           </div>
           <Button variant="outline" onClick={() => setIsShareModalOpen(true)} className="gap-2 text-[#3B82F6] border-[#3B82F6]/20 bg-white hover:bg-slate-50">
@@ -183,7 +278,7 @@ export default function InventoryPage() {
              <Layers size={20} />
           </div>
           <div>
-             <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">Total Items</span>
+             <span className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider block">Total Catalog Items</span>
              <span className="text-[24px] font-extrabold text-[#0F172A] mt-1 block">{stats.totalItemsCount}</span>
           </div>
         </Card>
@@ -257,9 +352,10 @@ export default function InventoryPage() {
               <Table>
                 <Thead className="sticky top-0 z-20 bg-white shadow-sm">
                   <tr>
-                    <Th>Product & Code</Th>
+                    <Th>Product & Variants</Th>
                     <Th>Retail Price</Th>
                     <Th>Est. Margin</Th>
+                    <Th>Barcodes</Th>
                     <Th>Total Stock</Th>
                     <Th>Status</Th>
                     <Th>Quick Action</Th>
@@ -270,11 +366,13 @@ export default function InventoryPage() {
             {loading ? (
               <div className="text-center py-10 text-slate-400">Loading catalog items...</div>
             ) : filteredItems.length === 0 ? (
-              <div className="text-center py-10 text-slate-400">No stock items found in Sanchay.</div>
+              <div className="text-center py-10 text-slate-400">No stock items found in Catalog.</div>
             ) : rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const item = filteredItems[virtualRow.index];
-              const totalStock = (item.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), 0);
+              const totalStock = (item.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), item.stock || 0);
               const status = getStockStatus(totalStock);
+              const isExpanded = expandedProductIds[item.id];
+              const hasVariants = (item.variants || []).length > 0;
               
               // Calculate Margin
               const cost = Number(item.cost_price || 0);
@@ -289,7 +387,6 @@ export default function InventoryPage() {
                     top: 0,
                     left: 0,
                     width: '100%',
-                    height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                   className="px-0 md:px-0"
@@ -299,7 +396,14 @@ export default function InventoryPage() {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className="font-bold text-slate-900 text-sm leading-tight">{item.name}</h4>
-                        <span className="text-[10px] text-slate-400 font-mono mt-0.5 inline-block">{item.sku || 'No Code'}</span>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-[10px] text-slate-400 font-mono">{item.sku || 'No SKU'}</span>
+                          {hasVariants && (
+                            <Badge variant="blue" className="text-[9px] px-1.5 py-0">
+                              {item.variants.length} Variants
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <Badge variant={status.variant}>{status.label}</Badge>
                     </div>
@@ -316,12 +420,34 @@ export default function InventoryPage() {
                   </div>
 
                   {/* Desktop Table Row */}
-                  <div className="hidden md:flex items-center w-full bg-white border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer h-full px-6" onClick={() => { setSelectedItem(item); setIsDrawerOpen(true); }}>
-                    <div className="flex-1 min-w-[200px]">
-                       <div className="font-semibold text-slate-900 text-sm">{item.name}</div>
-                       <div className="text-xs text-slate-400 font-mono mt-0.5">{item.sku || 'No Code'}</div>
+                  <div className="hidden md:flex items-center w-full bg-white border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer min-h-[72px] px-6" onClick={() => { setSelectedItem(item); setIsDrawerOpen(true); }}>
+                    <div className="flex-1 min-w-[220px] flex items-center gap-2">
+                      {hasVariants ? (
+                        <button 
+                          onClick={(e) => toggleExpand(item.id, e)}
+                          className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700 transition-colors"
+                          title="Toggle Variants"
+                        >
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </button>
+                      ) : (
+                        <div className="w-5" />
+                      )}
+                      <div>
+                         <div className="font-semibold text-slate-900 text-sm flex items-center gap-2">
+                           {item.name}
+                           {hasVariants && (
+                             <Badge variant="blue" className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 border-blue-200">
+                               {item.variants.length} variants
+                             </Badge>
+                           )}
+                         </div>
+                         <div className="text-xs text-slate-400 font-mono mt-0.5">{item.sku || 'No SKU'}</div>
+                      </div>
                     </div>
+
                     <div className="flex-1 font-medium text-slate-900">₹{item.price}</div>
+                    
                     <div className="flex-1">
                        {marginPercent > 0 ? (
                          <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200">
@@ -335,6 +461,23 @@ export default function InventoryPage() {
                          <span className="text-slate-400 text-xs">—</span>
                        )}
                     </div>
+
+                    <div className="flex-1 flex flex-wrap gap-1 items-center">
+                      {(item.barcodes || []).length === 0 ? (
+                        <span className="text-slate-300 text-xs">—</span>
+                      ) : (
+                        item.barcodes.slice(0, 2).map(b => (
+                          <span key={b.id || b.barcodeValue} className="inline-flex items-center gap-1 font-mono text-[11px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">
+                            <BarcodeIcon size={11} className="text-slate-400" />
+                            {b.barcodeValue || b.barcode_value}
+                          </span>
+                        ))
+                      )}
+                      {(item.barcodes || []).length > 2 && (
+                        <span className="text-[10px] text-slate-400">+{item.barcodes.length - 2}</span>
+                      )}
+                    </div>
+
                     <div className="flex-1 font-bold text-slate-800">{totalStock} {item.units || 'pcs'}</div>
                     <div className="flex-1"><Badge variant={status.variant}>{status.label}</Badge></div>
                     <div className="w-[120px] text-right">
@@ -343,6 +486,38 @@ export default function InventoryPage() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Expanded Variants Sub-panel */}
+                  {isExpanded && hasVariants && (
+                    <div className="hidden md:block bg-slate-50/80 border-b border-slate-200/80 px-14 py-3">
+                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <Tag size={12} /> Product Variants
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        {item.variants.map(v => (
+                          <div key={v.id} className="p-2.5 bg-white rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                            <div>
+                              <span className="font-bold text-xs text-slate-800 block">{v.name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono block mt-0.5">SKU: {v.sku || 'N/A'}</span>
+                              {v.attributes && (
+                                <div className="flex gap-1 mt-1">
+                                  {Object.entries(v.attributes).map(([key, val]) => (
+                                    <span key={key} className="text-[9px] bg-slate-100 text-slate-600 px-1 py-0.5 rounded">
+                                      {key}: {val}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <span className="font-extrabold text-xs text-slate-900 block">₹{v.sellingPrice || item.price}</span>
+                              <span className="text-[10px] text-emerald-600 font-medium">In Catalog</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -351,7 +526,7 @@ export default function InventoryPage() {
       </Card>
 
       {/* Item Details Drawer */}
-      <Drawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} title="Product Details">
+      <Drawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} title="Product & Variant Details">
         {selectedItem && (
           <div className="space-y-6">
             <div className="flex items-center gap-4">
@@ -360,12 +535,13 @@ export default function InventoryPage() {
                </div>
                <div>
                  <h3 className="text-lg font-bold text-[#0F172A]">{selectedItem.name}</h3>
-                 <p className="text-sm text-slate-500 font-mono mt-0.5">{selectedItem.sku || 'No Code'} • {selectedItem.company || 'No Company'}</p>
+                 <p className="text-sm text-slate-500 font-mono mt-0.5">SKU: {selectedItem.sku || 'No SKU'}</p>
                </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Retail Price</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Retail Selling Price</p>
                   <p className="text-xl font-bold text-slate-900 mt-1">₹{selectedItem.price}</p>
                </div>
                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -373,19 +549,71 @@ export default function InventoryPage() {
                   <p className="text-xl font-bold text-slate-900 mt-1">₹{selectedItem.cost_price || 0}</p>
                </div>
             </div>
+
+            {/* Registered Barcodes */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <BarcodeIcon size={14} className="text-slate-600" /> Registered Barcodes
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {(selectedItem.barcodes || []).length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No barcodes registered.</p>
+                ) : (
+                  selectedItem.barcodes.map(b => (
+                    <span key={b.id || b.barcodeValue} className="inline-flex items-center gap-1.5 font-mono text-xs bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg border border-slate-200">
+                      <BarcodeIcon size={13} className="text-slate-500" />
+                      {b.barcodeValue || b.barcode_value}
+                      {b.isPrimary && <Badge variant="blue" className="text-[9px] py-0 px-1">Primary</Badge>}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Variants List */}
+            {(selectedItem.variants || []).length > 0 && (
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Tag size={14} className="text-slate-600" /> Product Variants ({selectedItem.variants.length})
+                </h4>
+                <div className="space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar">
+                  {selectedItem.variants.map(v => (
+                    <div key={v.id} className="p-3 bg-white border border-slate-200 rounded-xl flex justify-between items-center">
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 block">{v.name}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">SKU: {v.sku || 'N/A'}</span>
+                        {v.attributes && (
+                          <div className="flex gap-1 mt-1">
+                            {Object.entries(v.attributes).map(([key, val]) => (
+                              <span key={key} className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                                {key}: {val}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-extrabold text-slate-900 block">₹{v.sellingPrice || selectedItem.price}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
+            {/* Stock Batches */}
             <div>
                <div className="flex justify-between items-center mb-3">
-                 <h4 className="text-sm font-bold text-slate-900">Stock Batches</h4>
+                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Stock Batches</h4>
                  <Badge variant="gray">
-                   {(selectedItem.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), 0)} units total
+                   {(selectedItem.inventory_batches || []).reduce((sum, b) => sum + (b.stock || 0), selectedItem.stock || 0)} units total
                  </Badge>
                </div>
-               <div className="space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+               <div className="space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
                  {(selectedItem.inventory_batches || []).length === 0 ? (
-                   <p className="text-xs text-slate-400 py-4 text-center border border-dashed border-slate-200 rounded-xl">No batch details recorded.</p>
+                   <p className="text-xs text-slate-400 py-3 text-center border border-dashed border-slate-200 rounded-xl">No batch details recorded.</p>
                  ) : (selectedItem.inventory_batches || []).map(b => (
-                   <div key={b.id} className="flex justify-between items-center p-3 bg-white border border-slate-150 rounded-xl hover:border-slate-300 transition-colors">
+                   <div key={b.id} className="flex justify-between items-center p-3 bg-white border border-slate-150 rounded-xl">
                       <div>
                         <span className="text-xs font-semibold text-slate-800">{b.batch_name || 'Standard Batch'}</span>
                         <span className="text-[10px] text-slate-400 block mt-0.5">CP: ₹{b.cost_price} • SP: ₹{b.selling_price}</span>
@@ -395,6 +623,7 @@ export default function InventoryPage() {
                  ))}
                </div>
             </div>
+
             <div className="flex gap-3 pt-4 border-t border-slate-100">
                <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={() => { setRestockForm({ quantity: "", cost_price: selectedItem.cost_price || "", selling_price: selectedItem.price || "", batch_name: "" }); setIsRestockModalOpen(true); }}>Restock Item</Button>
                <Button variant="danger" className="flex-1" onClick={() => handleDeleteProduct(selectedItem.id)}>Delete</Button>
@@ -421,15 +650,119 @@ export default function InventoryPage() {
          </div>
       </Modal>
 
-      {/* Add Product Modal (Simplified) */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="New Product">
-        <form onSubmit={handleAddProduct} className="space-y-4">
-           <Input label="Product Name" placeholder="e.g. Rice 1kg" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+      {/* Add Product Modal (with Variant Support) */}
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="New Catalog Product">
+        <form onSubmit={handleAddProduct} className="space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar pr-1">
+           <Input label="Product Name" placeholder="e.g. Basmati Rice" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+           
+           <div className="grid grid-cols-2 gap-3">
+               <Input label="SKU / Item Code" placeholder="e.g. BAS-001" value={form.sku} onChange={e => setForm({...form, sku: e.target.value})} />
+               <Input label="Primary Barcode" placeholder="e.g. 8901234567890" value={form.barcode} onChange={e => setForm({...form, barcode: e.target.value})} />
+           </div>
+
            <div className="grid grid-cols-2 gap-3">
                <Input label="Cost Price (₹)" type="number" placeholder="0.00" value={form.cost_price} onChange={e => setForm({...form, cost_price: e.target.value})} />
                <Input label="Selling Price (₹)" type="number" placeholder="0.00" value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
            </div>
-           <Input label="Initial Stock" type="number" placeholder="e.g. 50" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
+
+           {/* Variants Toggle */}
+           <div className="pt-2 border-t border-slate-100">
+             <div className="flex items-center justify-between">
+               <div>
+                 <span className="text-xs font-bold text-slate-800 block">Product Variants</span>
+                 <span className="text-[11px] text-slate-400">Add multiple sizes, weights, or colors</span>
+               </div>
+               <label className="relative inline-flex items-center cursor-pointer">
+                 <input 
+                   type="checkbox" 
+                   checked={form.hasVariants} 
+                   onChange={e => setForm({...form, hasVariants: e.target.checked})}
+                   className="sr-only peer"
+                 />
+                 <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+               </label>
+             </div>
+
+             {/* Variant Builder List */}
+             {form.hasVariants && (
+               <div className="mt-3 space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                 {variantList.map((v, index) => (
+                   <div key={index} className="p-3 bg-white rounded-lg border border-slate-200 space-y-2.5 relative">
+                     <div className="flex justify-between items-center">
+                       <span className="text-xs font-bold text-slate-700">Variant #{index + 1}</span>
+                       {variantList.length > 1 && (
+                         <button 
+                           type="button" 
+                           onClick={() => handleRemoveVariantRow(index)}
+                           className="text-red-500 hover:text-red-700 text-xs p-1"
+                         >
+                           <X size={14} />
+                         </button>
+                       )}
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-2">
+                       <Input 
+                         label="Attribute (e.g. Weight/Size)" 
+                         placeholder="Weight" 
+                         value={v.attributeName} 
+                         onChange={e => handleVariantChange(index, 'attributeName', e.target.value)} 
+                       />
+                       <Input 
+                         label="Value (e.g. 1kg, XL)" 
+                         placeholder="1kg" 
+                         value={v.attributeValue} 
+                         onChange={e => handleVariantChange(index, 'attributeValue', e.target.value)} 
+                       />
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-2">
+                       <Input 
+                         label="Variant SKU" 
+                         placeholder="e.g. BAS-1KG" 
+                         value={v.sku} 
+                         onChange={e => handleVariantChange(index, 'sku', e.target.value)} 
+                       />
+                       <Input 
+                         label="Variant Barcode" 
+                         placeholder="e.g. 8901" 
+                         value={v.barcode} 
+                         onChange={e => handleVariantChange(index, 'barcode', e.target.value)} 
+                       />
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-2">
+                       <Input 
+                         label="Selling Price (₹)" 
+                         type="number" 
+                         placeholder={form.price || "0.00"} 
+                         value={v.price} 
+                         onChange={e => handleVariantChange(index, 'price', e.target.value)} 
+                       />
+                       <Input 
+                         label="Cost Price (₹)" 
+                         type="number" 
+                         placeholder={form.cost_price || "0.00"} 
+                         value={v.cost_price} 
+                         onChange={e => handleVariantChange(index, 'cost_price', e.target.value)} 
+                       />
+                     </div>
+                   </div>
+                 ))}
+
+                 <Button 
+                   type="button" 
+                   variant="outline" 
+                   size="sm" 
+                   onClick={handleAddVariantRow} 
+                   className="w-full text-xs text-blue-600 border-blue-200 bg-white hover:bg-blue-50"
+                 >
+                   <Plus size={14} className="mr-1" /> Add Another Variant
+                 </Button>
+               </div>
+             )}
+           </div>
+
            <Button type="submit" className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700">Save Product</Button>
         </form>
       </Modal>

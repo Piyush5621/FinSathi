@@ -1,5 +1,5 @@
 /**
- * Centralized Currency and Number Formatting Utilities for Sanchay
+ * Centralized Currency and Number Formatting Utilities for Karobar
  * Target Format: Indian numbering system (en-IN) / Indian Rupees (INR, ₹)
  */
 

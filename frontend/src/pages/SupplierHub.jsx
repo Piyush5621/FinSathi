@@ -233,7 +233,7 @@ export default function SupplierHub() {
 
   const handleUpdatePoStatus = async (poId, status) => {
     if (status === 'Cancelled' && !window.confirm('Are you sure you want to cancel this PO?')) return;
-    if (status === 'Received' && !window.confirm('Receiving this PO will permanently add to Sanchay stock and register an expense. Continue?')) return;
+    if (status === 'Received' && !window.confirm('Receiving this PO will permanently add to inventory stock and register an expense. Continue?')) return;
     
     try {
       const res = await API.patch(`/purchase-orders/${poId}/status`, { status });

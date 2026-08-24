@@ -1,19 +1,23 @@
 import { supabase } from "../config/db.js";
 import { SalesRepository } from "../repositories/SalesRepository.js";
 import { ExpenseRepository } from "../repositories/ExpenseRepository.js";
+import { FinancialCacheService, FinancialCacheKeys } from "../utils/cache.js";
 
 /**
  * FinPredict — Predictive Cash Flow Engine
  * Generates a 14-day forward-looking cash flow projection.
- *
- * Schema reality (public_schema_snapshot.md):
- *   sales   → id(bigint), user_id, date, total, payment_status, items, invoice_no
- *             NO amount_paid, NO due_date columns
- *   expenses→ id, user_id, date, amount, category
- *   staff   → id, user_id, name, monthly_salary
  */
 export const CashFlowService = {
-  async predict(userId) {
+  async predict(userId, orgId = null) {
+    const targetId = orgId || userId;
+    const cacheKey = FinancialCacheKeys.cashFlow(targetId);
+
+    // 1. Check cache
+    const cachedPrediction = await FinancialCacheService.get(cacheKey);
+    if (cachedPrediction) {
+      return cachedPrediction;
+    }
+
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -132,7 +136,7 @@ export const CashFlowService = {
     const minBalance = Math.min(...dailyProjections.map((d) => d.balance));
     const maxBalance = Math.max(...dailyProjections.map((d) => d.balance));
 
-    return {
+    const result = {
       startingBalance:        Math.round(startingBalance),
       projectedBalance14Days: Math.round(dailyProjections[13]?.balance || startingBalance),
       avgDailyRevenue:        Math.round(avgDailyRevenue),
@@ -145,5 +149,8 @@ export const CashFlowService = {
       maxBalance:             Math.round(maxBalance),
       dailyProjections,
     };
+
+    await FinancialCacheService.set(cacheKey, result, 300);
+    return result;
   },
 };

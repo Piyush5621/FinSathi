@@ -1,5 +1,12 @@
 import express from "express";
-import { getSuppliers, addSupplier, getExpenses, addExpense, updateExpense } from "../controllers/ExpenseController.js";
+import {
+  getSuppliers,
+  addSupplier,
+  getExpenses,
+  addExpense,
+  updateExpense,
+  deleteExpense
+} from "../controllers/ExpenseController.js";
 
 const router = express.Router();
 
@@ -8,5 +15,6 @@ router.post("/suppliers", addSupplier);
 router.get("/", getExpenses);
 router.post("/", addExpense);
 router.put("/:id", updateExpense);
+router.delete("/:id", deleteExpense);
 
 export default router;

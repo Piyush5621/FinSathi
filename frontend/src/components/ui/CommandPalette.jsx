@@ -33,7 +33,7 @@ const CommandPalette = () => {
   const defaultCommands = [
     { id: 'nav-dashboard', title: 'Go to Dashboard', icon: <LayoutDashboard size={16} />, action: () => navigate('/dashboard') },
     { id: 'nav-billing', title: 'Open Billing', icon: <CreditCard size={16} />, action: () => navigate('/billing') },
-    { id: 'nav-inventory', title: 'Open Sanchay', icon: <PackagePlus size={16} />, action: () => navigate('/inventory') },
+    { id: 'nav-inventory', title: 'Open Stock & Inventory', icon: <PackagePlus size={16} />, action: () => navigate('/inventory') },
     { id: 'nav-customers', title: 'Manage Customers', icon: <Users size={16} />, action: () => navigate('/customers') },
     { id: 'nav-staff', title: 'Staff Hub', icon: <Users size={16} />, action: () => navigate('/staff') },
     { id: 'nav-expenses', title: 'Expenses', icon: <BarChart3 size={16} />, action: () => navigate('/expenses') },

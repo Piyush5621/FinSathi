@@ -1,4 +1,5 @@
 import { supabase } from "../config/db.js";
+import { FinancialCacheService, FinancialCacheKeys } from "../utils/cache.js";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -48,7 +49,16 @@ async function callGemini(systemPrompt, userMessage, retryCount = 0) {
 }
 
 export const CreditRulesService = {
-  async calculateCreditMetrics(userId) {
+  async calculateCreditMetrics(userId, orgId = null) {
+    const targetId = orgId || userId;
+    const cacheKey = FinancialCacheKeys.creditScore(targetId);
+
+    // 1. Check cache
+    const cachedCredit = await FinancialCacheService.get(cacheKey);
+    if (cachedCredit) {
+      return cachedCredit;
+    }
+
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -166,7 +176,7 @@ export const CreditRulesService = {
       hasGst: !!user.gstin
     });
 
-    const systemPrompt = `You are Sanchay AI, the credit analyst co-pilot for Sanchay.
+    const systemPrompt = `You are Karobar AI, the credit analyst co-pilot for Karobar.
 Explain the following locally computed business credit profile to the merchant.
 Use clear, encouraging Hinglish/English.
 Explain why they got this score, and list exactly what they can do to improve their credit rating (e.g. collect dues faster, maintain better margins, register GST).
@@ -181,7 +191,7 @@ Provide a conversational, expert explanation under 4 sentences. Break down the s
       explanation = `Your credit score is ${score} (${rating}). To improve your rating, try reducing your collections speed (currently ${dso.toFixed(1)} days) and maintaining a healthy working capital ratio (currently ${workingCapitalRatio.toFixed(2)}).`;
     }
 
-    return {
+    const result = {
       success: true,
       score,
       rating,
@@ -196,5 +206,8 @@ Provide a conversational, expert explanation under 4 sentences. Break down the s
       },
       explanation: explanation.trim()
     };
+
+    await FinancialCacheService.set(cacheKey, result, 600);
+    return result;
   }
 };

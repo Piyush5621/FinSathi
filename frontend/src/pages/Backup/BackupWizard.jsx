@@ -44,7 +44,7 @@ export default function BackupWizard() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `sanchay_backup_${Date.now()}.json`);
+      link.setAttribute("download", `karobar_backup_${Date.now()}.json`);
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
@@ -165,7 +165,7 @@ export default function BackupWizard() {
               </div>
             </div>
             <p className="text-xs text-slate-600 font-medium leading-relaxed">
-              Export all customers ledger, Sanchay stock products, billing records, payroll logs, and CRM pipeline settings. Backups are encrypted for security and isolated per merchant.
+              Export all customers ledger, inventory products, billing records, payroll logs, and CRM pipeline settings. Backups are encrypted for security and isolated per merchant.
             </p>
             <button
               onClick={handleExport}

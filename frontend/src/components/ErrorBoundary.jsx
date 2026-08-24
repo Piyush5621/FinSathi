@@ -13,7 +13,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Sanchay App Error:", error, errorInfo);
+    console.error("Karobar App Error:", error, errorInfo);
   }
 
   render() {
@@ -26,7 +26,7 @@ class ErrorBoundary extends React.Component {
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">System Glitch</h1>
             <p className="text-slate-500 mt-4 mb-10 text-sm leading-relaxed">
-              Sanchay encountered an unexpected rendering error. This usually happens due to a network timeout or a temporary module failure.
+              Karobar encountered an unexpected rendering error. This usually happens due to a network timeout or a temporary module failure.
               {this.state.error?.message && (
                 <code className="block font-mono text-[10px] mt-4 text-rose-500 bg-rose-50/80 p-3 rounded-2xl border border-rose-100/50 break-all">
                   Error: {this.state.error.message}

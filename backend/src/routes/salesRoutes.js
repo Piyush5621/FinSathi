@@ -1,5 +1,5 @@
 import express from "express";
-import { getWeeklySales, getAllSales, createSale, deleteSale, getSummary, getTrend, updateSale } from "../controllers/SalesController.js";
+import { getWeeklySales, getAllSales, createSale, deleteSale, getSummary, getTrend, updateSale, returnSale } from "../controllers/SalesController.js";
 import { planGuard } from "../middleware/planGuard.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import { saleSchema } from "../utils/schemas.js";
@@ -8,6 +8,9 @@ const router = express.Router();
 
 // ✅ Create Sales (Checkout)
 router.post("/", planGuard('invoices_per_month'), validateRequest(saleSchema), createSale);
+
+// ✅ Process Sales Return
+router.post("/:id/return", returnSale);
 
 // ✅ Update Sale
 router.put("/:id", updateSale);

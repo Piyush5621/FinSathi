@@ -33,8 +33,8 @@ export const createProductSchema = z.object({
   categoryId: z.string().uuid("Invalid category ID").nullable().optional(),
   brandId: z.string().uuid("Invalid brand ID").nullable().optional(),
   companyId: z.string().uuid("Invalid company ID").nullable().optional(),
-  sellingUomId: z.string().uuid("Invalid selling UOM ID"),
-  purchaseUomId: z.string().uuid("Invalid purchase UOM ID").optional(),
+  sellingUomId: z.string().optional().nullable(),
+  purchaseUomId: z.string().optional().nullable(),
   gstRateId: z.string().uuid("Invalid GST rate ID").nullable().optional(),
   hsnCodeId: z.string().uuid("Invalid HSN ID").nullable().optional(),
   mrp: z.number().min(0).default(0.00),
@@ -57,7 +57,7 @@ export const updateProductSchema = createProductSchema.partial();
 export const createVariantSchema = z.object({
   name: z.string().min(1, "Variant name is required"),
   sku: z.string().max(100).optional(),
-  attributes: z.record(z.any()), // e.g. { color: "Red", size: "M" }
+  attributes: z.record(z.any()).optional().default({}), // e.g. { color: "Red", size: "M" }
   sellingPrice: z.number().min(0).nullable().optional(),
   purchasePrice: z.number().min(0).nullable().optional(),
   gstRateId: z.string().uuid().nullable().optional(),

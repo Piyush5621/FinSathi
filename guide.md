@@ -1,6 +1,6 @@
-# 🚀 FinSathi — Smart Business Management System
+# 🚀 Karobar — Smart Business Management System
 
-> 💼 **Your business. Your growth. Your FinSathi.**
+> 💼 **Your business. Your growth. Your Karobar.**
 
 ---
 
@@ -9,7 +9,7 @@
 This is NOT just a README.
 This is your **FULL PRODUCT BLUEPRINT + EXECUTION GUIDE**.
 
-👉 You will build FinSathi by following this EXACT order:
+👉 You will build Karobar by following this EXACT order:
 
 1. Understand architecture
 2. Setup foundation
@@ -25,7 +25,7 @@ This is your **FULL PRODUCT BLUEPRINT + EXECUTION GUIDE**.
 
 # 📌 COMPLETE PRODUCT UNDERSTANDING
 
-FinSathi is a **business operating system** for small businesses.
+Karobar is a **business operating system** for small businesses.
 
 It solves:
 
@@ -36,7 +36,7 @@ It solves:
 
 It provides:
 
-* Sanchay real-time stock management
+* Karobar real-time stock management
 * GST billing
 * Customer ledger
 * Smart dashboard

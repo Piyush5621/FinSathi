@@ -1,4 +1,4 @@
-# 🌐 Sanchay — Complete Project Knowledge Base & Source of Truth
+# 🌐 Karobar — Complete Project Knowledge Base & Source of Truth
 
 > **Document Status**: `LIVING PRODUCTION SOURCE OF TRUTH`  
 > **Repository Version**: `v1.0.0-rc1 / v2.0 Modular Architecture`  
@@ -17,7 +17,7 @@
 6. [Application Modules](#6-application-modules)
 7. [Feature-by-Feature Deep Explanation](#7-feature-by-feature-deep-explanation)
 8. [End-to-End Workflow Specifications](#8-end-to-end-workflow-specifications)
-9. [Sanchay Subsystem — Deep Technical Reference](#9-sanchay-subsystem--deep-technical-reference)
+9. [Inventory & Stock Subsystem — Deep Technical Reference](#9-inventory--stock-subsystem--deep-technical-reference)
 10. [Authentication & Authorization (IAM)](#10-authentication--authorization-iam)
 11. [Database Architecture & Schema](#11-database-architecture--schema)
 12. [Database Migration History & Evolution](#12-database-migration-history--evolution)
@@ -50,14 +50,14 @@
 
 # 1. Project Overview
 
-### Simple Explanation (What is Sanchay?)
-**Sanchay (संचय)** is an **Intelligent Business Operating System (OS) & Stock Platform** designed specifically for Indian Micro, Small, and Medium Enterprises (MSMEs) — such as Kirana stores, distributors, retail shopkeepers, and local wholesalers. It replaces paper ledgers (*Bahi-Khata*) and clunky desktop billing software with a mobile-first, AI-assisted platform that manages sales, Sanchay stock inventory, cash flow, staff attendance, customer credit (*Udhaar*), WhatsApp payment reminders, and B2B trade networking.
+### Simple Explanation (What is Karobar?)
+**Karobar (कारोबार)** is an **Intelligent Business Operating System (OS) & Stock Platform** designed specifically for Indian Micro, Small, and Medium Enterprises (MSMEs) — such as Kirana stores, distributors, retail shopkeepers, and local wholesalers. It replaces paper ledgers (*Bahi-Khata*) and clunky desktop billing software with a mobile-first, AI-assisted platform that manages sales, product stock inventory, cash flow, staff attendance, customer credit (*Udhaar*), WhatsApp payment reminders, and B2B trade networking.
 
 ### Technical Explanation
-Architecturally, Sanchay is a multi-tenant, cloud-native Node.js/Express and React 18 Single-Page Application (SPA) powered by a Supabase PostgreSQL relational database, Redis-backed BullMQ job queues, and an "Action-Guarded" LLM orchestration layer utilizing Google Gemini 2.5 Flash and Deepgram Nova-2. The backend follows Domain-Driven Design (DDD) with modular subsystems (`identity`, `masters`, `catalog`, `inventory`, `network`) that enforce strict multi-tenant isolation, row-level pessimistic locking for concurrency, and partitioned immutable stock ledgers.
+Architecturally, Karobar is a multi-tenant, cloud-native Node.js/Express and React 18 Single-Page Application (SPA) powered by a Supabase PostgreSQL relational database, Redis-backed BullMQ job queues, and an "Action-Guarded" LLM orchestration layer utilizing Google Gemini 2.5 Flash and Deepgram Nova-2. The backend follows Domain-Driven Design (DDD) with modular subsystems (`identity`, `masters`, `catalog`, `inventory`, `network`) that enforce strict multi-tenant isolation, row-level pessimistic locking for concurrency, and partitioned immutable stock ledgers.
 
 ### One-Minute Pitch (For Developers & Interviewers)
-> "Sanchay is an Intelligent Business OS & Stock Platform for 63 million Indian MSMEs. Traditional ERPs like SAP or Tally are too desktop-heavy, complex, and passive — requiring accountants to input numbers after the fact. Sanchay turns reactive bookkeeping into proactive management: shopkeepers can generate GST invoices in under 10 seconds, track batch expiries and low stock with FIFO logic, forecast cash flow crunches 14 days ahead, recover overdue customer credit via automated WhatsApp links, and query business metrics using natural Hindi/Hinglish voice commands. It is engineered with Node.js, React, PostgreSQL with row locking, Redis queues, and AI guardrails that prevent LLM hallucinations from touching financial balances."
+> "Karobar is an Intelligent Business OS & Stock Platform for 63 million Indian MSMEs. Traditional ERPs like SAP or Tally are too desktop-heavy, complex, and passive — requiring accountants to input numbers after the fact. Karobar turns reactive bookkeeping into proactive management: shopkeepers can generate GST invoices in under 10 seconds, track batch expiries and low stock with FIFO logic, forecast cash flow crunches 14 days ahead, recover overdue customer credit via automated WhatsApp links, and query business metrics using natural Hindi/Hinglish voice commands. It is engineered with Node.js, React, PostgreSQL with row locking, Redis queues, and AI guardrails that prevent LLM hallucinations from touching financial balances."
 
 ### The Problem It Solves
 1. **Manual Ledger Errors & Cash Leakage**: Unrecorded sales, math errors in manual billing, and untracked discounts lead to 3–7% revenue leakage.
@@ -406,10 +406,10 @@ FinSathi/
   * Services: `ProductService.js`
   * Repositories: `ProductRepository.js`, `VariantRepository.js`, `BarcodeRepository.js`
 
-### 6.4 Sanchay Stock Engine (`modules/inventory`)
-> **Sanchay is FinSathi's inventory and stock management system.**  
-> *Slogan:* **"Sanchay — Know Your Stock. Control Your Business."**  
-* **Meaning & Positioning**: Sanchay (संचय) means *accumulation, collection, or stored resources*. Sanchay is not merely a basic stock counter; it is FinSathi's central system for understanding and managing business goods, stock quantities, movement, availability, batch valuation, and inventory health.
+### 6.4 Stock & Inventory Engine (`modules/inventory`)
+> **Karobar's inventory and stock management system.**  
+> *Slogan:* **"Your Business. One Simple Karobar."**  
+* **Meaning & Positioning**: Karobar (कारोबार) means *Business / Trade*. It is the central system for understanding and managing business goods, stock quantities, movement, availability, batch valuation, and inventory health.
 * **Purpose**: Executes real-time stock balances across multiple warehouses, batch and expiry management (FEFO/FIFO), serial number tracking, warehouse transfers, reservations with TTL, and immutable partitioned movement ledgers.
 * **Database Tables**: `warehouse_stock`, `inventory_batches`, `inventory_serial_numbers`, `inventory_movements` (partitioned), `inventory_transfers`, `inventory_reservations`, `inventory_adjustments`, `inventory_snapshots`.
 * **Important Files**:
@@ -502,13 +502,13 @@ FinSathi/
 
 ---
 
-# 9. Sanchay Subsystem — Deep Technical Reference (Inventory & Stock Engine)
+# 9. Inventory & Stock Subsystem — Deep Technical Reference (Inventory & Stock Engine)
 
-> **Sanchay is FinSathi's inventory and stock management system.**  
-> *Slogan:* **"Sanchay — Know Your Stock. Control Your Business."**  
-> *Product Positioning:* Sanchay (संचय) represents *accumulation, collection, or stored resources*. It is FinSathi's central system for understanding and managing goods, stock levels, quantities, movement, availability, and inventory health.
+> **Karobar's inventory and stock management engine.**  
+> *Slogan:* **"Your Business. One Simple Karobar."**  
+> *Product Positioning:* Karobar (कारोबार) represents *Business / Trade*. It is the central system for understanding and managing goods, stock levels, quantities, movement, availability, and inventory health.
 
-Sanchay is the core operational engine of FinSathi, designed for high-concurrency MSME trade.
+The stock engine is designed for high-concurrency MSME trade.
 
 ```mermaid
 graph TD

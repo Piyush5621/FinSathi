@@ -1,26 +1,66 @@
 import { supabase } from "../config/db.js";
+import { FinancialCacheService } from "../utils/cache.js";
 
 // ✅ Add Payment (FIFO Logic)
 export const addPayment = async (req, res) => {
-    const { customer_id, amount, date, payment_mode, reference } = req.body;
-    const payAmount = parseFloat(amount);
+    const { customer_id, amount, date, payment_mode, payment_method, reference, notes, idempotency_key } = req.body;
+    const payAmount = Math.round(parseFloat(amount) * 100) / 100;
+    const idempotencyKey = idempotency_key || req.headers?.["x-idempotency-key"] || null;
 
     if (!customer_id || isNaN(payAmount) || payAmount <= 0) {
         return res.status(400).json({ error: "Invalid payment details" });
     }
 
     try {
-        // 1. Record the Payment
         const userId = req.user?.id;
+
+        // Idempotency Check: Prevent duplicate payment submissions
+        if (idempotencyKey) {
+            const { data: existingPay } = await supabase
+                .from("payments")
+                .select("*")
+                .eq("user_id", userId)
+                .eq("customer_id", customer_id)
+                .eq("idempotency_key", idempotencyKey)
+                .maybeSingle();
+
+            if (existingPay) {
+                return res.status(409).json({
+                    error: "A payment with this idempotency key has already been processed.",
+                    payment: existingPay
+                });
+            }
+        } else {
+            // Check for rapid identical submissions (within last 3 seconds)
+            const threeSecondsAgo = new Date(Date.now() - 3000).toISOString();
+            const { data: recentPay } = await supabase
+                .from("payments")
+                .select("*")
+                .eq("user_id", userId)
+                .eq("customer_id", customer_id)
+                .eq("amount", payAmount)
+                .gte("created_at", threeSecondsAgo)
+                .maybeSingle();
+
+            if (recentPay) {
+                return res.status(409).json({
+                    error: "Duplicate payment submission detected.",
+                    payment: recentPay
+                });
+            }
+        }
+
+        // 1. Record the Payment
         const { data: payment, error: payError } = await supabase
             .from("payments")
             .insert([{
-                user_id: userId, // ✅ Associate with logged-in user
+                user_id: userId,
                 customer_id,
                 amount: payAmount,
                 date: date || new Date(),
-                payment_mode,
-                reference
+                payment_mode: payment_mode || payment_method || "cash",
+                reference: reference || notes || null,
+                idempotency_key: idempotencyKey
             }])
             .select()
             .single();
@@ -30,50 +70,79 @@ export const addPayment = async (req, res) => {
             throw payError;
         }
 
-        if (payError) throw payError;
-
-        // 2. Fetch Unpaid Invoices (Oldest First)
+        // 2. Fetch Unpaid Invoices (Oldest First - FIFO)
         const { data: invoices, error: invError } = await supabase
             .from("sales")
             .select("*")
             .eq("customer_id", customer_id)
-            .eq("user_id", userId) // ✅ Filter by user
+            .eq("user_id", userId)
             .neq("payment_status", "paid")
-            .order("date", { ascending: true }); // FIFO
+            .order("date", { ascending: true })
+            .order("created_at", { ascending: true });
 
         if (invError) throw invError;
 
         // 3. Distribute Payment
         let remaining = payAmount;
 
-        for (const inv of invoices) {
-            if (remaining <= 0) break;
+        if (Array.isArray(invoices)) {
+            for (const inv of invoices) {
+                if (remaining <= 0) break;
 
-            const total = parseFloat(inv.total);
-            const paidSoFar = parseFloat(inv.amount_paid || 0);
-            const due = total - paidSoFar;
+                const total = Math.round(parseFloat(inv.total || 0) * 100) / 100;
+                const paidSoFar = Math.round(parseFloat(inv.amount_paid || 0) * 100) / 100;
+                const due = Math.round((total - paidSoFar) * 100) / 100;
+                if (due <= 0) continue;
 
-            // Calculate how much to pay for this invoice
-            const toPay = Math.min(due, remaining);
-            const newPaidAmount = paidSoFar + toPay;
+                // Calculate how much to pay for this invoice
+                const toPay = Math.round(Math.min(due, remaining) * 100) / 100;
+                const newPaidAmount = Math.round((paidSoFar + toPay) * 100) / 100;
 
-            // Determine new status
-            let newStatus = "partial";
-            if (newPaidAmount >= total - 0.01) { // tolerance for float logic
-                newStatus = "paid";
+                // Determine new status
+                let newStatus = "partial";
+                if (newPaidAmount >= total - 0.01) {
+                    newStatus = "paid";
+                }
+
+                // Update Invoice
+                await supabase
+                    .from("sales")
+                    .update({
+                        amount_paid: newPaidAmount,
+                        payment_status: newStatus,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq("id", inv.id)
+                    .eq("user_id", userId);
+
+                remaining = Math.round((remaining - toPay) * 100) / 100;
             }
+        }
 
-            // Update Invoice
+        // 4. Update Customer Balance
+        const { data: customer } = await supabase
+            .from("customers")
+            .select("outstanding_balance")
+            .eq("id", customer_id)
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        if (customer) {
+            const currentBal = Math.round(parseFloat(customer.outstanding_balance || 0) * 100) / 100;
+            const newBal = Math.round(Math.max(0, currentBal - payAmount) * 100) / 100;
             await supabase
-                .from("sales")
-                .update({
-                    amount_paid: newPaidAmount,
-                    payment_status: newStatus
-                })
-                .eq("id", inv.id)
-                .eq("user_id", userId); // ✅ Check ownership
+                .from("customers")
+                .update({ outstanding_balance: newBal, updated_at: new Date().toISOString() })
+                .eq("id", customer_id)
+                .eq("user_id", userId);
+        }
 
-            remaining -= toPay;
+        // Invalidate Financial Intelligence Cache
+        try {
+            const orgId = req.tenantId || req.user?.organization_id || userId;
+            await FinancialCacheService.invalidate(orgId, userId);
+        } catch (cErr) {
+            console.warn("[PaymentController] Cache invalidation warning:", cErr.message);
         }
 
         res.status(201).json({ message: "Payment recorded and allocated", payment });
@@ -183,6 +252,24 @@ export const deletePayment = async (req, res) => {
                 .eq("user_id", req.user.id); // ✅ Check ownership
 
             remainingToRevert -= toDeduct;
+        }
+
+        // 4. Restore Customer Balance
+        const { data: customer } = await supabase
+            .from("customers")
+            .select("outstanding_balance")
+            .eq("id", payment.customer_id)
+            .eq("user_id", req.user.id)
+            .maybeSingle();
+
+        if (customer) {
+            const currentBal = parseFloat(customer.outstanding_balance || 0);
+            const newBal = currentBal + parseFloat(payment.amount || 0);
+            await supabase
+                .from("customers")
+                .update({ outstanding_balance: newBal, updated_at: new Date().toISOString() })
+                .eq("id", payment.customer_id)
+                .eq("user_id", req.user.id);
         }
 
         res.status(200).json({ message: "Payment deleted and balances reverted" });

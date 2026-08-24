@@ -83,7 +83,7 @@ export default function BusinessHealthPage() {
           <ShieldCheck size={48} className="text-slate-300 mb-4" />
           <h2 className="text-lg font-bold text-slate-700">No health data yet</h2>
           <p className="text-sm text-slate-400 mt-1 max-w-sm">
-            Add some sales, expenses, and Sanchay stock items to generate your business health score.
+            Add some sales, expenses, and inventory items to generate your business health score.
           </p>
           <Button className="mt-6" onClick={fetchData}>
             Try Again
@@ -122,7 +122,7 @@ export default function BusinessHealthPage() {
                   detail: `Expense ratio: ${data.components.cashFlow.details.ratio * 100 | 0}%`
                 },
                 {
-                  label: 'Sanchay',
+                  label: 'Inventory',
                   icon: Package,
                   score: data.components.inventory.score,
                   weight: '20%',

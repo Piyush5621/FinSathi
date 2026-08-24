@@ -2,12 +2,13 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Printer, Trash2, MessageCircle, Plus, Edit,
-  FileText, Download, Mail, Clock, ChevronRight, Filter
+  FileText, Download, Mail, Clock, ChevronRight, Filter, RotateCcw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../../services/apiClient';
 import InvoicePreviewModal from '../../components/billing/InvoicePreviewModal';
 import InvoiceEditorModal from '../Billing/InvoiceEditorModal';
+import SalesReturnModal from '../../components/billing/SalesReturnModal';
 import Skeleton from '../../components/ui/Skeleton';
 import logoImg from '../../assets/logo.svg';
 
@@ -49,6 +50,7 @@ export default function InvoiceHistory() {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [previewInvoice, setPreviewInvoice] = useState(null);
   const [editingInvoice, setEditingInvoice] = useState(null);
+  const [returnModalInvoice, setReturnModalInvoice] = useState(null);
   const [sendingWhatsapp, setSendingWhatsapp] = useState(null);
 
   useEffect(() => { fetchInvoices(); }, []);
@@ -90,7 +92,7 @@ export default function InvoiceHistory() {
 
   const handleDeleteInvoice = async (invoiceId, e) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this invoice? Sanchay stock will be restored.')) return;
+    if (!window.confirm('Delete this invoice? Stock will be restored.')) return;
     try {
       await API.delete(`/sales/${invoiceId}`);
       toast.success('Invoice deleted');
@@ -397,7 +399,7 @@ export default function InvoiceHistory() {
                 <div className="px-4 pb-4 flex gap-2">
                   <button
                     onClick={() => setPreviewInvoice(selectedInvoice)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer"
                   >
                     <Download size={13} />
                     PDF
@@ -405,10 +407,18 @@ export default function InvoiceHistory() {
                   <button
                     onClick={() => handleSendWhatsApp(selectedInvoice)}
                     disabled={!selectedInvoice.customers?.phone}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <MessageCircle size={13} />
                     WhatsApp
+                  </button>
+                  <button
+                    onClick={() => setReturnModalInvoice(selectedInvoice)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-xl hover:bg-rose-100 transition-all cursor-pointer"
+                    title="Process Sales Return"
+                  >
+                    <RotateCcw size={13} />
+                    Return
                   </button>
                 </div>
               </>
@@ -485,6 +495,14 @@ export default function InvoiceHistory() {
           invoice={editingInvoice}
           onClose={() => setEditingInvoice(null)}
           onSaved={fetchInvoices}
+        />
+      )}
+      {returnModalInvoice && (
+        <SalesReturnModal
+          invoice={returnModalInvoice}
+          isOpen={!!returnModalInvoice}
+          onClose={() => setReturnModalInvoice(null)}
+          onReturnSuccess={fetchInvoices}
         />
       )}
     </div>

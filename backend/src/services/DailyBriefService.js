@@ -1,6 +1,7 @@
 import { supabase } from "../config/db.js";
 import { HealthScoreService } from "./HealthScoreService.js";
 import { CreditRulesService } from "./CreditRulesService.js";
+import { FinancialCacheService, FinancialCacheKeys } from "../utils/cache.js";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -54,10 +55,18 @@ async function callGemini(systemPrompt, userMessage, retryCount = 0) {
 }
 
 export const DailyBriefService = {
-  async getDailyBrief(userId) {
+  async getDailyBrief(userId, orgId = null) {
+    const targetId = orgId || userId;
     const todayStr = new Date().toISOString().split("T")[0];
+    const cacheKey = FinancialCacheKeys.dailyBrief(targetId, todayStr);
 
-    // 1. Try to fetch cached brief
+    // 1. Try Redis / memory cache
+    const redisCached = await FinancialCacheService.get(cacheKey);
+    if (redisCached) {
+      return redisCached;
+    }
+
+    // 2. Try to fetch cached brief from DB table
     try {
       const { data: cachedBrief, error: cacheError } = await supabase
         .from("daily_business_briefs")
@@ -156,7 +165,7 @@ export const DailyBriefService = {
       pendingCriticalTasksCount: tasksCount
     });
 
-    const systemPrompt = `You are Sanchay AI, a warm and expert AI business advisor for Sanchay, a business and stock operating system for small retailers in India.
+    const systemPrompt = `You are Karobar AI, a warm and expert AI business advisor for Karobar, a business and stock operating system for small retailers in India.
 Analyze the raw business metrics for today and generate a concise business brief.
 
 Return your analysis as a valid JSON object with the following fields (do NOT include any markdown code blocks, just raw JSON):
@@ -216,13 +225,16 @@ Return your analysis as a valid JSON object with the following fields (do NOT in
       console.warn("[DailyBriefService] Cache write exception (table probably missing):", e.message);
     }
 
-    return {
+    const finalResult = {
       success: true,
       briefDate: todayStr,
       summary: summaryText,
       actionItems: actionItems,
       generatedAt: new Date().toISOString()
     };
+
+    await FinancialCacheService.set(cacheKey, finalResult, 1800);
+    return finalResult;
   },
 
   async getCoachingRecommendation(userId, customTopic = null) {

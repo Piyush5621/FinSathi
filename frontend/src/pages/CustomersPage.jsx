@@ -13,15 +13,19 @@ function getAvatarColor(name = '') {
 }
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCustomers, usePendingAmounts, useAddCustomer, useDeleteCustomer } from "../hooks/useCustomers";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
+import AddPaymentModal from "../components/AddPaymentModal";
+import { CreditCard } from "lucide-react";
 
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [isAddingInline, setIsAddingInline] = useState(false);
+  const [selectedCustomerForPayment, setSelectedCustomerForPayment] = useState(null);
   
   const [form, setForm] = useState({
     name: "",
@@ -32,6 +36,7 @@ export default function CustomersPage() {
   });
 
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: customers = [], isLoading: loadingCustomers } = useCustomers();
   const { data: pendingAmounts = {}, isLoading: loadingPending } = usePendingAmounts();
@@ -226,7 +231,7 @@ export default function CustomersPage() {
                   </div>
 
                   <div className="flex items-center gap-4 shrink-0">
-                    <div className="hidden sm:flex gap-2">
+                    <div className="hidden sm:flex gap-2 items-center">
                       {c.phone && (
                         <>
                           <a href={`tel:${c.phone}`} onClick={e=>e.stopPropagation()} className="p-2 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors" title="Call">
@@ -236,6 +241,20 @@ export default function CustomersPage() {
                             <MessageCircle size={14} />
                           </a>
                         </>
+                      )}
+                      {pending > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCustomerForPayment({ ...c, due: pending });
+                          }}
+                          className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold rounded-lg flex items-center gap-1 transition-colors"
+                          title="Record Khata Repayment"
+                        >
+                          <CreditCard size={13} />
+                          Pay Due
+                        </button>
                       )}
                     </div>
                     <div className="text-right w-24">
@@ -253,6 +272,21 @@ export default function CustomersPage() {
           })
         )}
       </div>
+
+      {/* Record Repayment Modal */}
+      {selectedCustomerForPayment && (
+        <AddPaymentModal
+          customerId={selectedCustomerForPayment.id}
+          customerName={selectedCustomerForPayment.name}
+          customerPhone={selectedCustomerForPayment.phone}
+          outstandingDue={selectedCustomerForPayment.due || pendingAmounts[selectedCustomerForPayment.id] || 0}
+          onClose={() => setSelectedCustomerForPayment(null)}
+          onPaymentAdded={() => {
+            queryClient.invalidateQueries({ queryKey: ["customers"] });
+            queryClient.invalidateQueries({ queryKey: ["pendingAmounts"] });
+          }}
+        />
+      )}
     </div>
   );
 }

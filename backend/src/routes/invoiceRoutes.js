@@ -1,5 +1,6 @@
 import express from "express";
 import { supabase } from "../config/db.js";
+import { StockService } from "../modules/inventory/services/StockService.js";
 
 const router = express.Router();
 
@@ -139,14 +140,22 @@ router.post("/:id/items", async (req, res) => {
 
     if (itemError) throw itemError;
 
-    // ✅ 4. Update stock
-    const { error: updateError } = await supabase
-      .from("inventory")
-      .update({ stock: product.stock - quantity })
-      .eq("id", product_id)
-      .eq("user_id", req.user.id);
-
-    if (updateError) throw updateError;
+    // ✅ 4. Deduct Stock via Modern Stock Engine
+    const orgId = req.tenantId || req.user?.organization_id || req.user.id;
+    try {
+      await StockService.deductSaleStock(orgId, {
+        warehouseId: "00000000-0000-0000-0000-000000000001",
+        saleId: id,
+        items: [{ productId: product_id, quantity }]
+      }, req.user.id);
+    } catch (stockEngErr) {
+      // Fallback update legacy stock
+      await supabase
+        .from("inventory")
+        .update({ stock: Math.max(0, product.stock - quantity) })
+        .eq("id", product_id)
+        .eq("user_id", req.user.id);
+    }
 
     res.status(201).json(item);
   } catch (err) {

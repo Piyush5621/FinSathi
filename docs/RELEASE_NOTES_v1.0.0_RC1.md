@@ -1,7 +1,7 @@
-# 🚀 FinSathi Release Notes — v1.0.0-rc1
+# 🚀 Karobar Release Notes — v1.0.0-rc1
 
 **Version:** v1.0.0-rc1  
-**Release Date:** June 26, 2026  
+**Release Date:** August 2026  
 **Status:** Release Candidate 1  
 **Branch:** `master` / `release/v1.0.0-rc1`  
 **Git Tag:** `v1.0.0-rc1`  
@@ -10,7 +10,7 @@
 ---
 
 ## 📌 Overview
-FinSathi is a mobile-first **Intelligent Business Operating System (OS)** designed specifically for Indian MSMEs. It transforms reactive, manual bookkeeping into a proactive, AI-driven management solution. 
+Karobar (कारोबार) is a mobile-first **Intelligent Business Operating System (OS)** designed specifically for Indian MSMEs. It transforms reactive, manual bookkeeping into a proactive, AI-driven management solution. 
 
 Version 1.0.0-rc1 (Release Candidate 1) marks the consolidation of the core business modules, complete with timezone standardization, number/currency formatting helpers, extensive bundle size optimizations, and critical bug fixes.
 

@@ -252,7 +252,7 @@ export default function FinVoiceWidget() {
         {isOpen ? (
           <X size={22} />
         ) : (
-          <img src={logoImg} alt="Sanchay" className="w-8 h-8 object-contain" />
+          <img src={logoImg} alt="Karobar" className="w-8 h-8 object-contain" />
         )}
       </button>
 
@@ -264,7 +264,7 @@ export default function FinVoiceWidget() {
           <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center overflow-hidden shrink-0">
-                <img src={logoImg} alt="Sanchay" className="w-full h-full object-contain p-0.5" />
+                <img src={logoImg} alt="Karobar" className="w-full h-full object-contain p-0.5" />
               </div>
               <span className="font-black text-sm tracking-tight">FinVoice AI</span>
               <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-black">BETA</span>

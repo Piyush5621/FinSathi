@@ -15,7 +15,8 @@ const router = express.Router();
 router.get("/cashflow", async (req, res) => {
   try {
     const userId = req.user.id;
-    const data = await CashFlowService.predict(userId);
+    const orgId = req.tenantId || req.user?.organization_id || userId;
+    const data = await CashFlowService.predict(userId, orgId);
     return successResponse(res, data, "Cash flow projection calculated");
   } catch (err) {
     return errorResponse(res, err, 500, "Could not calculate cash flow");
@@ -29,7 +30,8 @@ router.get("/cashflow", async (req, res) => {
 router.get("/health-score", async (req, res) => {
   try {
     const userId = req.user.id;
-    const data = await HealthScoreService.calculateAndLog(userId);
+    const orgId = req.tenantId || req.user?.organization_id || userId;
+    const data = await HealthScoreService.calculateAndLog(userId, orgId);
     return successResponse(res, data, "Business Health Score calculated");
   } catch (err) {
     console.error("Health score route error:", err);
@@ -44,7 +46,8 @@ router.get("/health-score", async (req, res) => {
 router.get("/brief", async (req, res) => {
   try {
     const userId = req.user.id;
-    const brief = await DailyBriefService.getDailyBrief(userId);
+    const orgId = req.tenantId || req.user?.organization_id || userId;
+    const brief = await DailyBriefService.getDailyBrief(userId, orgId);
     return successResponse(res, brief, "Business brief retrieved");
   } catch (err) {
     console.error("Brief route error:", err);
@@ -59,7 +62,8 @@ router.get("/brief", async (req, res) => {
 router.get("/credit", async (req, res) => {
   try {
     const userId = req.user.id;
-    const credit = await CreditRulesService.calculateCreditMetrics(userId);
+    const orgId = req.tenantId || req.user?.organization_id || userId;
+    const credit = await CreditRulesService.calculateCreditMetrics(userId, orgId);
     return successResponse(res, credit, "Credit analysis calculated");
   } catch (err) {
     console.error("Credit route error:", err);
@@ -90,7 +94,8 @@ router.get("/coach", async (req, res) => {
 router.get("/anomalies", async (req, res) => {
   try {
     const userId = req.user.id;
-    const flags = await AnomalyService.getFlags(userId);
+    const orgId = req.tenantId || req.user?.organization_id || userId;
+    const flags = await AnomalyService.getFlags(userId, orgId);
     return successResponse(res, flags, "Anomaly flags retrieved");
   } catch (err) {
     return errorResponse(res, err, 500, "Could not fetch anomaly flags");

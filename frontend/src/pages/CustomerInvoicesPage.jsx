@@ -75,7 +75,7 @@ export default function CustomerInvoicesPage() {
   };
 
   const handleDeleteInvoice = async (invoiceId) => {
-    if (!window.confirm("Are you sure you want to delete this invoice? This action will restore Sanchay stock.")) return;
+    if (!window.confirm("Are you sure you want to delete this invoice? This action will restore product stock.")) return;
     try {
       await API.delete(`/sales/${invoiceId}`);
       toast.success("Invoice deleted successfully");

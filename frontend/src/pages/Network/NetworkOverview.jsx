@@ -89,7 +89,7 @@ export default function NetworkOverview() {
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Business Network</h1>
           </div>
           <p className="text-sm text-slate-500 font-medium ml-0">
-            Connect suppliers, exchange invoices, and auto-import into Sanchay with zero data entry.
+            Connect suppliers, exchange invoices, and auto-import into Karobar with zero data entry.
           </p>
         </div>
         <button
@@ -232,7 +232,7 @@ export default function NetworkOverview() {
                 {[
                   { step: '1', title: 'Connect a Supplier', desc: 'Search by phone, GST or business name', link: '/network/connections' },
                   { step: '2', title: 'Receive an Invoice', desc: 'Your supplier sends you a digital invoice', link: '/network/inbox' },
-                  { step: '3', title: 'One-Click Import', desc: 'Products auto-added to Sanchay', link: '/network/inbox' },
+                  { step: '3', title: 'One-Click Import', desc: 'Products auto-added to Karobar', link: '/network/inbox' },
                 ].map(({ step, title, desc, link }) => (
                   <Link key={step} to={link} className="p-4 bg-white/10 backdrop-blur rounded-2xl hover:bg-white/20 transition-all group">
                     <div className="w-7 h-7 rounded-full bg-white/20 text-white text-xs font-black flex items-center justify-center mb-2">

@@ -63,6 +63,23 @@ export const deleteSale = async (req, res) => {
   }
 };
 
+/** 🔄 Process Sales Return & Restore Inventory */
+export const returnSale = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await SalesService.returnSale(req.user.id, id, req.body);
+    refreshDashboardView().catch(e => console.error('Dashboard view refresh background error:', e));
+    res.status(200).json(result);
+  } catch (err) {
+    console.error("Sales Return Error:", err);
+    const status = err.statusCode || 500;
+    res.status(status).json({
+      error: err.message || "Failed to process sales return",
+      returnRecord: err.returnRecord || undefined
+    });
+  }
+};
+
 export const getSummary = async (req, res) => {
   try {
     // Phase 5: High-performance KPI retrieval from Materialized View

@@ -28,5 +28,10 @@ export const ExpenseRepository = {
     const { data, error } = await supabase.from("expenses").update(payload).eq("id", id).eq("user_id", userId).select().single();
     if (error) throw error;
     return data;
+  },
+  async delete(userId, id) {
+    const { data, error } = await supabase.from("expenses").delete().eq("id", id).eq("user_id", userId).select().single();
+    if (error) throw error;
+    return data || { id };
   }
 };

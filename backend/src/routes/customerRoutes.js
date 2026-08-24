@@ -1,6 +1,6 @@
 import express from "express";
 import { supabase } from "../config/db.js";
-import { getCustomers, addCustomer } from "../controllers/CustomerController.js";
+import { getCustomers, addCustomer, recordCustomerPayment } from "../controllers/CustomerController.js";
 import { planGuard } from "../middleware/planGuard.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import { customerSchema } from "../utils/schemas.js";
@@ -12,6 +12,9 @@ router.get("/", getCustomers);
 
 // Create customer (delegating to controller)
 router.post("/", planGuard('customers'), validateRequest(customerSchema), addCustomer);
+
+// Record customer repayment
+router.post("/:id/payments", recordCustomerPayment);
 
 // Get single customer by id
 router.get("/:id", async (req, res) => {

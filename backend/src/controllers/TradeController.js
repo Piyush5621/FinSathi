@@ -269,13 +269,15 @@ export const getTradeHistory = async (req, res) => {
 
     let query = supabase
       .from("trade_transactions")
-      .select("*, sender:sender_id(id, business_name), receiver:receiver_id(id, business_name)")
-      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-      .order("created_at", { ascending: false });
+      .select("*, sender:sender_id(id, business_name), receiver:receiver_id(id, business_name)");
 
     if (partner_id) {
-      query = query.or(`and(sender_id.eq.${partner_id}),and(receiver_id.eq.${partner_id})`);
+      query = query.or(`and(sender_id.eq.${userId},receiver_id.eq.${partner_id}),and(sender_id.eq.${partner_id},receiver_id.eq.${userId})`);
+    } else {
+      query = query.or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
     }
+
+    query = query.order("created_at", { ascending: false });
     if (status) query = query.eq("status", status);
     if (from_date) query = query.gte("created_at", from_date);
     if (to_date) query = query.lte("created_at", to_date);

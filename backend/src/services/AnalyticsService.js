@@ -1,9 +1,15 @@
 import { SalesRepository } from "../repositories/SalesRepository.js";
 import { DashboardRepository } from "../repositories/DashboardRepository.js";
 import { ExpenseRepository } from "../repositories/ExpenseRepository.js";
+import { FinancialCacheService, FinancialCacheKeys } from "../utils/cache.js";
 
 export const AnalyticsService = {
-    async getPnl(userId) {
+    async getPnl(userId, orgId = null) {
+        const targetId = orgId || userId;
+        const cacheKey = FinancialCacheKeys.analyticsPnl(targetId);
+        const cached = await FinancialCacheService.get(cacheKey);
+        if (cached) return cached;
+
         const sales = await SalesRepository.getAllForBilling(userId);
         let expensesData = [];
         try {
@@ -16,7 +22,9 @@ export const AnalyticsService = {
         const expenses = expensesData.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
         const profit = revenue - expenses;
 
-        return { revenue, expenses, profit };
+        const result = { revenue, expenses, profit };
+        await FinancialCacheService.set(cacheKey, result, 300);
+        return result;
     },
     async getSalesTrend(userId, month, startDate, endDate) {
         const data = await SalesRepository.getSalesForTrend(userId, month, startDate, endDate);
@@ -51,8 +59,15 @@ export const AnalyticsService = {
             .slice(0, limit);
     },
 
-    async getDashboardSummary(userId) {
-        return await DashboardRepository.getSummary(userId);
+    async getDashboardSummary(userId, orgId = null) {
+        const targetId = orgId || userId;
+        const cacheKey = FinancialCacheKeys.analyticsSummary(targetId);
+        const cached = await FinancialCacheService.get(cacheKey);
+        if (cached) return cached;
+
+        const result = await DashboardRepository.getSummary(userId);
+        await FinancialCacheService.set(cacheKey, result, 300);
+        return result;
     },
 
     async getSalesSummary(userId) {
@@ -99,7 +114,12 @@ export const AnalyticsService = {
             .slice(0, limit);
     },
 
-    async getBillingMetrics(userId) {
+    async getBillingMetrics(userId, orgId = null) {
+        const targetId = orgId || userId;
+        const cacheKey = FinancialCacheKeys.analyticsMetrics(targetId);
+        const cached = await FinancialCacheService.get(cacheKey);
+        if (cached) return cached;
+
         let sales;
         try {
             sales = await SalesRepository.getAllForBilling(userId);
@@ -162,7 +182,7 @@ export const AnalyticsService = {
                     const rate = Number(item.gst_percent || 0);
                     if (price && qty && rate) {
                         // Exclusive tax assumption based on current logic? 
-                        // Or implicit? Usually Sanchay uses Exclusive in item adder?
+                        // Or implicit? Usually Karobar uses Exclusive in item adder?
                         // Let's assume (Price * Qty * Rate / 100).
                         return iSum + ((price * qty * rate) / 100);
                     }
@@ -178,7 +198,7 @@ export const AnalyticsService = {
         const paidRatio = totalInvoices ? (paidCount / totalInvoices) * 100 : 0;
         const averageInvoiceValue = totalInvoices ? totalRevenue / totalInvoices : 0;
 
-        return {
+        const result = {
             totalInvoices,
             paidCount,
             unpaidCount,
@@ -200,5 +220,8 @@ export const AnalyticsService = {
                 }
             }
         };
+
+        await FinancialCacheService.set(cacheKey, result, 300);
+        return result;
     }
 };

@@ -48,7 +48,7 @@ export default function GrowthPage() {
                <span className="text-xs font-black uppercase tracking-[0.2em] text-brand-blue">Growth Intelligence</span>
             </div>
             <h1 className="text-4xl font-black tracking-tight leading-tight">Scale your business with <span className="text-brand-blue">Government Subsidies.</span></h1>
-            <p className="text-slate-400 mt-4 text-lg">Sanchay AI has analyzed your business profile and matched you with these verified schemes and grants from the Government of India.</p>
+            <p className="text-slate-400 mt-4 text-lg">Karobar AI has analyzed your business profile and matched you with these verified schemes and grants from the Government of India.</p>
          </div>
       </div>
 
@@ -171,7 +171,7 @@ export default function GrowthPage() {
                <div className="absolute top-0 right-0 p-4 opacity-10"><TrendingUp size={80} /></div>
                <h4 className="text-sm font-black uppercase tracking-widest opacity-70">Coming Phase 3</h4>
                <h3 className="text-xl font-black mt-2 leading-tight">FinPredict AI <br/>Cash Flow Engine</h3>
-               <p className="text-sm text-indigo-100 mt-3 leading-relaxed">Soon, Sanchay will predict your 90-day cash cycle and alert you of potential crunches before they happen.</p>
+               <p className="text-sm text-indigo-100 mt-3 leading-relaxed">Soon, Karobar will predict your 90-day cash cycle and alert you of potential crunches before they happen.</p>
                <div className="mt-6 bg-white/20 p-2 rounded-xl text-center text-xs font-bold uppercase tracking-wider cursor-default">
                   Under Training...
                </div>

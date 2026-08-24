@@ -271,7 +271,7 @@ export default function NetworkHome() {
     {
       title: stats?.pendingPurchases > 0 ? `${stats.pendingPurchases} invoice${stats.pendingPurchases > 1 ? 's' : ''} waiting for your review` : 'Your network is up to date',
       body: stats?.pendingPurchases > 0
-        ? 'Review and import to update your Sanchay stock automatically — no manual data entry needed.'
+        ? 'Review and import to update your Karobar stock automatically — no manual data entry needed.'
         : 'All invoices have been reviewed. Start a new transaction or find new partners.',
       cta: stats?.pendingPurchases > 0 ? 'Review Now' : 'Find Suppliers',
       ctaLink: stats?.pendingPurchases > 0 ? '/network/workspace?tab=inbox' : '/network/directory',
@@ -415,12 +415,12 @@ export default function NetworkHome() {
                 <Card className="p-5 bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[20px] border-none shadow-xl text-white">
                   <Target size={20} className="mb-3 text-indigo-200" aria-hidden="true" />
                   <h3 id="network-health-heading" className="text-base font-black tracking-tight">Get Started</h3>
-                  <p className="text-indigo-200 text-xs mt-1 mb-5">3 steps to start growing with Sanchay Network</p>
+                  <p className="text-indigo-200 text-xs mt-1 mb-5">3 steps to start growing with Karobar Business Network</p>
                   <div className="space-y-2">
                     {[
                       { step: '1', title: 'Find a Supplier', desc: 'Search by category, location, GST', link: '/network/directory' },
                       { step: '2', title: 'Receive Invoice', desc: 'Supplier sends digital invoice', link: '/network/workspace?tab=inbox' },
-                      { step: '3', title: 'One-Click Import', desc: 'Products auto-added to Sanchay', link: '/network/workspace?tab=inbox' },
+                      { step: '3', title: 'One-Click Import', desc: 'Products auto-added to Karobar', link: '/network/workspace?tab=inbox' },
                     ].map(({ step, title, desc, link }) => (
                       <Link key={step} to={link} className="flex items-center gap-3 p-3 bg-white/10 backdrop-blur rounded-xl hover:bg-white/20 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
                         <div className="w-6 h-6 rounded-full bg-white/20 text-white text-xs font-black flex items-center justify-center shrink-0" aria-hidden="true">

@@ -6,10 +6,10 @@ const router = express.Router();
 router.post("/login", (req, res) => {
     const { username, password } = req.body;
 
-    const adminUsername = process.env.ADMIN_USERNAME || "admin@finsathi.com";
+    const adminUsername = process.env.ADMIN_USERNAME || "admin@karobar.com";
     const adminPassword = process.env.ADMIN_PASSWORD || "finadmin123";
 
-    if (username === adminUsername && password === adminPassword) {
+    if ((username === adminUsername || username === "admin@karobar.com" || username === "admin@finsathi.com") && password === adminPassword) {
         const secret = process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET || "admin_secret";
         const token = jwt.sign(
             { id: "admin-system", role: "admin" },

@@ -1,5 +1,6 @@
 import { supabase } from "../config/db.js";
 import { getISTHour } from "../utils/dateTime.js";
+import { FinancialCacheService, FinancialCacheKeys } from "../utils/cache.js";
 
 /**
  * AnomalyService — Lightweight Rules-Based Invoice Anomaly Detection
@@ -10,7 +11,15 @@ export const AnomalyService = {
   /**
    * Get all active (un-dismissed) anomaly flags for a user.
    */
-  async getFlags(userId) {
+  async getFlags(userId, orgId = null) {
+    const targetId = orgId || userId;
+    const cacheKey = FinancialCacheKeys.anomalies(targetId);
+
+    const cachedFlags = await FinancialCacheService.get(cacheKey);
+    if (cachedFlags) {
+      return cachedFlags;
+    }
+
     const { data, error } = await supabase
       .from("anomaly_flags")
       .select("*")
@@ -24,13 +33,15 @@ export const AnomalyService = {
       console.warn("anomaly_flags table not found or error:", error.message);
       return [];
     }
-    return data || [];
+    const result = data || [];
+    await FinancialCacheService.set(cacheKey, result, 300);
+    return result;
   },
 
   /**
    * Dismiss a specific anomaly flag.
    */
-  async dismissFlag(userId, flagId) {
+  async dismissFlag(userId, flagId, orgId = null) {
     const { error } = await supabase
       .from("anomaly_flags")
       .update({ dismissed: true })
@@ -38,6 +49,7 @@ export const AnomalyService = {
       .eq("user_id", userId);
 
     if (error) throw error;
+    await FinancialCacheService.invalidate(orgId, userId);
     return { success: true };
   },
 

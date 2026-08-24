@@ -77,7 +77,7 @@ export default function BusinessExchange() {
   const getAIBannerMsg = () => {
     switch (activeTab) {
       case 'buy-requests': return "📊 3 sellers in your area match your category";
-      case 'dead-stock': return "⚡ Your Sanchay stock may have slow-moving items — scan & post in 1 tap";
+      case 'dead-stock': return "⚡ Your Karobar stock may have slow-moving items — scan & post in 1 tap";
       case 'warehouse': return "🏢 Share unused warehouse space to reduce operational costs by up to 40%";
       default: return "💡 Enhance your listing with pictures and clear specs to get 3x more responses";
     }

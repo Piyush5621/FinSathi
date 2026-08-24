@@ -143,7 +143,7 @@ export default function Dashboard() {
             </div>
             <div className="flex flex-col gap-2 w-full text-xs font-semibold text-slate-600">
               <div className="flex justify-between items-center"><span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Cash Flow</span><span>✅</span></div>
-              <div className="flex justify-between items-center"><span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Sanchay</span><span>{data.inventory.lowStockCount > 5 ? '⚠️' : '✅'}</span></div>
+              <div className="flex justify-between items-center"><span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Stock</span><span>{data.inventory.lowStockCount > 5 ? '⚠️' : '✅'}</span></div>
               <div className="flex justify-between items-center"><span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Collections</span><span>{data.metrics.outstanding > 1000 ? '⚠️' : '✅'}</span></div>
             </div>
           </div>

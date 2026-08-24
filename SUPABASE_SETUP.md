@@ -1,6 +1,6 @@
-# Supabase Setup Guide for FinSathi
+# Supabase Setup Guide for Karobar
 
-Welcome to the **FinSathi** Supabase setup guide. This document will walk you through setting up your database, authentication, and storage to get the application running perfectly.
+Welcome to the **Karobar** Supabase setup guide. This document will walk you through setting up your database, authentication, and storage to get the application running perfectly.
 
 ---
 
@@ -9,7 +9,7 @@ Welcome to the **FinSathi** Supabase setup guide. This document will walk you th
 1.  Go to [supabase.com](https://supabase.com) and sign in.
 2.  Click **"New Project"**.
 3.  Choose your **Organization**.
-4.  Enter a **Name** (e.g., `FinSathi-Prod`).
+4.  Enter a **Name** (e.g., `Karobar-Prod`).
 5.  Set a strong **Database Password** (Save this!).
 6.  Choose a **Region** close to you (e.g., `Mumbai`).
 7.  Click **"Create new project"**.
@@ -37,7 +37,7 @@ Once your project is ready (green status), you need to create the database table
 
 ## 🔐 3. Authentication Setup
 
-FinSathi uses custom JWT authentication (`authMiddleware.js`), but it relies on the Supabase `users` table we created.
+Karobar uses custom JWT authentication (`authMiddleware.js`), but it relies on the Supabase `users` table we created.
 
 ### Google OAuth (Optional)
 If you want to enable "Continue with Google" directly via Supabase Auth in the future:
@@ -46,7 +46,7 @@ If you want to enable "Continue with Google" directly via Supabase Auth in the f
 3.  You will need a **Client ID** and **Secret** from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
 4.  Add the **Redirect URL** provided by Supabase to your Google Console credentials.
 
-*Note: The current FinSathi `Register` page uses a custom Direct Registration flow (Name, Email, Password) that stores data in our `public.users` table.*
+*Note: The current Karobar `Register` page uses a custom Direct Registration flow (Name, Email, Password) that stores data in our `public.users` table.*
 
 ---
 

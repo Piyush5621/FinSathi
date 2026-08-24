@@ -1,6 +1,8 @@
 import { supabase } from "../config/db.js";
 import { StoreService } from "../services/StoreService.js";
 import { successResponse, errorResponse, createdResponse } from "../utils/responseHelper.js";
+import { StockService } from "../modules/inventory/services/StockService.js";
+import { FinancialCacheService } from "../utils/cache.js";
 
 // Helper for audit logs
 const logAudit = async (userId, storeId, entityType, entityId, action, details) => {
@@ -313,11 +315,16 @@ export const updatePurchaseOrderStatus = async (req, res) => {
 
     if (poErr || !po) return errorResponse(res, "Purchase order not found", 404);
 
-    // State Machine Validation
+    // Prevent duplicate receiving
     const current = po.status;
+    if ((current === 'Received' || current === 'Completed') && status === 'Received') {
+      return errorResponse(res, "Purchase order is already received.", 409);
+    }
+
+    // State Machine Validation
     const validTransitions = {
-      'Draft': ['Sent', 'Cancelled'],
-      'Sent': ['Accepted', 'Cancelled'],
+      'Draft': ['Sent', 'Cancelled', 'Received'],
+      'Sent': ['Accepted', 'Cancelled', 'Received'],
       'Accepted': ['Partially Received', 'Received', 'Cancelled'],
       'Partially Received': ['Received'],
       'Received': ['Completed'],
@@ -337,70 +344,81 @@ export const updatePurchaseOrderStatus = async (req, res) => {
         .eq("purchase_order_id", id);
 
       if (itemsErr) throw itemsErr;
+      if (!items || items.length === 0) {
+        return errorResponse(res, "Cannot receive Purchase Order without items.", 400);
+      }
 
-      // Note for Tech Debt: This sequential update block should be migrated to a Postgres RPC for atomicity
-      for (const item of items) {
-        const { data: product } = await supabase
-          .from("inventory")
-          .select("stock, price, wholesale_price, sku")
-          .eq("id", item.inventory_id)
-          .single();
+      // 1. Resolve Active Organization & Warehouse ID
+      const orgId = req.tenantId || po.organization_id || req.user?.organization_id || userId;
+      let whId = po.warehouse_id || po.warehouseId;
+      if (!whId) {
+        try {
+          const { data: wh } = await supabase
+            .from('warehouses')
+            .select('id')
+            .or(`organization_id.eq.${orgId},user_id.eq.${userId}`)
+            .eq('is_active', true)
+            .order('is_main_hub', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          whId = wh?.id;
+        } catch {}
 
-        if (product) {
-          const currentStock = Number(product.stock || 0);
-          const additionalStock = Number(item.quantity || 0);
-          const newStock = currentStock + additionalStock;
-
-          // Update master product stock count and avg cost
-          await supabase
-            .from("inventory")
-            .update({ 
-              stock: newStock,
-              cost_price: item.cost_price // Update last purchase cost
-            })
-            .eq("id", item.inventory_id);
-
-          // Add to inventory_batches
-          await supabase
-            .from("inventory_batches")
-            .insert([{
-              inventory_id: item.inventory_id,
-              batch_name: `PO Restock #${po.order_no}`,
-              sku_variant: product.sku || "",
-              cost_price: Number(item.cost_price || 0),
-              selling_price: Number(product.price || 0),
-              wholesale_price: Number(product.wholesale_price || 0),
-              stock: additionalStock
-            }]);
+        if (!whId) {
+          try {
+            const { data: newWh } = await supabase
+              .from('warehouses')
+              .insert({
+                user_id: userId,
+                organization_id: orgId,
+                name: 'Main Warehouse',
+                is_main_hub: true
+              })
+              .select('id')
+              .maybeSingle();
+            whId = newWh?.id || '00000000-0000-0000-0000-000000000001';
+          } catch {
+            whId = '00000000-0000-0000-0000-000000000001';
+          }
         }
       }
 
-      // 1. Update Supplier's outstanding balance
-      const { data: supplier } = await supabase
-        .from("suppliers")
-        .select("outstanding_balance")
-        .eq("id", po.supplier_id)
-        .single();
+      // 2. Receive stock through modern Stock Engine (creates batches, updates warehouse_stock, logs movements)
+      await StockService.receivePurchaseOrderStock(orgId, {
+        warehouseId: whId,
+        purchaseOrderId: po.id,
+        orderNo: po.order_no,
+        items
+      }, userId);
 
-      const newBalance = Number(supplier?.outstanding_balance || 0) + Number(po.total_amount || 0);
-      await supabase
-        .from("suppliers")
-        .update({ outstanding_balance: newBalance })
-        .eq("id", po.supplier_id);
+      // 3. Update Supplier's outstanding balance
+      if (po.supplier_id) {
+        const { data: supplier } = await supabase
+          .from("suppliers")
+          .select("outstanding_balance")
+          .eq("id", po.supplier_id)
+          .single();
 
-      // 2. Finance Integration: Create Expense Entry for Accounts Payable
-      await supabase
-        .from("expenses")
-        .insert([{
-          user_id: userId,
-          store_id: storeId,
-          category: 'Purchases',
-          amount: po.total_amount,
-          date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-          description: `Purchase Order Received: ${po.order_no}`,
-          receipt_url: null,
-          supplier_id: po.supplier_id
-        }]);
+        const newBalance = Number(supplier?.outstanding_balance || 0) + Number(po.total_amount || 0);
+        await supabase
+          .from("suppliers")
+          .update({ outstanding_balance: newBalance })
+          .eq("id", po.supplier_id);
+
+        // 4. Finance Integration: Create Expense Entry for Accounts Payable
+        await supabase
+          .from("expenses")
+          .insert([{
+            user_id: userId,
+            store_id: storeId,
+            category: 'Purchases',
+            amount: po.total_amount,
+            date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+            description: `Purchase Order Received: ${po.order_no}`,
+            receipt_url: null,
+            supplier_id: po.supplier_id
+          }]);
+      }
     }
 
     // Update PO status
@@ -412,6 +430,16 @@ export const updatePurchaseOrderStatus = async (req, res) => {
       .single();
 
     if (updateErr) throw updateErr;
+
+    // Invalidate Financial Intelligence Cache if PO was received (new stock & expense created)
+    if (status === 'Received') {
+      try {
+        const orgId = req.tenantId || po.organization_id || req.user?.organization_id || userId;
+        await FinancialCacheService.invalidate(orgId, userId);
+      } catch (cErr) {
+        console.warn("[PurchaseOrderController] Cache invalidation warning:", cErr.message);
+      }
+    }
 
     await logAudit(userId, storeId, "PurchaseOrder", id, `Status changed to ${status}`, { order_no: po.order_no });
 

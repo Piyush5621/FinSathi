@@ -79,7 +79,7 @@ export default function AdminDashboard() {
             <ShieldAlert size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-white font-black text-xl tracking-tight">Sanchay Global Command</h1>
+            <h1 className="text-white font-black text-xl tracking-tight">Karobar Global Command</h1>
             <p className="text-red-400 text-[10px] font-bold uppercase tracking-widest">Superadmin Session Active</p>
           </div>
         </div>

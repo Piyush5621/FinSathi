@@ -1,4 +1,4 @@
-// Design System Constants for Sanchay Business Network
+// Design System Constants for Karobar Business Network
 
 export const STATUS_STYLES = {
   // Inbox / Outbox

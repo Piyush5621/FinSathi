@@ -3,28 +3,28 @@ import { supabase } from "../../config/db.js";
 
 /**
  * ==============================================================================
- * Sanchay (संचय) — Complete Demo Environment Seeder
+ * Karobar (कारोबार) — Complete Demo Environment Seeder
  * ==============================================================================
  * Creates a cohesive, multi-tenant demo dataset with:
  * - 3 Real-World Organizations (Retail Grocery, Wholesale Distribution, Apparel)
  * - 8 Demo Accounts covering all 6 RBAC Roles + Multi-Store + Superadmin
  * - Multi-Store Branch Locations (Main Branch & City Branch)
- * - 70+ Sanchay Products with Multi-Batches (Healthy, Low Stock, Out of Stock)
+ * - 70+ Products with Multi-Batches (Healthy, Low Stock, Out of Stock)
  * - 25+ Customers with purchase histories & outstanding balances
  * - 12+ Suppliers with credit ratings & purchase orders
  * - 35+ Sales Invoices spanning historical months, last 7 days, and today
  * - 25+ Payments & Operational Expense ledgers
  * - Notifications & Action Center alerts
  * 
- * Standard Password for all demo accounts: Sanchay@12345
+ * Standard Password for all demo accounts: Karobar@12345
  * ==============================================================================
  */
 
-const DEMO_PASSWORD = "Sanchay@12345";
+const DEMO_PASSWORD = "Karobar@12345";
 
 export async function seedDemoData() {
   console.log("==========================================================");
-  console.log("🚀 Starting Sanchay Demo Environment Seed...");
+  console.log("🚀 Starting Karobar Demo Environment Seed...");
   console.log("==========================================================");
 
   const hashedPassword = await bcrypt.hash(DEMO_PASSWORD, 10);
@@ -47,8 +47,16 @@ export async function seedDemoData() {
   // --------------------------------------------------------------------------
   // 2. Clean Up Existing Demo Records (Idempotent Isolation)
   // --------------------------------------------------------------------------
-  console.log("🧹 Cleaning existing demo data for @sanchay.test accounts...");
+  console.log("🧹 Cleaning existing demo data for @karobar.test accounts...");
   const demoEmails = [
+    "demo.owner@karobar.test",
+    "demo.manager@karobar.test",
+    "demo.cashier@karobar.test",
+    "demo.accountant@karobar.test",
+    "demo.inventory@karobar.test",
+    "demo.delivery@karobar.test",
+    "demo.wholesale@karobar.test",
+    "demo.apparel@karobar.test",
     "demo.owner@sanchay.test",
     "demo.manager@sanchay.test",
     "demo.cashier@sanchay.test",
@@ -172,7 +180,7 @@ export async function seedDemoData() {
   const ownerUsersPayload = [
     {
       name: "Ramesh Sharma",
-      email: "demo.owner@sanchay.test",
+      email: "demo.owner@karobar.test",
       password: hashedPassword,
       business_name: "Sharma General Store",
       business_type: "Retail / Grocery",
@@ -188,7 +196,7 @@ export async function seedDemoData() {
     },
     {
       name: "Rajesh Verma",
-      email: "demo.wholesale@sanchay.test",
+      email: "demo.wholesale@karobar.test",
       password: hashedPassword,
       business_name: "Verma Wholesale Traders",
       business_type: "Wholesale / Distribution",
@@ -204,7 +212,7 @@ export async function seedDemoData() {
     },
     {
       name: "Vikram Malhotra",
-      email: "demo.apparel@sanchay.test",
+      email: "demo.apparel@karobar.test",
       password: hashedPassword,
       business_name: "UrbanWear Store",
       business_type: "Retail / Apparel",
@@ -293,7 +301,7 @@ export async function seedDemoData() {
       organization_id: sharmaOrg.id,
       store_id: sharmaMainStore.id,
       name: "Amit Patel",
-      email: "demo.manager@sanchay.test",
+      email: "demo.manager@karobar.test",
       password_hash: hashedPassword,
       phone: "+91 98101 22334",
       position: "Store Manager",
@@ -308,7 +316,7 @@ export async function seedDemoData() {
       organization_id: sharmaOrg.id,
       store_id: sharmaMainStore.id,
       name: "Pooja Sharma",
-      email: "demo.cashier@sanchay.test",
+      email: "demo.cashier@karobar.test",
       password_hash: hashedPassword,
       phone: "+91 98102 33445",
       position: "Senior POS Cashier",
@@ -323,7 +331,7 @@ export async function seedDemoData() {
       organization_id: sharmaOrg.id,
       store_id: sharmaMainStore.id,
       name: "Suresh Menon",
-      email: "demo.accountant@sanchay.test",
+      email: "demo.accountant@karobar.test",
       password_hash: hashedPassword,
       phone: "+91 98103 44556",
       position: "Tax & Financial Accountant",
@@ -338,10 +346,10 @@ export async function seedDemoData() {
       organization_id: sharmaOrg.id,
       store_id: sharmaMainStore.id,
       name: "Sunil Verma",
-      email: "demo.inventory@sanchay.test",
+      email: "demo.inventory@karobar.test",
       password_hash: hashedPassword,
       phone: "+91 98104 55667",
-      position: "Warehouse & Sanchay Stock Manager",
+      position: "Warehouse & Stock Manager",
       salary_type: "fixed",
       base_salary: 35000,
       join_date: "2024-02-10",
@@ -353,7 +361,7 @@ export async function seedDemoData() {
       organization_id: sharmaOrg.id,
       store_id: sharmaMainStore.id,
       name: "Rahul Yadav",
-      email: "demo.delivery@sanchay.test",
+      email: "demo.delivery@karobar.test",
       password_hash: hashedPassword,
       phone: "+91 98105 66778",
       position: "Fulfillment & Dispatch Staff",
@@ -393,11 +401,11 @@ export async function seedDemoData() {
 
   // Map each staff member to store_staff with the appropriate role
   const staffRoleAssignments = [
-    { staff: createdStaff.find(s => s.email === "demo.manager@sanchay.test"), roleName: "Manager" },
-    { staff: createdStaff.find(s => s.email === "demo.cashier@sanchay.test"), roleName: "Cashier" },
-    { staff: createdStaff.find(s => s.email === "demo.accountant@sanchay.test"), roleName: "Accountant" },
-    { staff: createdStaff.find(s => s.email === "demo.inventory@sanchay.test"), roleName: "Warehouse Staff" },
-    { staff: createdStaff.find(s => s.email === "demo.delivery@sanchay.test"), roleName: "Delivery Staff" }
+    { staff: createdStaff.find(s => s.email === "demo.manager@karobar.test"), roleName: "Manager" },
+    { staff: createdStaff.find(s => s.email === "demo.cashier@karobar.test"), roleName: "Cashier" },
+    { staff: createdStaff.find(s => s.email === "demo.accountant@karobar.test"), roleName: "Accountant" },
+    { staff: createdStaff.find(s => s.email === "demo.inventory@karobar.test"), roleName: "Warehouse Staff" },
+    { staff: createdStaff.find(s => s.email === "demo.delivery@karobar.test"), roleName: "Delivery Staff" }
   ];
 
   const storeStaffPayload = staffRoleAssignments.map(({ staff, roleName }) => ({
@@ -547,9 +555,9 @@ export async function seedDemoData() {
   console.log(`✅ Created ${createdSuppliers.length} Suppliers.`);
 
   // --------------------------------------------------------------------------
-  // 8. Seed Sanchay Products & Batches
+  // 8. Seed Products & Batches
   // --------------------------------------------------------------------------
-  console.log("📦 Seeding Sanchay Inventory & Batches...");
+  console.log("📦 Seeding Inventory & Batches...");
 
   // Products for Sharma General Store (40+ items with various stock states)
   const sharmaProducts = [
@@ -784,7 +792,7 @@ export async function seedDemoData() {
       tax_amount: 5760,
       discount_amount: 1000,
       total_amount: 52760,
-      notes: "Stock delivery confirmed and loaded into Sanchay."
+      notes: "Stock delivery confirmed and loaded into Karobar."
     },
     {
       user_id: sharmaOwner.id,
@@ -1063,7 +1071,7 @@ export async function seedDemoData() {
     {
       user_id: sharmaOwner.id,
       type: "inventory",
-      title: "Sanchay Low Stock Alert",
+      title: "Low Stock Alert",
       message: "3 items are running below safety threshold: California Almonds (4 left), Cashew Nuts (3 left), Horlicks (2 left).",
       severity: "warning",
       is_read: false,
@@ -1100,7 +1108,7 @@ export async function seedDemoData() {
       user_id: sharmaOwner.id,
       type: "purchase",
       title: "PO-2026-002 Received",
-      message: "Amul Fresh Dairy shipment confirmed. 55 units received into Sanchay stock batches.",
+      message: "Amul Fresh Dairy shipment confirmed. 55 units received into Karobar stock batches.",
       severity: "info",
       is_read: true,
       created_at: daysAgo(2, 11, 20)
@@ -1120,17 +1128,17 @@ export async function seedDemoData() {
   console.log(`✅ Seeded ${notificationsPayload.length} Action Center Notifications.`);
 
   console.log("==========================================================");
-  console.log("🎉 Sanchay Demo Environment Seeded Successfully!");
+  console.log("🎉 Karobar Demo Environment Seeded Successfully!");
   console.log("==========================================================");
   console.log("All accounts password: " + DEMO_PASSWORD);
-  console.log("Owner:      demo.owner@sanchay.test");
-  console.log("Manager:    demo.manager@sanchay.test");
-  console.log("Cashier:    demo.cashier@sanchay.test");
-  console.log("Accountant: demo.accountant@sanchay.test");
-  console.log("Inventory:  demo.inventory@sanchay.test");
-  console.log("Delivery:   demo.delivery@sanchay.test");
-  console.log("Wholesale:  demo.wholesale@sanchay.test");
-  console.log("Apparel:    demo.apparel@sanchay.test");
+  console.log("Owner:      demo.owner@karobar.test");
+  console.log("Manager:    demo.manager@karobar.test");
+  console.log("Cashier:    demo.cashier@karobar.test");
+  console.log("Accountant: demo.accountant@karobar.test");
+  console.log("Inventory:  demo.inventory@karobar.test");
+  console.log("Delivery:   demo.delivery@karobar.test");
+  console.log("Wholesale:  demo.wholesale@karobar.test");
+  console.log("Apparel:    demo.apparel@karobar.test");
   console.log("==========================================================");
 }
 

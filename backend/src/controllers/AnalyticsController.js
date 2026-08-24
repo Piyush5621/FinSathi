@@ -24,7 +24,8 @@ export const getTopCustomers = async (req, res) => {
 
 export const getDashboardSummary = async (req, res) => {
     try {
-        const summary = await AnalyticsService.getDashboardSummary(req.user.id);
+        const orgId = req.tenantId || req.user?.organization_id || req.user?.id;
+        const summary = await AnalyticsService.getDashboardSummary(req.user.id, orgId);
         res.json(summary);
     } catch (err) {
         console.error("getDashboardSummary error:", err);
@@ -55,7 +56,8 @@ export const getTopProducts = async (req, res) => {
 
 export const getBillingMetrics = async (req, res) => {
     try {
-        const metrics = await AnalyticsService.getBillingMetrics(req.user.id);
+        const orgId = req.tenantId || req.user?.organization_id || req.user?.id;
+        const metrics = await AnalyticsService.getBillingMetrics(req.user.id, orgId);
         res.json(metrics);
     } catch (err) {
         console.error('getBillingMetrics error:', err);
@@ -65,7 +67,8 @@ export const getBillingMetrics = async (req, res) => {
 
 export const getPnl = async (req, res) => {
     try {
-        const pnl = await AnalyticsService.getPnl(req.user.id);
+        const orgId = req.tenantId || req.user?.organization_id || req.user?.id;
+        const pnl = await AnalyticsService.getPnl(req.user.id, orgId);
         res.json(pnl);
     } catch (err) {
         console.error('getPnl error:', err);

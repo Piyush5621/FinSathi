@@ -2,9 +2,19 @@ import { supabase } from "../config/db.js";
 import { SalesRepository } from "../repositories/SalesRepository.js";
 import { CustomerRepository } from "../repositories/CustomerRepository.js";
 import { ExpenseRepository } from "../repositories/ExpenseRepository.js";
+import { FinancialCacheService, FinancialCacheKeys } from "../utils/cache.js";
 
 export const DashboardService = {
-    async getDashboardData(userId) {
+    async getDashboardData(userId, orgId = null) {
+        const targetId = orgId || userId;
+        const cacheKey = FinancialCacheKeys.dashboard(targetId);
+
+        // 1. Try cache
+        const cachedData = await FinancialCacheService.get(cacheKey);
+        if (cachedData) {
+            return cachedData;
+        }
+
         const now = new Date();
         const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -126,7 +136,7 @@ export const DashboardService = {
             sales: trendMap[date]
         })).slice(-10);
 
-        return {
+        const dashboardPayload = {
             metrics: {
                 revenue: currentMonthRevenue,
                 revenueGrowth,
@@ -161,5 +171,8 @@ export const DashboardService = {
                 status: s.payment_status
             }))
         };
+
+        await FinancialCacheService.set(cacheKey, dashboardPayload, 300);
+        return dashboardPayload;
     }
 };

@@ -1,4 +1,5 @@
 import { supabase } from "../config/db.js";
+import { FinancialCacheService, FinancialCacheKeys } from "../utils/cache.js";
 
 /**
  * HealthScoreService
@@ -11,7 +12,16 @@ import { supabase } from "../config/db.js";
  * Generates top 3 actionable recommendations and logs snapshots to the database.
  */
 export const HealthScoreService = {
-  async calculateAndLog(userId) {
+  async calculateAndLog(userId, orgId = null) {
+    const targetId = orgId || userId;
+    const cacheKey = FinancialCacheKeys.healthScore(targetId);
+
+    // 1. Check cache
+    const cachedScore = await FinancialCacheService.get(cacheKey);
+    if (cachedScore) {
+      return cachedScore;
+    }
+
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
@@ -380,7 +390,7 @@ export const HealthScoreService = {
       console.warn("[HealthScoreService] History fetch warning:", e.message);
     }
 
-    return {
+    const result = {
       score: finalScore,
       riskLevel,
       components: {
@@ -393,5 +403,8 @@ export const HealthScoreService = {
       recommendations: topRecommendations,
       history
     };
+
+    await FinancialCacheService.set(cacheKey, result, 300);
+    return result;
   }
 };

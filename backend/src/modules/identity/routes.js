@@ -2,13 +2,14 @@ import express from "express";
 import { AuthController } from "./controllers/AuthController.js";
 import { RbacController } from "./controllers/RbacController.js";
 import { authenticate, attachTenant, attachPermissions, authorize, audit } from "./middleware/authMiddleware.js";
+import { authLimiter } from "../../middleware/rateLimiter.js";
 
 const router = express.Router();
 
-// 🔓 Public Auth Routes
-router.post("/auth/register", AuthController.register);
-router.post("/auth/login", AuthController.login);
-router.post("/auth/refresh", AuthController.refresh);
+// 🔓 Public Auth Routes (With Brute-force & Hammering Protection)
+router.post("/auth/register", authLimiter, AuthController.register);
+router.post("/auth/login", authLimiter, AuthController.login);
+router.post("/auth/refresh", authLimiter, AuthController.refresh);
 
 // 🔒 Protected Auth Routes
 router.post("/auth/logout", authenticate, AuthController.logout);

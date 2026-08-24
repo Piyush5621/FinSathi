@@ -6,6 +6,8 @@ import ItemAdder from "../../components/billing/ItemAdder";
 import ItemTable from "../../components/billing/ItemTable";
 import PaymentSection from "../../components/billing/PaymentSection";
 import InvoicePreviewModal from "../../components/billing/InvoicePreviewModal";
+import OfflineSyncIndicator from "../../components/billing/OfflineSyncIndicator";
+import { queueOfflineSale } from "../../services/offlineSyncService";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Card, CardTitle } from "../../components/ui/Card";
@@ -110,28 +112,53 @@ export default function Billing() {
 
   const handleBarcodeScan = async (code) => {
     try {
-      const res = await API.get(`/inventory/search?q=${code}`);
-      if (res.data && res.data.length > 0) {
-        const product = res.data[0];
+      const cleanCode = String(code).trim();
+      if (!cleanCode) return;
+
+      // 1. Query Catalog API by Barcode
+      const res = await API.get(`/catalog/products?barcode=${encodeURIComponent(cleanCode)}`);
+      const productList = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+
+      if (productList && productList.length > 0) {
+        const product = productList[0];
+        
+        // Find if barcode belongs to a specific variant
+        const matchedBarcode = (product.barcodes || []).find(b => 
+          (b.barcodeValue === cleanCode || b.barcode_value === cleanCode)
+        );
+
+        let variant = null;
+        if (matchedBarcode && matchedBarcode.variantId) {
+          variant = (product.variants || []).find(v => v.id === matchedBarcode.variantId);
+        }
+
         const batches = product.inventory_batches || [];
         const initialBatch = batches.find(b => b.stock > 0) || batches[0];
-        
+
+        const itemName = variant ? `${product.name} (${variant.name})` : product.name;
+        const itemCode = variant ? (variant.sku || product.sku) : (initialBatch ? (initialBatch.sku_variant || product.sku) : product.sku);
+        const itemPrice = Number(variant ? (variant.sellingPrice || product.sellingPrice || product.price) : (initialBatch ? initialBatch.selling_price : (product.sellingPrice || product.price)));
+        const itemCost = Number(variant ? (variant.purchasePrice || product.costPrice || product.cost_price) : (initialBatch ? initialBatch.cost_price : (product.costPrice || product.cost_price || 0)));
+
         handleAddItem({
           productId: product.id,
+          variantId: variant ? variant.id : null,
           batchId: initialBatch ? initialBatch.id : null,
-          name: product.name,
-          code: initialBatch ? (initialBatch.sku_variant || product.sku) : product.sku,
+          name: itemName,
+          code: itemCode,
           unit: product.units || product.unit || "",
           quantity: 1,
-          price: Number(initialBatch ? initialBatch.selling_price : product.price),
-          cost_price: Number(initialBatch ? initialBatch.cost_price : product.cost_price),
+          price: itemPrice,
+          cost_price: itemCost,
           gst_percent: product.gst_percent || 0,
         });
-        toast.success(`Scanned: ${product.name}`);
+
+        toast.success(`Scanned: ${itemName}`);
       } else {
-        toast.error(`Barcode not found: ${code}`);
+        toast.error(`Barcode not found: ${cleanCode}`);
       }
     } catch (e) {
+      console.error("Barcode scan error:", e);
       toast.error("Error scanning item");
     }
   };
@@ -185,7 +212,7 @@ export default function Billing() {
 
   const handleUpdateItem = useCallback((itemId, field, value) => {
     setItems(prevItems => {
-      const updatedItems = prevItems.map(item => {
+      const updatedItems = prevItems.map((item) => {
         if (item.tableId === itemId || item.id === itemId) {
           const updatedItem = { ...item, [field]: value };
           if (field === 'price' || field === 'quantity') {
@@ -238,10 +265,12 @@ export default function Billing() {
       const payload = {
         customer_id: selectedCustomer,
         items: items.map(i => ({
-          productId: i.id,
-          batchId: i.batchId,
+          productId: i.productId || i.id,
+          variantId: i.variantId || null,
+          batchId: i.batchId || null,
           quantity: i.quantity,
           price: i.price,
+          cost_price: i.cost_price || 0,
           product_name: i.name
         })),
         subtotal: summaryValues.subtotal,
@@ -253,14 +282,54 @@ export default function Billing() {
         amount_paid: finalPayment.amountReceived,
         notes: notes,
       };
-      const response = await API.post("/sales", payload);
 
-      const savedInvoice = {
-        ...payload,
-        id: response.data.id,
-        invoiceNo: response.data.invoice_no || `FS-${response.data.id}`,
-        customer: customers.find((c) => c.id === selectedCustomer)
-      };
+      // Check if online or offline
+      let savedInvoice = null;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        // Save to IndexedDB Offline Queue
+        const offlineRecord = await queueOfflineSale(payload);
+        savedInvoice = {
+          ...payload,
+          id: offlineRecord.id,
+          invoiceNo: offlineRecord.invoice_no,
+          customer: customers.find((c) => c.id === selectedCustomer),
+          isOffline: true
+        };
+        toast.success("Bill saved offline! It will automatically sync when internet reconnects.", {
+          duration: 5000,
+          icon: "💾"
+        });
+      } else {
+        try {
+          const response = await API.post("/sales", payload);
+          savedInvoice = {
+            ...payload,
+            id: response.data.id,
+            invoiceNo: response.data.invoice_no || `FS-${response.data.id}`,
+            customer: customers.find((c) => c.id === selectedCustomer)
+          };
+          toast.success("Invoice generated successfully!");
+        } catch (apiErr) {
+          // If network failure, fall back to offline queue
+          const isNetworkErr = !apiErr.response || apiErr.code === 'ERR_NETWORK';
+          if (isNetworkErr) {
+            const offlineRecord = await queueOfflineSale(payload);
+            savedInvoice = {
+              ...payload,
+              id: offlineRecord.id,
+              invoiceNo: offlineRecord.invoice_no,
+              customer: customers.find((c) => c.id === selectedCustomer),
+              isOffline: true
+            };
+            toast.success("Network dropped: bill saved offline! Will auto-sync.", {
+              duration: 5000,
+              icon: "💾"
+            });
+          } else {
+            throw apiErr;
+          }
+        }
+      }
 
       setLastSavedInvoice(savedInvoice);
       setShowPreview(true);
@@ -275,10 +344,10 @@ export default function Billing() {
       setItems([]);
       setNotes("");
       updateTotals([], 0);
-      setInvoiceNo(`FS-${response.data.id + 1}`);
-      toast.success("Invoice generated successfully!");
-    } catch {
-      toast.error("Error saving invoice");
+      setInvoiceNo(`FS-${Date.now().toString().slice(-6)}`);
+    } catch (err) {
+      console.error("Save Invoice Error:", err);
+      toast.error(err.response?.data?.error || err.message || "Error saving invoice");
     } finally {
       setIsSaving(false);
     }
@@ -296,7 +365,7 @@ export default function Billing() {
       `GST: ₹${summaryValues.gst_amount.toFixed(0)}\n` +
       `*Total: ₹${summaryValues.total.toFixed(0)}*\n\n` +
       `Payment: ${paymentDetails.method.toUpperCase()} • ${paymentDetails.status.toUpperCase()}\n\n` +
-      `Powered by Sanchay`
+      `Powered by Karobar`
     );
     window.open(`https://wa.me/91${customer.phone}?text=${message}`, '_blank');
   };
@@ -305,11 +374,16 @@ export default function Billing() {
     <div className="flex flex-col gap-4">
 
       {/* Top Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatChip icon={<FileText size={13} className="text-indigo-500" />} label="Today's Invoices" value={todayStats.invoices} />
-        <StatChip icon={<TrendingUp size={13} className="text-emerald-500" />} label="Today's Revenue" value={`₹${todayStats.revenue.toLocaleString('en-IN')}`} />
-        <StatChip icon={<Clock size={13} className="text-amber-500" />} label="Cart Items" value={items.length} />
-        <StatChip icon={<Zap size={13} className="text-brand-blue" />} label="Cart Total" value={`₹${summaryValues.total.toFixed(0)}`} highlight />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+          <StatChip icon={<FileText size={13} className="text-indigo-500" />} label="Today's Invoices" value={todayStats.invoices} />
+          <StatChip icon={<TrendingUp size={13} className="text-emerald-500" />} label="Today's Revenue" value={`₹${todayStats.revenue.toLocaleString('en-IN')}`} />
+          <StatChip icon={<Clock size={13} className="text-amber-500" />} label="Cart Items" value={items.length} />
+          <StatChip icon={<Zap size={13} className="text-brand-blue" />} label="Cart Total" value={`₹${summaryValues.total.toFixed(0)}`} highlight />
+        </div>
+        <div className="shrink-0 flex items-center justify-end">
+          <OfflineSyncIndicator />
+        </div>
       </div>
 
       {/* Main Billing Layout */}
@@ -322,7 +396,7 @@ export default function Billing() {
             <div className="p-5 bg-[#090D16] text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center overflow-hidden shrink-0">
-                  <img src={logoImg} alt="Sanchay" className="w-full h-full object-contain p-0.5" />
+                  <img src={logoImg} alt="Karobar" className="w-full h-full object-contain p-0.5" />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold tracking-tight">New Invoice</h2>
@@ -331,11 +405,13 @@ export default function Billing() {
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Date</p>
-                <p className="text-[11px] font-bold text-slate-300 mt-0.5">
-                  {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </p>
+              <div className="text-right flex items-center gap-4">
+                <div>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Date</p>
+                  <p className="text-[11px] font-bold text-slate-300 mt-0.5">
+                    {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
               </div>
             </div>
 

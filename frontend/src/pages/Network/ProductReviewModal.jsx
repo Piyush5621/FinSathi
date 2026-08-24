@@ -296,7 +296,7 @@ export default function ProductReviewModal({ transaction, onClose, onImportDone 
                   </div>
 
                   <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-700 font-semibold">
-                    <strong>Note:</strong> {createCount} new products will be added to Sanchay. {matchCount} existing products will have their stock updated.
+                    <strong>Note:</strong> {createCount} new products will be added to Karobar. {matchCount} existing products will have their stock updated.
                     Supplier product links will be saved for faster future imports.
                   </div>
                 </div>

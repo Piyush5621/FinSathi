@@ -34,8 +34,8 @@ const Header = () => {
         <div className="flex items-center space-x-4">
           <div className="hidden md:block">
             <h2 className="text-lg font-medium text-text-light dark:text-text-dark">
-              Your business. Your growth.{' '}
-              <span className="text-primary-600 font-semibold">Your Sanchay.</span>
+              Your Business.{' '}
+              <span className="text-primary-600 font-semibold">One Simple Karobar.</span>
             </h2>
           </div>
           {stores && stores.length > 0 && (

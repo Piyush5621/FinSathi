@@ -2,7 +2,8 @@ import { DashboardService } from "../services/DashboardService.js";
 
 export const getDashboardData = async (req, res) => {
   try {
-    const dashboardData = await DashboardService.getDashboardData(req.user.id);
+    const orgId = req.tenantId || req.user?.organization_id || req.user?.id;
+    const dashboardData = await DashboardService.getDashboardData(req.user.id, orgId);
     res.json(dashboardData);
   } catch (err) {
     console.error("Dashboard fetch error:", err.message);

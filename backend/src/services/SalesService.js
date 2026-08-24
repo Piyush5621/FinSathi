@@ -1,6 +1,8 @@
 import { SalesRepository } from "../repositories/SalesRepository.js";
 import { InventoryRepository } from "../repositories/InventoryRepository.js";
 import { ReminderService } from "./ReminderService.js";
+import { StockService } from "../modules/inventory/services/StockService.js";
+import { FinancialCacheService } from "../utils/cache.js";
 import { supabase } from "../config/db.js";
 
 export const SalesService = {
@@ -45,6 +47,33 @@ export const SalesService = {
     },
 
     async createSale(userId, salePayload) {
+        // 0. Idempotency Check for Offline Sync & Network Retries
+        const idempotencyKey = salePayload.idempotency_key || salePayload.idempotencyKey || salePayload.client_id || salePayload.offline_id;
+        if (idempotencyKey) {
+            try {
+                // Check if a sale with this idempotency key was already created
+                const { data: existingSales } = await supabase
+                    .from("sales")
+                    .select("*")
+                    .eq("user_id", userId)
+                    .order("date", { ascending: false })
+                    .limit(100);
+
+                if (existingSales && Array.isArray(existingSales)) {
+                    const matched = existingSales.find(s => 
+                        (s.idempotency_key && s.idempotency_key === idempotencyKey) ||
+                        (s.notes && s.notes.includes(`[IDEM:${idempotencyKey}]`)) ||
+                        (salePayload.invoice_no && s.invoice_no === salePayload.invoice_no)
+                    );
+                    if (matched) {
+                        return matched;
+                    }
+                }
+            } catch (idemErr) {
+                console.warn("[SalesService] Idempotency check warning:", idemErr.message);
+            }
+        }
+
         const {
             customer_id,
             items,
@@ -78,10 +107,59 @@ export const SalesService = {
             }
         }
 
-        // 1. Create Sale
+        // 1. Resolve Organization ID for user
+        let orgId = salePayload.organization_id || salePayload.organizationId;
+        if (!orgId) {
+            try {
+                const { data: userRecord } = await supabase
+                    .from('users')
+                    .select('organization_id')
+                    .eq('id', userId)
+                    .maybeSingle();
+                orgId = userRecord?.organization_id || userId;
+            } catch {
+                orgId = userId;
+            }
+        }
+
+        // 2. Resolve Active Warehouse ID
+        let whId = salePayload.warehouse_id || salePayload.warehouseId;
+        if (!whId) {
+            try {
+                const { data: wh } = await supabase
+                    .from('warehouses')
+                    .select('id')
+                    .or(`organization_id.eq.${orgId},user_id.eq.${userId}`)
+                    .eq('is_active', true)
+                    .order('is_main_hub', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                whId = wh?.id;
+            } catch {}
+
+            if (!whId) {
+                try {
+                    const { data: newWh } = await supabase
+                        .from('warehouses')
+                        .insert({
+                            user_id: userId,
+                            organization_id: orgId,
+                            name: 'Main Warehouse',
+                            is_main_hub: true
+                        })
+                        .select('id')
+                        .maybeSingle();
+                    whId = newWh?.id || '00000000-0000-0000-0000-000000000001';
+                } catch {
+                    whId = '00000000-0000-0000-0000-000000000001';
+                }
+            }
+        }
+
+        // 3. Create Sale Record
         const saleData = {
             customer_id,
-            invoice_no: `INV-${Date.now()}`, // Inject unique invoice number to satisfy DB constraint
+            invoice_no: salePayload.invoice_no || `INV-${Date.now()}`, // Inject unique invoice number to satisfy DB constraint
             items, // JSONB
             subtotal,
             discount_percent: discount_percent || discount || 0,
@@ -90,13 +168,35 @@ export const SalesService = {
             payment_method,
             payment_status,
             amount_paid: finalAmountPaid,
-            date: new Date().toISOString(),
-            due_date: salePayload.due_date || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            date: salePayload.date || new Date().toISOString(),
+            due_date: salePayload.due_date || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            notes: idempotencyKey ? `${salePayload.notes ? salePayload.notes + ' ' : ''}[IDEM:${idempotencyKey}]` : (salePayload.notes || null)
         };
 
         const sale = await SalesRepository.create(userId, saleData);
 
-        // 3. AUTO-SEND WHATSAPP (New Feature)
+        // 4. Atomically Deduct Stock via Modern Stock Engine (StockService)
+        // Uses SELECT FOR UPDATE row-locking on warehouse_stock, FEFO batch selection,
+        // and appends immutable records to inventory_movements.
+        if (items && Array.isArray(items) && items.length > 0) {
+            try {
+                await StockService.deductSaleStock(orgId, {
+                    warehouseId: whId,
+                    saleId: sale.id,
+                    items
+                }, userId);
+            } catch (stockErr) {
+                // Atomic Rollback: remove the created sale record if stock deduction fails
+                try {
+                    await SalesRepository.deleteById(userId, sale.id);
+                } catch (delErr) {
+                    console.error("Sale rollback delete error:", delErr.message);
+                }
+                throw stockErr;
+            }
+        }
+
+        // 5. AUTO-SEND WHATSAPP (New Feature)
         try {
             const settings = await ReminderService.getSettings(userId);
             if (settings?.auto_send_on_create) {
@@ -105,7 +205,7 @@ export const SalesService = {
                 
                 if (customer?.phone) {
                     const { data: userData } = await supabase.from('users').select('business_name').eq('id', userId).single();
-                    const shopName = userData?.business_name || "Sanchay";
+                    const shopName = userData?.business_name || "Karobar";
                     const msg = `Hi ${customer.name}, your bill #${sale.invoice_no} of ₹${total} has been generated.`;
                     
                     // We don't await this to keep the API response snappy
@@ -116,7 +216,7 @@ export const SalesService = {
             console.error("WhatsApp Auto-send check failed:", autoErr);
         }
 
-        // 4. Update Customer Khata (Ledger)
+        // 6. Update Customer Khata (Ledger)
         if (customer_id && sale.payment_status !== 'paid') {
             try {
                 const credit_amount = Number(sale.total) - Number(sale.amount_paid);
@@ -140,57 +240,11 @@ export const SalesService = {
             }
         }
 
-        // 5. Check and Update Inventory Stock (Batch Aware)
-        if (items && Array.isArray(items)) {
-            // First pass: Validate stock
-            for (const item of items) {
-                if (!item.quantity) continue;
-                if (item.batchId) {
-                    const { data: batch } = await supabase.from('inventory_batches').select('stock').eq('id', item.batchId).single();
-                    if (!batch || batch.stock < item.quantity) {
-                        throw new Error(`Insufficient stock for batch of product ${item.productId}. Available: ${batch?.stock || 0}, Required: ${item.quantity}`);
-                    }
-                } else {
-                    const { data: inv } = await supabase.from('inventory').select('stock').eq('id', item.productId).single();
-                    if (!inv || inv.stock < item.quantity) {
-                        throw new Error(`Insufficient stock for product ${item.productId}. Available: ${inv?.stock || 0}, Required: ${item.quantity}`);
-                    }
-                }
-            }
-
-            // Second pass: Update stock
-            for (const item of items) {
-                if (!item.quantity) continue;
-
-                if (item.batchId) {
-                    // A. Batch-Specific Update
-                    const { data: batch, error } = await InventoryRepository.getBatchById(userId, item.batchId);
-
-                    if (!error && batch) {
-                        const newStock = batch.stock - item.quantity;
-
-                        const updates = {
-                            stock: newStock,
-                            updated_at: new Date().toISOString()
-                        };
-
-                        if (newStock <= 0) {
-                            updates.zero_stock_since = new Date().toISOString();
-                        } else {
-                            updates.zero_stock_since = null;
-                        }
-
-                        await InventoryRepository.updateBatch(userId, item.batchId, updates);
-                    } else {
-                        console.warn(`Batch ${item.batchId} not found, trying fallback.`);
-                    }
-                }
-
-                // Fallback or Legacy: Update Master Stock
-                if (!item.batchId && item.productId) {
-                    await InventoryRepository.decrementMasterStockLegacy(item.productId, item.quantity);
-                }
-            }
+        // 7. Invalidate Financial Intelligence Cache for affected Organization & User
+        try {
+            await FinancialCacheService.invalidate(orgId, userId);
+        } catch (cacheErr) {
+            console.warn("[SalesService] Cache invalidation warning:", cacheErr.message);
         }
 
         return sale;
@@ -204,16 +258,10 @@ export const SalesService = {
             } else if (updateData.payment_status === 'unpaid') {
                 updateData.amount_paid = 0;
             } else if (updateData.payment_status === 'partial') {
-                // partial logic is complex without explicit amount input, 
-                // but usually 'updateData' might come with amount_paid if user edited it.
-                // If not, we leave it or default? 
-                // SAFE implementation: If user passes amount_paid, use it. 
-                // If not and status is partial, we don't auto-set it (or assume 0? No).
+                // Keep provided amount_paid
             }
         }
 
-        // Also if 'total' changed and it's 'paid', we should update 'amount_paid' to new total?
-        // Yes, if status is 'paid', amount_paid should equal total.
         if (updateData.payment_status === 'paid' && updateData.total) {
             updateData.amount_paid = updateData.total;
         }
@@ -230,18 +278,29 @@ export const SalesService = {
             const diff = newCredit - oldCredit;
             
             if (diff !== 0) {
-                const { data: customer } = await supabase
-                    .from('customers')
-                    .select('outstanding_balance')
-                    .eq('id', originalSale.customer_id)
-                    .single();
-                    
-                const newBalance = Number(customer?.outstanding_balance || 0) + diff;
-                await supabase
-                    .from('customers')
-                    .update({ outstanding_balance: newBalance })
-                    .eq('id', originalSale.customer_id);
+                try {
+                    const { data: customer } = await supabase
+                        .from('customers')
+                        .select('outstanding_balance')
+                        .eq('id', originalSale.customer_id)
+                        .single();
+                        
+                    const newBalance = Number(customer?.outstanding_balance || 0) + diff;
+                    await supabase
+                        .from('customers')
+                        .update({ outstanding_balance: newBalance })
+                        .eq('id', originalSale.customer_id);
+                } catch (kErr) {
+                    console.error("Khata update error on updateSale:", kErr.message);
+                }
             }
+        }
+
+        try {
+            let orgId = sale.organization_id || userId;
+            await FinancialCacheService.invalidate(orgId, userId);
+        } catch (cacheErr) {
+            console.warn("[SalesService] Cache invalidation warning on update:", cacheErr.message);
         }
 
         return sale;
@@ -253,33 +312,50 @@ export const SalesService = {
         try {
             sale = await SalesRepository.findById(userId, saleId);
         } catch (err) {
-            // If invalid ID syntax (e.g. uuid vs int), current helper might throw
             throw new Error(`Invalid Sale ID or Sale Not Found: ${err.message}`);
         }
 
         if (!sale) throw new Error("Sale not found");
 
-        const items = sale.items; // JSONB column assumed
+        const items = sale.items;
 
-        // 2. Restore Inventory (Best Effort)
-        if (items && Array.isArray(items)) {
-            for (const item of items) {
-                if (!item.quantity) continue;
-                if (!item.batchId) continue;
+        // 2. Restore Inventory via Stock Engine
+        if (items && Array.isArray(items) && items.length > 0) {
+            try {
+                const orgId = sale.organization_id || userId;
+                const returnItems = items
+                    .filter(i => (i.quantity || 0) > 0 && (i.productId || i.product_id))
+                    .map(i => ({
+                        productId: i.productId || i.product_id,
+                        quantity: Number(i.quantity),
+                        batchId: i.batchId || null
+                    }));
 
-                try {
-                    const { data: batch, error } = await InventoryRepository.getBatchById(userId, item.batchId);
-                    if (!error && batch) {
-                        const newStock = batch.stock + item.quantity;
-                        await InventoryRepository.updateBatch(userId, item.batchId, {
-                            stock: newStock,
-                            updated_at: new Date().toISOString(),
-                            zero_stock_since: null
-                        });
+                if (returnItems.length > 0) {
+                    await StockService.processSalesReturn(orgId, {
+                        warehouseId: sale.warehouse_id || "00000000-0000-0000-0000-000000000001",
+                        saleId: sale.id || saleId,
+                        items: returnItems
+                    }, userId);
+                }
+            } catch (stockErr) {
+                console.warn(`[SalesService] StockService return on delete fallback: ${stockErr.message}`);
+                // Best Effort fallback for legacy items
+                for (const item of items) {
+                    if (!item.quantity || !item.batchId) continue;
+                    try {
+                        const { data: batch, error } = await InventoryRepository.getBatchById(userId, item.batchId);
+                        if (!error && batch) {
+                            const newStock = batch.stock + item.quantity;
+                            await InventoryRepository.updateBatch(userId, item.batchId, {
+                                stock: newStock,
+                                updated_at: new Date().toISOString(),
+                                zero_stock_since: null
+                            });
+                        }
+                    } catch (invErr) {
+                        console.error(`Failed to restore stock for batch ${item.batchId}:`, invErr);
                     }
-                } catch (invErr) {
-                    console.error(`Failed to restore stock for batch ${item.batchId}:`, invErr);
-                    // Continue deletion even if stock restore fails
                 }
             }
         }
@@ -308,17 +384,17 @@ export const SalesService = {
         }
 
         // 4. Delete Sale
-        // We'll try to delete. If it fails due to FK, we catch it.
         try {
-            // Attempt to manually delete linked items if they exist as a table (handling potential lack of Cascade)
-            // This is a guess that 'sale_items' might exist and block delete. 
-            // Ideally we shouldn't need this if Cascade is set, or if we use JSONB.
-            // But 'sale_items' might be zombie table.
-            // await supabase.from('sale_items').delete().eq('sale_id', saleId); // Can't easily import supabase here without making it messy
-
             await SalesRepository.deleteById(userId, saleId);
         } catch (err) {
             throw new Error(`Database Delete Failed: ${err.message}`);
+        }
+
+        try {
+            let orgId = sale.organization_id || userId;
+            await FinancialCacheService.invalidate(orgId, userId);
+        } catch (cacheErr) {
+            console.warn("[SalesService] Cache invalidation warning on delete:", cacheErr.message);
         }
 
         return { message: "Sale deleted successfully" };
@@ -345,5 +421,228 @@ export const SalesService = {
         return Object.keys(grouped)
             .sort()
             .map((k) => ({ date: k, total_sales: grouped[k] }));
+    },
+
+    async returnSale(userId, saleId, returnPayload) {
+        // 1. Fetch original sale
+        const sale = await SalesRepository.findById(userId, saleId);
+        if (!sale) {
+            const err = new Error("Sale not found.");
+            err.statusCode = 404;
+            throw err;
+        }
+
+        const { items: payloadItems, returnItems, reason, refund_payment_mode, idempotency_key } = returnPayload || {};
+        const itemsToProcess = payloadItems || returnItems;
+
+        if (!itemsToProcess || !Array.isArray(itemsToProcess) || itemsToProcess.length === 0) {
+            const err = new Error("Return items list is required.");
+            err.statusCode = 400;
+            throw err;
+        }
+
+        // 2. Inspect existing returns on sale
+        const previousReturns = Array.isArray(sale.returns) ? sale.returns : [];
+
+        // Check idempotency
+        if (idempotency_key) {
+            const existingReturn = previousReturns.find(r => r.idempotency_key === idempotency_key);
+            if (existingReturn) {
+                const err = new Error("This return request has already been processed.");
+                err.statusCode = 409;
+                err.returnRecord = existingReturn;
+                throw err;
+            }
+        }
+
+        // Compute already returned quantity per product/variant
+        const alreadyReturnedMap = {};
+        for (const ret of previousReturns) {
+            for (const item of ret.items || []) {
+                const key = `${item.productId || item.product_id || item.inventory_id || item.id}:${item.variantId || item.variant_id || 'null'}`;
+                alreadyReturnedMap[key] = (alreadyReturnedMap[key] || 0) + Number(item.quantity || 0);
+            }
+        }
+
+        // 3. Validate every return item against original sale lines
+        const saleItems = Array.isArray(sale.items) ? sale.items : [];
+        const validatedItemsToRestore = [];
+        let totalRefundAmount = 0;
+
+        for (const rItem of itemsToProcess) {
+            const retQty = Number(rItem.quantity || 0);
+            if (retQty <= 0) {
+                const err = new Error("Return quantity must be greater than zero.");
+                err.statusCode = 400;
+                throw err;
+            }
+
+            const targetProdId = rItem.productId || rItem.product_id || rItem.inventory_id || rItem.id;
+            const targetVariantId = rItem.variantId || rItem.variant_id || null;
+
+            // Find matching line in original sale
+            const originalLine = saleItems.find(item => {
+                const pId = item.productId || item.product_id || item.inventory_id || item.id;
+                const vId = item.variantId || item.variant_id || null;
+                return String(pId) === String(targetProdId) && String(vId) === String(targetVariantId);
+            });
+
+            if (!originalLine) {
+                const err = new Error(`Item '${rItem.name || targetProdId}' does not belong to this sale.`);
+                err.statusCode = 400;
+                throw err;
+            }
+
+            const soldQty = Number(originalLine.quantity || 0);
+            const key = `${targetProdId}:${targetVariantId || 'null'}`;
+            const alreadyReturned = alreadyReturnedMap[key] || 0;
+            const availableToReturn = soldQty - alreadyReturned;
+
+            if (retQty > availableToReturn) {
+                const err = new Error(`Cannot return ${retQty} units of '${originalLine.name || 'product'}'. Only ${availableToReturn} remaining.`);
+                err.statusCode = 400;
+                throw err;
+            }
+
+            // Update in-memory map for intra-request duplicates
+            alreadyReturnedMap[key] = alreadyReturned + retQty;
+
+            const unitPrice = Number(originalLine.price || originalLine.selling_price || 0);
+            const unitCost = Number(originalLine.cost_price || originalLine.costPrice || 0);
+            const batchId = originalLine.batchId || originalLine.batch_id || rItem.batchId || rItem.batch_id || null;
+            const lineRefund = unitPrice * retQty;
+            totalRefundAmount += lineRefund;
+
+            validatedItemsToRestore.push({
+                productId: targetProdId,
+                variantId: targetVariantId,
+                batchId: batchId,
+                quantity: retQty,
+                unitPrice: unitPrice,
+                costPrice: unitCost,
+                refundAmount: lineRefund,
+                name: originalLine.name || originalLine.product_name || "Product"
+            });
+        }
+
+        // 4. Resolve Organization and Warehouse
+        let orgId = sale.organization_id || sale.organizationId;
+        if (!orgId) {
+            try {
+                const { data: userRecord } = await supabase
+                    .from('users')
+                    .select('organization_id')
+                    .eq('id', userId)
+                    .maybeSingle();
+                orgId = userRecord?.organization_id || userId;
+            } catch {
+                orgId = userId;
+            }
+        }
+
+        let whId = sale.warehouse_id || sale.warehouseId;
+        if (!whId) {
+            try {
+                const { data: wh } = await supabase
+                    .from('warehouses')
+                    .select('id')
+                    .or(`organization_id.eq.${orgId},user_id.eq.${userId}`)
+                    .eq('is_active', true)
+                    .order('is_main_hub', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                whId = wh?.id;
+            } catch {}
+
+            if (!whId) {
+                whId = '00000000-0000-0000-0000-000000000001';
+            }
+        }
+
+        const returnId = `RET-${Date.now().toString().slice(-6)}`;
+
+        // 5. Restore stock through modern Stock Engine
+        await StockService.returnSaleStock(orgId, {
+            warehouseId: whId,
+            saleId: sale.id,
+            returnId,
+            items: validatedItemsToRestore
+        }, userId);
+
+        // 6. Build Return Record
+        const newReturnRecord = {
+            return_id: returnId,
+            created_at: new Date().toISOString(),
+            items: validatedItemsToRestore,
+            total_refund_amount: totalRefundAmount,
+            reason: reason || "Customer Return",
+            refund_payment_mode: refund_payment_mode || "cash",
+            idempotency_key: idempotency_key || null,
+            created_by: userId
+        };
+
+        const updatedReturns = [...previousReturns, newReturnRecord];
+
+        // Determine if sale is fully returned or partially returned
+        let totalSoldUnits = 0;
+        for (const item of saleItems) totalSoldUnits += Number(item.quantity || 0);
+
+        let totalReturnedUnits = 0;
+        for (const r of updatedReturns) {
+            for (const it of r.items || []) totalReturnedUnits += Number(it.quantity || 0);
+        }
+
+        const returnStatus = totalReturnedUnits >= totalSoldUnits ? "fully_returned" : "partially_returned";
+
+        // 7. Update Sale record in database
+        const updatedSale = await SalesRepository.update(userId, saleId, {
+            returns: updatedReturns,
+            return_status: returnStatus,
+            updated_at: new Date().toISOString()
+        });
+
+        // 8. If credit sale and refund is credited back to Khata
+        if (sale.customer_id && refund_payment_mode === "credit") {
+            try {
+                const { data: customer } = await supabase
+                    .from("customers")
+                    .select("outstanding_balance")
+                    .eq("id", sale.customer_id)
+                    .single();
+
+                if (customer) {
+                    const currentBal = Number(customer.outstanding_balance || 0);
+                    const newBal = Math.max(0, currentBal - totalRefundAmount);
+                    await supabase
+                        .from("customers")
+                        .update({ outstanding_balance: newBal, updated_at: new Date().toISOString() })
+                        .eq("id", sale.customer_id);
+                }
+            } catch (kErr) {
+                console.error("Khata adjustment warning on return:", kErr.message);
+            }
+        }
+
+        // 9. Invalidate Financial Intelligence Cache
+        try {
+            await FinancialCacheService.invalidate(orgId, userId);
+        } catch (cacheErr) {
+            console.warn("[SalesService] Cache invalidation warning on return:", cacheErr.message);
+        }
+
+        return {
+            success: true,
+            message: "Sales return processed successfully.",
+            returnRecord: newReturnRecord,
+            sale: updatedSale
+        };
+    },
+
+    async processSalesReturn(userId, saleIdOrPayload, returnPayload = {}) {
+        if (typeof saleIdOrPayload === "object" && saleIdOrPayload !== null) {
+            const { saleId, ...rest } = saleIdOrPayload;
+            return this.returnSale(userId, saleId, rest);
+        }
+        return this.returnSale(userId, saleIdOrPayload, returnPayload);
     }
 };

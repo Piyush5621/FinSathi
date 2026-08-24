@@ -86,8 +86,39 @@ TradeService.setEventPublisher(publisher);
 
 import "./utils/cronJobs.js";
 
+// Allowed origins configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000"];
+
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser requests (mobile apps, server-to-server, curl)
+      if (!origin) return callback(null, true);
+      if (
+        process.env.NODE_ENV !== "production" ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".karobar.local") ||
+        origin.endsWith(".vercel.app")
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error("CORS: Request from this origin is not allowed."));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-store-id",
+      "x-idempotency-key",
+      "x-correlation-id",
+      "x-timezone"
+    ]
+  })
+);
 app.use(correlationIdMiddleware);
 app.use(express.json());
 app.use(helmet());
@@ -142,6 +173,7 @@ app.use("/admin/auth", adminAuthRoutes);
 app.use("/admin/users", adminAuth, auditLog, adminUsersRoutes);
 
 // Modular Subsystems
+app.use("/api/v1/catalog", catalogRouter);
 app.use("/api/v1", mastersRouter);
 app.use("/api", mastersRouter);
 app.use("/api/v1", catalogRouter);

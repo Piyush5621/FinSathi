@@ -5,6 +5,22 @@ import { parseRequestInfo } from "../utils/requestParser.js";
 import { UserDto, OrganizationDto } from "../dto/authDto.js";
 import { ValidationError } from "../errors/appErrors.js";
 
+const REFRESH_COOKIE_NAME = "refreshToken";
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  path: "/",
+  maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+};
+
+function getCookie(req, name) {
+  const cookieHeader = req?.headers?.cookie;
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(new RegExp(`(^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
 export class AuthController {
   static async register(req, res, next) {
     try {
@@ -37,13 +53,18 @@ export class AuthController {
         requestInfo
       );
 
+      if (res.cookie && sessionData.refreshToken) {
+        res.cookie(REFRESH_COOKIE_NAME, sessionData.refreshToken, REFRESH_COOKIE_OPTIONS);
+      }
+
       res.status(201).json({
         success: true,
         message: "Organization bootstrapped and owner registered successfully.",
         data: {
           organization: new OrganizationDto(organization),
           owner: new UserDto(owner),
-          ...sessionData
+          accessToken: sessionData.accessToken,
+          session: sessionData.session
         },
         token: sessionData.accessToken,
         user: sessionData.session
@@ -68,10 +89,17 @@ export class AuthController {
         requestInfo
       );
 
+      if (res.cookie && sessionData.refreshToken) {
+        res.cookie(REFRESH_COOKIE_NAME, sessionData.refreshToken, REFRESH_COOKIE_OPTIONS);
+      }
+
       res.status(200).json({
         success: true,
         message: "Login successful.",
-        data: sessionData,
+        data: {
+          accessToken: sessionData.accessToken,
+          session: sessionData.session
+        },
         token: sessionData.accessToken,
         user: sessionData.session
       });
@@ -82,18 +110,29 @@ export class AuthController {
 
   static async refresh(req, res, next) {
     try {
-      const result = tokenRefreshSchema.safeParse(req.body);
+      const tokenFromCookie = getCookie(req, REFRESH_COOKIE_NAME);
+      const rawToken = tokenFromCookie || req.body?.refreshToken;
+
+      const result = tokenRefreshSchema.safeParse({ refreshToken: rawToken });
       if (!result.success) {
-        throw new ValidationError("Validation failed", result.error.format());
+        throw new ValidationError("Refresh token is required.", result.error.format());
       }
 
       const requestInfo = parseRequestInfo(req);
       const tokens = await AuthenticationService.refresh(result.data.refreshToken, requestInfo);
 
+      if (res.cookie && tokens.refreshToken) {
+        res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
+      }
+
       res.status(200).json({
         success: true,
         message: "Token refreshed successfully.",
-        data: tokens
+        data: {
+          accessToken: tokens.accessToken
+        },
+        token: tokens.accessToken,
+        accessToken: tokens.accessToken
       });
     } catch (err) {
       next(err);
@@ -113,6 +152,15 @@ export class AuthController {
       };
 
       await AuthenticationService.logout(req.user.session_id, actorInfo);
+
+      if (res.clearCookie) {
+        res.clearCookie(REFRESH_COOKIE_NAME, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+          path: "/"
+        });
+      }
 
       res.status(200).json({
         success: true,
@@ -136,6 +184,15 @@ export class AuthController {
       };
 
       await AuthenticationService.logoutAll(req.user.user_id, req.user.staff_id, actorInfo);
+
+      if (res.clearCookie) {
+        res.clearCookie(REFRESH_COOKIE_NAME, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+          path: "/"
+        });
+      }
 
       res.status(200).json({
         success: true,

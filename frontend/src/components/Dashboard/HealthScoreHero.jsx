@@ -53,7 +53,7 @@ export default function HealthScoreHero({ data }) {
     } else {
       growthOpportunities.push({
         title: "Optimized Stock",
-        desc: "Healthy stock levels in Sanchay. Good time to run seasonal promotional bundles."
+        desc: "Healthy stock levels in inventory. Good time to run seasonal promotional bundles."
       });
     }
 
@@ -167,7 +167,7 @@ export default function HealthScoreHero({ data }) {
               {[
                 { label: 'Sales Activity', val: components.sales.score, icon: TrendingUp, color: 'bg-brand-blue' },
                 { label: 'Expense Control', val: components.cashFlow.score, icon: Wallet, color: 'bg-indigo-500' },
-                { label: 'Sanchay Health', val: components.inventory.score, icon: Package, color: 'bg-amber-500' },
+                { label: 'Stock Health', val: components.inventory.score, icon: Package, color: 'bg-amber-500' },
                 { label: 'Due Collections', val: components.collection.score, icon: Users, color: 'bg-emerald-500' }
               ].map((c) => {
                 const Icon = c.icon;

@@ -41,7 +41,7 @@ const SuspendedPage = () => {
               </div>
 
               <div className="flex flex-col gap-4">
-                  <a href="mailto:support@sanchay.app" className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black py-4 rounded-xl shadow-[0_0_30px_rgba(225,29,72,0.4)] flex items-center justify-center gap-2 transition-colors">
+                  <a href="mailto:support@karobar.app" className="w-full bg-rose-600 hover:bg-rose-700 text-white font-black py-4 rounded-xl shadow-[0_0_30px_rgba(225,29,72,0.4)] flex items-center justify-center gap-2 transition-colors">
                      <Mail size={18} /> Contact Support
                   </a>
                   

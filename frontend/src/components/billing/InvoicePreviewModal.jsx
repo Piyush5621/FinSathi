@@ -214,8 +214,8 @@ export default function InvoicePreviewModal({ invoice, onClose }) {
 
             {/* Watermark / Attribution */}
             <div className="absolute bottom-[40px] left-0 right-0 flex justify-center items-center opacity-20 gap-2 pointer-events-none">
-               <img src={logoImg} className="w-5 h-5 object-contain" alt="Sanchay" />
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Sanchay Business OS</p>
+               <img src={logoImg} className="w-5 h-5 object-contain" alt="Karobar" />
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Karobar Business OS</p>
             </div>
           </div>
         </div>

@@ -1,31 +1,44 @@
 # Dependencies
 node_modules/
+backend/node_modules/
+frontend/node_modules/
 .pnp
 .pnp.js
 
-# Testing
+# Testing & Coverage
 coverage/
+.nyc_output/
 
-# Production
+# Production Builds
 dist/
 build/
+backend/dist/
+frontend/dist/
 .vercel
 
-# Environment Variables
+# Environment Variables & Secrets
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
 *.env
+*.pem
+*.key
+*.cert
 
-# Debug
+# Debug & Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Editor
+# Editor & IDE
 .vscode/
 .idea/
 *.suo
@@ -33,30 +46,31 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
-.DS_Store
 
-# OS metadata
+# OS Specific
+.DS_Store
+Thumbs.db
 thumbs.db
 Desktop.ini
+desktop.ini
 
-# Backend specific
-backend/node_modules/
-backend/dist/
-
-# Frontend specific
-frontend/node_modules/
-frontend/dist/
-frontend/.env
-
-# Temporary Scripts
+# Scratch & Temporary Scripts
+backend/scratch/
+frontend/scratch/
 backend/create_test_user.js
 backend/diagnostic.js
 backend/debug_data.js
+backend/debug_sales.js
+backend/debug_inventory.js
 backend/check_customers_schema.js
 backend/check_teams.js
 backend/check_users_schema.js
+backend/check_columns.js
+backend/check_env.js
+backend/cleanup_leaks.js
 backend/debug_customer_insert.js
 backend/inspect_db.js
-backend/scratch/
-frontend/scratch/
+backend/list_tables.js
+backend/run_sql.js
+backend/test_customer.json
 database_backup/

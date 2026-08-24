@@ -10,7 +10,7 @@ const sections = [
         label: 'E-Commerce',
         icon: ShoppingCart,
         title: 'Online Storefront & Digital Payments',
-        desc: 'Link your Sanchay stock to a public website where customers can order directly. Real-time sync with your POS stock.',
+        desc: 'Link your Karobar stock to a public website where customers can order directly. Real-time sync with your POS stock.',
         milestones: ['Custom Domain Support', 'WhatsApp Order Link', 'UPI Payment Integration'],
         status: 'In Development'
     },
@@ -37,7 +37,7 @@ const sections = [
         label: 'Third Party API',
         icon: Database,
         title: 'Developer Portal & API Access',
-        desc: 'Connect Sanchay to your own custom software via secure REST APIs and Webhooks.',
+        desc: 'Connect Karobar to your own custom software via secure REST APIs and Webhooks.',
         milestones: ['API Key Management', 'Webhooks Support', 'Documentation Hub'],
         status: 'Roadmap'
     }

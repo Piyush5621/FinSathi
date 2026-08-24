@@ -41,7 +41,7 @@ export default function AiAdvisorHero({ dashboardData }) {
   const { metrics, inventory, recentSales } = dashboardData;
 
   // AI Generated Executive Summary
-  const executiveSummary = `MTD Revenue is ₹${metrics.revenue.toLocaleString('en-IN')} with a growth of ${metrics.revenueGrowth}% compared to last month. Net profit is ₹${metrics.profit.toLocaleString('en-IN')} with average order value at ₹${metrics.aov}. Outstanding uncollected dues are high at ₹${metrics.outstanding.toLocaleString('en-IN')}. Focus on collecting receivables and restocking ${inventory.lowStockCount} low-stock items in Sanchay.`;
+  const executiveSummary = `MTD Revenue is ₹${metrics.revenue.toLocaleString('en-IN')} with a growth of ${metrics.revenueGrowth}% compared to last month. Net profit is ₹${metrics.profit.toLocaleString('en-IN')} with average order value at ₹${metrics.aov}. Outstanding uncollected dues are high at ₹${metrics.outstanding.toLocaleString('en-IN')}. Focus on collecting receivables and restocking ${inventory.lowStockCount} low-stock items in your store.`;
 
   // Priority recommendations
   const priorityRecs = [];
@@ -55,7 +55,7 @@ export default function AiAdvisorHero({ dashboardData }) {
   if (inventory.lowStockCount > 0) {
     priorityRecs.push({
       type: 'optimization',
-      title: 'Sanchay Stockout Hazard',
+      title: 'Low Stock Restock Hazard',
       desc: `${inventory.lowStockCount} items are low on stock. Restock soon to prevent billing disruption.`
     });
   }

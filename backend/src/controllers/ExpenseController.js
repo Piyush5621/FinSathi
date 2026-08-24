@@ -29,7 +29,8 @@ export const getExpenses = async (req, res) => {
 
 export const addExpense = async (req, res) => {
   try {
-    const data = await ExpenseService.addExpense(req.user.id, req.body);
+    const orgId = req.tenantId || req.user?.organization_id || req.user?.id;
+    const data = await ExpenseService.addExpense(req.user.id, req.body, orgId);
     res.status(201).json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -38,8 +39,19 @@ export const addExpense = async (req, res) => {
 
 export const updateExpense = async (req, res) => {
   try {
-    const data = await ExpenseService.updateExpense(req.user.id, req.params.id, req.body);
+    const orgId = req.tenantId || req.user?.organization_id || req.user?.id;
+    const data = await ExpenseService.updateExpense(req.user.id, req.params.id, req.body, orgId);
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const deleteExpense = async (req, res) => {
+  try {
+    const orgId = req.tenantId || req.user?.organization_id || req.user?.id;
+    const data = await ExpenseService.deleteExpense(req.user.id, req.params.id, orgId);
+    res.json({ message: "Expense deleted successfully", data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

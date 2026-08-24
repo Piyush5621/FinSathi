@@ -1,4 +1,4 @@
-import {  useState, useEffect, memo  } from 'react';
+import { useState, useEffect, memo } from 'react';
 import AsyncSelect from "react-select/async";
 import API from "../../services/apiClient";
 import toast from "react-hot-toast";
@@ -14,21 +14,58 @@ const ItemAdder = memo(({ onAddItem }) => {
   const [subtotal, setSubtotal] = useState(0);
   const [priceTier, setPriceTier] = useState("retail");
 
-  // Debounced API search
+  // Debounced API search using Catalog API
   let debounceTimer;
   const loadOptions = (inputValue) => new Promise((resolve) => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
       if (!inputValue || inputValue.length < 2) return resolve([]);
       try {
-        const res = await API.get(`/inventory/search?q=${inputValue}`);
-        resolve(res.data.map(p => ({
-          value: p.id,
-          label: `${p.name} ${p.sku ? `(${p.sku})` : ""} – Stock: ${p.stock}`,
-          ...p
-        })));
+        const res = await API.get(`/catalog/products?query=${encodeURIComponent(inputValue)}`);
+        const products = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+        const options = [];
+
+        products.forEach(p => {
+          const variants = p.variants || [];
+          if (variants.length > 0) {
+            variants.forEach(v => {
+              options.push({
+                value: `${p.id}:${v.id}`,
+                label: `${p.name} — ${v.name} (SKU: ${v.sku || p.sku || 'N/A'}) • ₹${v.sellingPrice ?? p.sellingPrice ?? p.price ?? 0}`,
+                productId: p.id,
+                variantId: v.id,
+                variantName: v.name,
+                name: `${p.name} (${v.name})`,
+                sku: v.sku || p.sku,
+                price: Number(v.sellingPrice ?? p.sellingPrice ?? p.price ?? 0),
+                cost_price: Number(v.purchasePrice ?? p.costPrice ?? p.cost_price ?? 0),
+                stock: p.stock || 50,
+                inventory_batches: p.inventory_batches || [],
+                units: p.units || 'pcs',
+                gst_percent: p.gst_percent || 0
+              });
+            });
+          } else {
+            options.push({
+              value: p.id,
+              label: `${p.name} ${p.sku ? `(${p.sku})` : ""} • ₹${p.sellingPrice ?? p.price ?? 0}`,
+              productId: p.id,
+              variantId: null,
+              name: p.name,
+              sku: p.sku,
+              price: Number(p.sellingPrice ?? p.price ?? 0),
+              cost_price: Number(p.costPrice ?? p.cost_price ?? 0),
+              stock: p.stock || 50,
+              inventory_batches: p.inventory_batches || [],
+              units: p.units || 'pcs',
+              gst_percent: p.gst_percent || 0
+            });
+          }
+        });
+
+        resolve(options);
       } catch (e) {
-        console.error(e);
+        console.error("ItemAdder search error:", e);
         resolve([]);
       }
     }, 300);
@@ -45,7 +82,7 @@ const ItemAdder = memo(({ onAddItem }) => {
       setGstPercent(selectedProduct.gst_percent || 0);
 
       if (initialBatch) {
-        setPrice(Number(initialBatch.selling_price));
+        setPrice(Number(initialBatch.selling_price || selectedProduct.price));
         setPriceTier('retail');
       } else {
         setPrice(Number(selectedProduct.price || 0));
@@ -77,13 +114,14 @@ const ItemAdder = memo(({ onAddItem }) => {
     if (!selectedProduct) return toast.error("Please select a product");
     if (quantity < 1) return toast.error("Quantity must be at least 1");
 
-    const currentStock = selectedBatch ? selectedBatch.stock : (selectedProduct.stock || 0);
-    if (quantity > currentStock) {
-      return toast.error(`Insufficient stock! Only ${currentStock} available in this batch.`);
+    const currentStock = selectedBatch ? selectedBatch.stock : (selectedProduct.stock || 9999);
+    if (quantity > currentStock && currentStock > 0) {
+      return toast.error(`Insufficient stock! Only ${currentStock} available.`);
     }
 
     onAddItem({
-      productId: selectedProduct.id,
+      productId: selectedProduct.productId || selectedProduct.id,
+      variantId: selectedProduct.variantId || null,
       batchId: selectedBatch ? selectedBatch.id : null,
       name: selectedProduct.name,
       code: selectedBatch ? (selectedBatch.sku_variant || selectedProduct.sku) : selectedProduct.sku,
@@ -93,7 +131,9 @@ const ItemAdder = memo(({ onAddItem }) => {
       cost_price: selectedBatch ? selectedBatch.cost_price : (selectedProduct.cost_price || 0),
       gst_percent: gstPercent,
       amount: subtotal,
-      meta: selectedBatch ? `Batch: ${selectedBatch.batch_name || 'Standard'}` : 'Legacy Stock'
+      meta: selectedProduct.variantName 
+        ? `Variant: ${selectedProduct.variantName}` 
+        : (selectedBatch ? `Batch: ${selectedBatch.batch_name || 'Standard'}` : 'Catalog Item')
     });
 
     setSelectedProduct(null);
@@ -111,14 +151,14 @@ const ItemAdder = memo(({ onAddItem }) => {
       <div className="flex flex-col md:flex-row gap-4 items-end">
         
         <div className="flex-1 min-w-[240px]">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Product Search</label>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Product / Variant Search</label>
           <AsyncSelect
             inputId="product-search-input"
             value={selectedProduct}
             onChange={setSelectedProduct}
             loadOptions={loadOptions}
             defaultOptions={false}
-            placeholder="Search Products... (min 2 chars)"
+            placeholder="Search Products or Variants (min 2 chars)..."
             isClearable
             className="text-xs"
             styles={{

@@ -1,6 +1,6 @@
 export function parseRequestInfo(req) {
-  const userAgent = req.headers["user-agent"] || "";
-  const ipAddress = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "127.0.0.1";
+  const userAgent = req?.headers?.["user-agent"] || "";
+  const ipAddress = req?.headers?.["x-forwarded-for"] || req?.socket?.remoteAddress || req?.ip || "127.0.0.1";
   
   // Extract browser
   let browser = "Unknown";

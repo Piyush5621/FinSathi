@@ -52,14 +52,26 @@ export const getCatalog = async (req, res) => {
 export const createOrder = async (req, res) => {
   try {
     const { businessSlug } = req.params;
-    const { customerName, phone, items } = req.body;
+    const { customerName, phone, items } = req.body || {};
+
+    if (!customerName || typeof customerName !== "string" || customerName.trim().length === 0) {
+      return res.status(400).json({ error: "Customer name is required" });
+    }
+
+    if (!phone || typeof phone !== "string" || phone.trim().length < 8) {
+      return res.status(400).json({ error: "A valid contact phone number is required" });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "At least one order item is required" });
+    }
 
     const cleanSlug = businessSlug.replace(/-/g, ' ');
     const { data: user, error: userErr } = await supabase
       .from('users')
       .select('id')
       .ilike('business_name', `%${cleanSlug}%`)
-      .single();
+      .maybeSingle();
 
     if (userErr || !user) return res.status(404).json({ error: 'Business not found' });
 

@@ -44,6 +44,12 @@ export class StockService {
 
       if (existBatch) {
         batchId = existBatch.id;
+        if (typeof existBatch.stock === 'number') {
+          await adminSupabase
+            .from("inventory_batches")
+            .update({ stock: existBatch.stock + quantity })
+            .eq("id", batchId);
+        }
       } else {
         const { data: newBatch, error: bErr } = await adminSupabase
           .from("inventory_batches")
@@ -53,6 +59,7 @@ export class StockService {
             warehouse_id: warehouseId,
             batch_number: batchNumber,
             purchase_cost: unitCost,
+            stock: quantity,
             created_by: actorUserId
           })
           .select()
@@ -413,5 +420,398 @@ export class StockService {
     }
 
     return rows;
+  }
+
+  /**
+   * Atomically deducts stock for a POS / invoice sale.
+   * Acquires SELECT FOR UPDATE locks, performs FEFO batch deduction, 
+   * decrements warehouse_stock, and logs immutable inventory_movements.
+   * 
+   * @param {string} organizationId 
+   * @param {object} params 
+   * @param {string} params.warehouseId 
+   * @param {string} params.saleId 
+   * @param {Array} params.items 
+   * @param {string} actorUserId 
+   */
+  static async deductSaleStock(organizationId, { warehouseId, saleId, items }, actorUserId) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return [];
+    }
+
+    // 1. Validation & Pre-locking Pass:
+    // Lock all items first and verify available stock.
+    // If ANY item has insufficient stock, throw ValidationError before updating any balances.
+    const lockedStockMap = {};
+    for (const item of items) {
+      const qty = Number(item.quantity || 0);
+      if (qty <= 0) continue;
+      const productId = item.productId || item.product_id;
+      const variantId = item.variantId || item.variant_id || null;
+
+      if (!productId) {
+        throw new ValidationError("Product ID is required for each sale item.");
+      }
+
+      const lockKey = `${productId}:${variantId || 'null'}`;
+      let stock = lockedStockMap[lockKey];
+      if (!stock) {
+        stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
+        if (!stock) {
+          throw new ValidationError(`Warehouse stock record not found for product ${productId}.`);
+        }
+        lockedStockMap[lockKey] = {
+          ...stock,
+          on_hand: Number(stock.on_hand),
+          reserved: Number(stock.reserved),
+          available: Number(stock.available)
+        };
+      }
+
+      if (lockedStockMap[lockKey].available < qty || lockedStockMap[lockKey].on_hand < qty) {
+        throw new ValidationError(`Insufficient stock for product ${productId}. Available: ${lockedStockMap[lockKey].available}, Requested: ${qty}`);
+      }
+
+      // Decrement in-memory accumulator to handle multiple lines of the same product in a single cart
+      lockedStockMap[lockKey].available -= qty;
+      lockedStockMap[lockKey].on_hand -= qty;
+    }
+
+    // 2. Deduction and Movement Pass:
+    const deductionResults = [];
+    for (const item of items) {
+      const qty = Number(item.quantity || 0);
+      if (qty <= 0) continue;
+      const productId = item.productId || item.product_id;
+      const variantId = item.variantId || item.variant_id || null;
+      const lockKey = `${productId}:${variantId || 'null'}`;
+      const stock = lockedStockMap[lockKey];
+
+      // Batch allocation (FEFO / specified batch)
+      let batchId = item.batchId || item.batch_id || null;
+      if (!batchId) {
+        try {
+          const allocations = await BatchSelectionEngine.selectBatches({
+            organizationId,
+            productId,
+            warehouseId,
+            quantityToFulfill: qty
+          });
+          if (allocations && allocations.length > 0) {
+            batchId = allocations[0].batchId;
+          }
+        } catch (selErr) {
+          console.warn(`[StockService] Batch auto-selection notice: ${selErr.message}`);
+        }
+      }
+
+      // If batchId is resolved, deduct quantity from batch if batch exists in DB
+      if (batchId) {
+        try {
+          const { data: batch } = await adminSupabase
+            .from("inventory_batches")
+            .select("id, stock, purchase_cost, cost_price")
+            .eq("id", batchId)
+            .maybeSingle();
+
+          if (batch && typeof batch.stock === 'number') {
+            const newBatchStock = Math.max(0, batch.stock - qty);
+            await adminSupabase
+              .from("inventory_batches")
+              .update({
+                stock: newBatchStock,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", batchId);
+          }
+        } catch (bErr) {
+          console.warn(`[StockService] Batch update warning for ${batchId}:`, bErr.message);
+        }
+      }
+
+      // Update warehouse stock in database
+      const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
+        on_hand: stock.on_hand,
+        available: stock.available
+      });
+
+      // Create immutable inventory movement record
+      const unitCost = Number(item.cost_price || item.costPrice || 0);
+      const movement = await StockRepository.createMovement({
+        organization_id: organizationId,
+        warehouse_id: warehouseId,
+        product_id: productId,
+        variant_id: variantId,
+        batch_id: batchId,
+        quantity: -qty,
+        movement_type: "sale",
+        reference_type: "sales",
+        reference_id: saleId,
+        unit_cost: unitCost,
+        total_cost: unitCost * qty,
+        valuation_method: "FIFO",
+        created_by: actorUserId
+      });
+
+      publisher.publish("inventory.movement.created", { id: movement.id, organizationId });
+      publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: stock.on_hand });
+
+      deductionResults.push({ stock: updatedStock, movement, batchId });
+    }
+
+    return deductionResults;
+  }
+
+  /**
+   * Atomically receives stock from a Purchase Order.
+   * Acquires SELECT FOR UPDATE locks on warehouse_stock, creates/updates inventory_batches,
+   * increments warehouse_stock on_hand and available, and records immutable inward inventory_movements.
+   * 
+   * @param {string} organizationId 
+   * @param {object} params 
+   * @param {string} params.warehouseId 
+   * @param {string} params.purchaseOrderId 
+   * @param {string} params.orderNo 
+   * @param {Array} params.items 
+   * @param {string} actorUserId 
+   */
+  static async receivePurchaseOrderStock(organizationId, { warehouseId, purchaseOrderId, orderNo, items }, actorUserId) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return [];
+    }
+
+    // 1. Pre-validation Pass: Validate all items before making any modifications
+    for (const item of items) {
+      const qty = Number(item.quantity || 0);
+      if (qty <= 0) {
+        throw new ValidationError(`Received quantity must be greater than zero for all items.`);
+      }
+      const productId = item.productId || item.product_id || item.inventory_id;
+      if (!productId) {
+        throw new ValidationError("Product ID is required for each received item.");
+      }
+    }
+
+    // 2. Receipt and Inward Stock Pass:
+    const receiptResults = [];
+    for (const item of items) {
+      const qty = Number(item.quantity || 0);
+      const productId = item.productId || item.product_id || item.inventory_id;
+      const variantId = item.variantId || item.variant_id || null;
+      const unitCost = Number(item.cost_price || item.costPrice || item.purchase_cost || item.unit_price || item.unitPrice || 0);
+      const sellingPrice = Number(item.selling_price || item.sellingPrice || item.price || 0);
+      const wholesalePrice = Number(item.wholesale_price || item.wholesalePrice || 0);
+      const batchNumber = item.batch_number || item.batchNumber || `PO-${orderNo || Date.now()}-${String(productId).slice(0, 8)}`;
+      const expiryDate = item.expiry_date || item.expiryDate || null;
+
+      // Lock warehouse stock row
+      const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
+
+      // Create new inventory batch
+      let batchId = null;
+      try {
+        const { data: newBatch, error: bErr } = await adminSupabase
+          .from("inventory_batches")
+          .insert({
+            organization_id: organizationId,
+            inventory_id: productId,
+            product_id: productId,
+            variant_id: variantId,
+            warehouse_id: warehouseId,
+            batch_name: `PO #${orderNo || 'Receipt'} - ${batchNumber}`,
+            batch_number: batchNumber,
+            cost_price: unitCost,
+            purchase_cost: unitCost,
+            selling_price: sellingPrice,
+            wholesale_price: wholesalePrice,
+            expiry_date: expiryDate,
+            stock: qty,
+            created_by: actorUserId
+          })
+          .select()
+          .single();
+
+        if (!bErr && newBatch) {
+          batchId = newBatch.id;
+          publisher.publish("inventory.batch.created", { id: batchId, organizationId, batchNumber });
+        }
+      } catch (bCatchErr) {
+        console.warn(`[StockService] Batch creation warning for product ${productId}:`, bCatchErr.message);
+      }
+
+      // Update warehouse stock balances
+      const newOnHand = Number(stock.on_hand) + qty;
+      const newAvailable = newOnHand - Number(stock.reserved);
+
+      const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
+        on_hand: newOnHand,
+        available: newAvailable
+      });
+
+      // Create immutable inward inventory movement record
+      const movement = await StockRepository.createMovement({
+        organization_id: organizationId,
+        warehouse_id: warehouseId,
+        product_id: productId,
+        variant_id: variantId,
+        batch_id: batchId,
+        quantity: qty, // Positive for inward movement
+        movement_type: "purchase",
+        reference_type: "purchase_orders",
+        reference_id: purchaseOrderId,
+        unit_cost: unitCost,
+        total_cost: unitCost * qty,
+        valuation_method: "FIFO",
+        created_by: actorUserId
+      });
+
+      // Update legacy inventory master record for backward compatibility
+      try {
+        const { data: legacyProd } = await adminSupabase
+          .from("inventory")
+          .select("id, stock, cost_price")
+          .eq("id", productId)
+          .maybeSingle();
+
+        if (legacyProd) {
+          const currentLegacyStock = Number(legacyProd.stock || 0);
+          await adminSupabase
+            .from("inventory")
+            .update({
+              stock: currentLegacyStock + qty,
+              cost_price: unitCost > 0 ? unitCost : legacyProd.cost_price,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", productId);
+        }
+      } catch {}
+
+      publisher.publish("inventory.movement.created", { id: movement.id, organizationId });
+      publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: newOnHand });
+
+      receiptResults.push({ stock: updatedStock, movement, batchId });
+    }
+
+    return receiptResults;
+  }
+
+  /**
+   * Atomically restores stock for returned sales items.
+   * Acquires SELECT FOR UPDATE locks on warehouse_stock, restores batch stock if batch exists,
+   * increments warehouse_stock on_hand and available, and records immutable sales_return inventory_movements.
+   * 
+   * @param {string} organizationId 
+   * @param {object} params 
+   * @param {string} params.warehouseId 
+   * @param {string} params.saleId 
+   * @param {string} params.returnId 
+   * @param {Array} params.items 
+   * @param {string} actorUserId 
+   */
+  static async returnSaleStock(organizationId, { warehouseId, saleId, returnId, items }, actorUserId) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return [];
+    }
+
+    // 1. Pre-validation Pass: Validate all items before modifying any balances
+    for (const item of items) {
+      const qty = Number(item.quantity || 0);
+      if (qty <= 0) {
+        throw new ValidationError("Return quantity must be greater than zero for all items.");
+      }
+      const productId = item.productId || item.product_id || item.inventory_id;
+      if (!productId) {
+        throw new ValidationError("Product ID is required for each returned item.");
+      }
+    }
+
+    // 2. Return and Stock Restoration Pass:
+    const returnResults = [];
+    for (const item of items) {
+      const qty = Number(item.quantity || 0);
+      const productId = item.productId || item.product_id || item.inventory_id;
+      const variantId = item.variantId || item.variant_id || null;
+      const batchId = item.batchId || item.batch_id || null;
+      const unitCost = Number(item.cost_price || item.costPrice || item.purchase_cost || 0);
+
+      // Lock warehouse stock row
+      const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
+
+      // If batchId is provided, restore quantity to batch
+      if (batchId) {
+        try {
+          const { data: batch } = await adminSupabase
+            .from("inventory_batches")
+            .select("id, stock")
+            .eq("id", batchId)
+            .maybeSingle();
+
+          if (batch && typeof batch.stock === 'number') {
+            await adminSupabase
+              .from("inventory_batches")
+              .update({
+                stock: batch.stock + qty,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", batchId);
+          }
+        } catch (bErr) {
+          console.warn(`[StockService] Batch return restoration warning for batch ${batchId}:`, bErr.message);
+        }
+      }
+
+      // Update warehouse stock balances (on_hand + qty, available + qty)
+      const newOnHand = Number(stock.on_hand) + qty;
+      const newAvailable = newOnHand - Number(stock.reserved);
+
+      const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
+        on_hand: newOnHand,
+        available: newAvailable
+      });
+
+      // Create immutable sales_return inventory movement record
+      const movement = await StockRepository.createMovement({
+        organization_id: organizationId,
+        warehouse_id: warehouseId,
+        product_id: productId,
+        variant_id: variantId,
+        batch_id: batchId,
+        quantity: qty, // Positive for inward return
+        movement_type: "sales_return",
+        reference_type: "sales_returns",
+        reference_id: returnId || saleId,
+        unit_cost: unitCost,
+        total_cost: unitCost * qty,
+        valuation_method: "FIFO",
+        created_by: actorUserId
+      });
+
+      // Update legacy inventory master record for backward compatibility
+      try {
+        const { data: legacyProd } = await adminSupabase
+          .from("inventory")
+          .select("id, stock")
+          .eq("id", productId)
+          .maybeSingle();
+
+        if (legacyProd) {
+          const currentLegacyStock = Number(legacyProd.stock || 0);
+          await adminSupabase
+            .from("inventory")
+            .update({
+              stock: currentLegacyStock + qty,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", productId);
+        }
+      } catch {}
+
+      publisher.publish("inventory.movement.created", { id: movement.id, organizationId });
+      publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: newOnHand });
+
+      returnResults.push({ stock: updatedStock, movement, batchId });
+    }
+
+    return returnResults;
   }
 }

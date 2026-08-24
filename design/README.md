@@ -11,7 +11,7 @@ This directory contains the visual design mockups for the FinSathi platform, rep
 | **Dashboard** | Main overview page showcasing KPIs (Business Health, Total Revenue, Net Profit) and charts. | [dashboard.png](file:///d:/Projects/FinSathi/design/mockups/dashboard.png) |
 | **Invoices / Billing (Draft)** | Interface for managing invoices, draft invoice generation, and recent sales. | [billing.png](file:///d:/Projects/FinSathi/design/mockups/billing.png) |
 | **Billing & Invoices (Transactions)** | Detailed view of transaction lists, sales performance charts, and invoice exports. | [billing_v2.png](file:///d:/Projects/FinSathi/design/mockups/billing_v2.png) |
-| **Sanchay** | Sanchay stock summary indicators, product catalog list, and stock replenishment drawer. | [inventory.png](file:///d:/Projects/FinSathi/design/mockups/inventory.png) |
+| **Stock & Inventory** | Stock summary indicators, product catalog list, and stock replenishment drawer. | [inventory.png](file:///d:/Projects/FinSathi/design/mockups/inventory.png) |
 | **Customer Hub** | Customer directory listing and detailed sidebar for individual customer metrics. | [customers.png](file:///d:/Projects/FinSathi/design/mockups/customers.png) |
 | **AI Business Advisor** | Floating AI assistant chat interface with actionable business recommendations. | [ai_advisor.png](file:///d:/Projects/FinSathi/design/mockups/ai_advisor.png) |
 | **Business Health Analysis** | Granular health score breakdown, smart recommendations list, and industry benchmarking radar chart. | [health_analysis.png](file:///d:/Projects/FinSathi/design/mockups/health_analysis.png) |
@@ -35,7 +35,7 @@ This directory contains the visual design mockups for the FinSathi platform, rep
 ### Billing & Invoices (Transactions)
 ![Billing Transactions Mockup](/d:/Projects/FinSathi/design/mockups/billing_v2.png)
 
-### Sanchay
+### Stock & Inventory
 ![Inventory Mockup](/d:/Projects/FinSathi/design/mockups/inventory.png)
 
 ### Customer Hub

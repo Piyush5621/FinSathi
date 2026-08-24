@@ -2,7 +2,7 @@ import { supabase } from "../config/db.js";
 import fs from "fs";
 import path from "path";
 
-const BACKUP_DIR = "d:/Projects/FinSathi/database_backup";
+const BACKUP_DIR = path.join(process.cwd(), "database_backup");
 
 // List of tables to backup/restore
 const TENANT_TABLES = [

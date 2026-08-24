@@ -17,7 +17,7 @@ let mockReservations = [];
 let mockSnapshots = [];
 let mockPreferences = [];
 
-describe("Sanchay Stock Engine Module Unit & Integration Tests", () => {
+describe("Karobar Stock Engine Module Unit & Integration Tests", () => {
   before(() => {
     const whLocks = {};
 

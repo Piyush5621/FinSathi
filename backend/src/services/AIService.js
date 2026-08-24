@@ -59,14 +59,14 @@ async function callGemini(systemPrompt, userMessage, retryCount = 0) {
  */
 async function extractIntent(userQuery, context) {
   const today = new Date().toISOString().split("T")[0];
-  const systemPrompt = `You are an intent extraction engine for Sanchay, a business and stock management app used by Indian small businesses.
+  const systemPrompt = `You are an intent extraction engine for Karobar, a business and stock management app used by Indian small businesses.
   Extract the user's query intent into valid JSON.
 
   Intent Types:
   - SALES_SUMMARY: user asks about sales, revenue, billing, kitna bika, aaj ka sale
   - EXPENSE_QUERY: user asks about expenses, kharcha, spend
   - CUSTOMER_BALANCE: user asks about pending dues, outstanding, udhaar, receivables
-  - INVENTORY_CHECK: user asks about stock, sanchay, inventory, kya stock hai, low stock
+  - INVENTORY_CHECK: user asks about stock, karobar, inventory, kya stock hai, low stock
   - PROFIT_REPORT: user asks about profit, net income, margin, munafa
   - TOP_PRODUCTS: user asks about best selling items, top products
   - STAFF_SALARY: user asks about staff, salary, employees
@@ -362,7 +362,7 @@ async function formatResponse(data, originalQuery, language) {
       dataDesc = "I could not determine what you're asking. Please try: 'Show today sales', 'Profit this month', 'Low stock items', or 'Outstanding dues'.";
   }
 
-  const systemPrompt = `You are Sanchay AI, a warm, expert AI business advisor for Sanchay — a business and stock OS used by Indian small business owners.
+  const systemPrompt = `You are Karobar AI, a warm, expert AI business advisor for Karobar — a business and stock OS used by Indian small business owners.
 
 The user asked: "${originalQuery}"
 
