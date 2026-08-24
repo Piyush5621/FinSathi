@@ -5,6 +5,14 @@ import App from "./App.jsx";
 import "./index.css";
 import { Toaster } from "react-hot-toast";
 
+// Auto-reload on deployment chunk changes
+if (typeof window !== "undefined") {
+  window.addEventListener("vite:preloadError", (event) => {
+    console.warn("[Vite] Stale chunk detected after deployment. Auto-reloading page...", event);
+    window.location.reload();
+  });
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

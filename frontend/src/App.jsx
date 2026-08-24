@@ -1,63 +1,64 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { Suspense, lazy } from "react";
-import Loader from "./components/Loader"; // Assuming you have aLoader component
-
-const Login = lazy(() => import("./pages/Auth/Login"));
-const Register = lazy(() => import("./pages/Auth/Register"));
-const SuspendedPage = lazy(() => import("./pages/Auth/SuspendedPage"));
-const LandingPage = lazy(() => import("./pages/LandingPage"));
-const CatalogPage = lazy(() => import("./pages/Public/CatalogPage"));
-const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
-const FounderDashboard = lazy(() => import("./pages/Dashboard/FounderDashboard"));
-const Profile = lazy(() => import("./pages/Profile/Profile"));
-const CustomersPage = lazy(() => import("./pages/CustomersPage"));
-const InventoryPage = lazy(() => import("./pages/InventoryPage"));
-const Billing = lazy(() => import("./pages/Billing/Billing"));
-const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory/InvoiceHistory"));
-const CustomerInvoicesPage = lazy(() => import("./pages/CustomerInvoicesPage"));
-const PaymentsPage = lazy(() => import("./pages/PaymentsPage"));
-const ExpensePage = lazy(() => import("./pages/ExpensePage"));
-const PnlPage = lazy(() => import("./pages/PnlPage"));
-const BusinessHealthPage = lazy(() => import("./pages/BusinessHealthPage"));
-const AiAdvisorPage = lazy(() => import("./pages/AiAdvisorPage"));
-const ToolsPage = lazy(() => import("./pages/ToolsPage"));
-const AttendanceScanPage = lazy(() => import("./pages/AttendanceTerminal"));
-const GeneralPage = lazy(() => import("./pages/GeneralPage"));
-const StoreManagement = lazy(() => import("./pages/StoreManagement"));
-const SupplierHub = lazy(() => import("./pages/SupplierHub"));
-const CrmPage = lazy(() => import("./pages/CrmPage"));
-
-// PHASE 3: Workforce & Access Management
-const EmployeesList = lazy(() => import("./pages/Workforce/EmployeesList"));
-const PayrollAttendance = lazy(() => import("./pages/Workforce/PayrollAttendance"));
-const RoleManagement = lazy(() => import("./pages/Workforce/RoleManagement"));
-const AccessMatrix = lazy(() => import("./pages/Workforce/AccessMatrix"));
-const ApprovalWorkflows = lazy(() => import("./pages/Workforce/ApprovalWorkflows"));
-const AuditTrail = lazy(() => import("./pages/Workforce/AuditTrail"));
-const AuditCenter = lazy(() => import("./pages/Audit/AuditCenter"));
-const BackupWizard = lazy(() => import("./pages/Backup/BackupWizard"));
-const ExecutiveAnalytics = lazy(() => import("./pages/Analytics/ExecutiveAnalytics"));
-const AppLayout = lazy(() => import("./layouts/AppLayout"));
+import { Suspense } from "react";
+import Loader from "./components/Loader";
+import AppLayout from "./layouts/AppLayout";
+import { lazyWithRetry } from "./utils/lazyWithRetry";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { SubscriptionProvider } from "./contexts/SubscriptionContext";
 import { StoreProvider } from "./contexts/StoreContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 
-const Settings = lazy(() => import("./pages/Profile/Profile")); // fallback if missing
-const Plans = lazy(() => import("./pages/Subscription/Plans"));
+const Login = lazyWithRetry(() => import("./pages/Auth/Login"));
+const Register = lazyWithRetry(() => import("./pages/Auth/Register"));
+const SuspendedPage = lazyWithRetry(() => import("./pages/Auth/SuspendedPage"));
+const LandingPage = lazyWithRetry(() => import("./pages/LandingPage"));
+const CatalogPage = lazyWithRetry(() => import("./pages/Public/CatalogPage"));
+const Dashboard = lazyWithRetry(() => import("./pages/Dashboard/Dashboard"));
+const FounderDashboard = lazyWithRetry(() => import("./pages/Dashboard/FounderDashboard"));
+const Profile = lazyWithRetry(() => import("./pages/Profile/Profile"));
+const CustomersPage = lazyWithRetry(() => import("./pages/CustomersPage"));
+const InventoryPage = lazyWithRetry(() => import("./pages/InventoryPage"));
+const Billing = lazyWithRetry(() => import("./pages/Billing/Billing"));
+const InvoiceHistory = lazyWithRetry(() => import("./pages/InvoiceHistory/InvoiceHistory"));
+const CustomerInvoicesPage = lazyWithRetry(() => import("./pages/CustomerInvoicesPage"));
+const PaymentsPage = lazyWithRetry(() => import("./pages/PaymentsPage"));
+const ExpensePage = lazyWithRetry(() => import("./pages/ExpensePage"));
+const PnlPage = lazyWithRetry(() => import("./pages/PnlPage"));
+const BusinessHealthPage = lazyWithRetry(() => import("./pages/BusinessHealthPage"));
+const AiAdvisorPage = lazyWithRetry(() => import("./pages/AiAdvisorPage"));
+const ToolsPage = lazyWithRetry(() => import("./pages/ToolsPage"));
+const AttendanceScanPage = lazyWithRetry(() => import("./pages/AttendanceTerminal"));
+const GeneralPage = lazyWithRetry(() => import("./pages/GeneralPage"));
+const StoreManagement = lazyWithRetry(() => import("./pages/StoreManagement"));
+const SupplierHub = lazyWithRetry(() => import("./pages/SupplierHub"));
+const CrmPage = lazyWithRetry(() => import("./pages/CrmPage"));
 
-// PHASE 5: Business Network Module (v2 — Redesigned)
-const NetworkHome = lazy(() => import('./pages/Network/v2/NetworkHome'));
-const BusinessDirectory = lazy(() => import('./pages/Network/v2/BusinessDirectory'));
-const BusinessExchange = lazy(() => import('./pages/Network/v2/BusinessExchange'));
-const PartnersHub = lazy(() => import('./pages/Network/v2/PartnersHub'));
-const TradeWorkspace = lazy(() => import('./pages/Network/v2/TradeWorkspace'));
-const GrowthCenter = lazy(() => import('./pages/Network/v2/GrowthCenter'));
+// Workforce & Access Management
+const EmployeesList = lazyWithRetry(() => import("./pages/Workforce/EmployeesList"));
+const PayrollAttendance = lazyWithRetry(() => import("./pages/Workforce/PayrollAttendance"));
+const RoleManagement = lazyWithRetry(() => import("./pages/Workforce/RoleManagement"));
+const AccessMatrix = lazyWithRetry(() => import("./pages/Workforce/AccessMatrix"));
+const ApprovalWorkflows = lazyWithRetry(() => import("./pages/Workforce/ApprovalWorkflows"));
+const AuditTrail = lazyWithRetry(() => import("./pages/Workforce/AuditTrail"));
+const AuditCenter = lazyWithRetry(() => import("./pages/Audit/AuditCenter"));
+const BackupWizard = lazyWithRetry(() => import("./pages/Backup/BackupWizard"));
+const ExecutiveAnalytics = lazyWithRetry(() => import("./pages/Analytics/ExecutiveAnalytics"));
 
-// PHASE 4: Admin Interface
-const AdminLogin = lazy(() => import("./pages/Admin/AdminLogin"));
-const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
+const Settings = lazyWithRetry(() => import("./pages/Profile/Profile"));
+const Plans = lazyWithRetry(() => import("./pages/Subscription/Plans"));
+
+// Business Network Module
+const NetworkHome = lazyWithRetry(() => import('./pages/Network/v2/NetworkHome'));
+const BusinessDirectory = lazyWithRetry(() => import('./pages/Network/v2/BusinessDirectory'));
+const BusinessExchange = lazyWithRetry(() => import('./pages/Network/v2/BusinessExchange'));
+const PartnersHub = lazyWithRetry(() => import('./pages/Network/v2/PartnersHub'));
+const TradeWorkspace = lazyWithRetry(() => import('./pages/Network/v2/TradeWorkspace'));
+const GrowthCenter = lazyWithRetry(() => import('./pages/Network/v2/GrowthCenter'));
+
+// Admin Interface
+const AdminLogin = lazyWithRetry(() => import("./pages/Admin/AdminLogin"));
+const AdminDashboard = lazyWithRetry(() => import("./pages/Admin/AdminDashboard"));
 
 // ProtectedRoute logic is handled directly in AppLayout.jsx for cleaner mapping, or we can keep it here.
 // Let's rely on AppLayout checking loggedIn.
