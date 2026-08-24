@@ -238,6 +238,8 @@ app.use("/api/imports", importRoutes);
 app.use("/api/network-catalogs", catalogNetworkRoutes);
 app.use("/api/network", preferredSupplierRoutes);
 app.use("/api/trade-credit", tradeCreditRoutes);
+app.use("/api/network/trade/credit", tradeCreditRoutes);
+app.use("/api/network/trade-credit", tradeCreditRoutes);
 app.use("/api/trade-returns", tradeReturnRoutes);
 
 // Global Error Handler must be the last middleware

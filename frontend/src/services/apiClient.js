@@ -6,11 +6,14 @@ const API = axios.create({
   withCredentials: true // Ensure HttpOnly cookies (including refreshToken) are sent automatically
 });
 
-// Request Interceptor: attach Bearer token if available
+// Request Interceptor: attach Bearer token if available and normalize url
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.url && config.url.startsWith("/api/")) {
+    config.url = config.url.replace(/^\/api/, "");
   }
   return config;
 }, (error) => Promise.reject(error));

@@ -87,11 +87,18 @@ export const sendTradeTransaction = async (req, res) => {
     }
 
     // Update connection trade volume
-    await supabase
-      .from("business_connections")
-      .update({ trade_volume: supabase.raw(`trade_volume + ${totalAmount}`) })
-      .eq("id", conn.id)
-      .catch(() => {});
+    try {
+      const { data: currentConn } = await supabase
+        .from("business_connections")
+        .select("trade_volume")
+        .eq("id", conn.id)
+        .single();
+      const newVolume = Number(currentConn?.trade_volume || 0) + totalAmount;
+      await supabase
+        .from("business_connections")
+        .update({ trade_volume: newVolume })
+        .eq("id", conn.id);
+    } catch {}
 
     // Notify buyer
     const { data: sender } = await supabase
