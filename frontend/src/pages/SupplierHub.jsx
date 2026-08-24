@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -9,7 +10,7 @@ import {
   Users, Truck, FileText, Plus, Landmark, 
   RefreshCw, CheckCircle2, AlertTriangle, 
   ExternalLink, ChevronRight, X, ArrowLeft,
-  Circle, Receipt, Trash2, Edit, Search, Trash, Printer, XCircle, MoreVertical
+  Circle, Receipt, Trash2, Edit, Search, Trash, Printer, XCircle, MoreVertical, Globe
 } from 'lucide-react';
 import API from '../services/apiClient';
 import toast from 'react-hot-toast';
@@ -283,7 +284,13 @@ export default function SupplierHub() {
             Track wholesale vendors, manage purchase orders, record cash settlements, and analyze supplier performance.
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2.5">
+          <Link
+            to="/network?tab=partners"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-xl transition-colors shadow-sm"
+          >
+            <Globe size={14} /> Connect on Karobar Network
+          </Link>
           <Button
             onClick={() => setShowPaymentModal(true)}
             variant="secondary"

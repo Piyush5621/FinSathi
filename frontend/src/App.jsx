@@ -124,24 +124,25 @@ function App() {
                 <Route path="/general" element={<GeneralPage />} />
                 <Route path="/customer-invoices/:id" element={<CustomerInvoicesPage />} />
 
-                {/* 🌐 Business Network Routes — v2 */}
+                {/* 🌐 Business Network Routes — 5-Pillar Architecture */}
                 <Route path="/network" element={<NetworkHome />} />
-                <Route path="/network/directory" element={<BusinessDirectory />} />
                 <Route path="/network/exchange" element={<BusinessExchange />} />
-                <Route path="/network/partners" element={<PartnersHub />} />
-                <Route path="/network/workspace" element={<TradeWorkspace />} />
                 <Route path="/network/growth" element={<GrowthCenter />} />
 
-                {/* Legacy redirects — preserve backward compatibility */}
-                <Route path="/network/overview" element={<Navigate to="/network" replace />} />
-                <Route path="/network/connections" element={<Navigate to="/network/partners" replace />} />
-                <Route path="/network/inbox" element={<Navigate to="/network/workspace?tab=inbox" replace />} />
-                <Route path="/network/outbox" element={<Navigate to="/network/workspace?tab=outbox" replace />} />
-                <Route path="/network/trade-credit" element={<Navigate to="/network/workspace?tab=credits" replace />} />
-                <Route path="/network/trade-returns" element={<Navigate to="/network/workspace?tab=returns" replace />} />
-                <Route path="/network/shared-catalogs" element={<Navigate to="/network/partners?tab=catalogs" replace />} />
-                <Route path="/network/trade-history" element={<Navigate to="/network/workspace" replace />} />
-                <Route path="/network/analytics" element={<Navigate to="/network?tab=analytics" replace />} />
+                {/* Legacy redirects — map seamlessly into 5-Pillar /network tabs */}
+                <Route path="/network/overview" element={<Navigate to="/network?tab=partners" replace />} />
+                <Route path="/network/partners" element={<Navigate to="/network?tab=partners" replace />} />
+                <Route path="/network/connections" element={<Navigate to="/network?tab=partners" replace />} />
+                <Route path="/network/directory" element={<Navigate to="/network?tab=partners" replace />} />
+                <Route path="/network/inbox" element={<Navigate to="/network?tab=inbox" replace />} />
+                <Route path="/network/outbox" element={<Navigate to="/network?tab=outbox" replace />} />
+                <Route path="/network/workspace" element={<Navigate to="/network?tab=inbox" replace />} />
+                <Route path="/network/trade-credit" element={<Navigate to="/network?tab=credits" replace />} />
+                <Route path="/network/trade-returns" element={<Navigate to="/network?tab=inbox" replace />} />
+                <Route path="/network/shared-catalogs" element={<Navigate to="/network?tab=partners" replace />} />
+                <Route path="/network/trade-history" element={<Navigate to="/network?tab=inbox" replace />} />
+                <Route path="/network/analytics" element={<Navigate to="/network?tab=trust" replace />} />
+                <Route path="/network/reputation" element={<Navigate to="/network?tab=trust" replace />} />
               </Route>
 
               {/* ⚙️ Catch-all redirect (Optional) */}
