@@ -48,9 +48,14 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
         API.get('/api/network/search?query=').catch(() => ({ data: { data: [] } }))
       ]);
 
-      setPartners(connRes.data?.data || []);
-      setPendingRequests(pendRes.data?.data || []);
-      setDirectory(dirRes.data?.data || []);
+      const rawPartners = connRes.data?.data;
+      setPartners(Array.isArray(rawPartners) ? rawPartners : Array.isArray(rawPartners?.data) ? rawPartners.data : []);
+
+      const rawPending = pendRes.data?.data;
+      setPendingRequests(Array.isArray(rawPending) ? rawPending : Array.isArray(rawPending?.data) ? rawPending.data : []);
+
+      const rawDir = dirRes.data?.data;
+      setDirectory(Array.isArray(rawDir) ? rawDir : Array.isArray(rawDir?.data) ? rawDir.data : []);
     } catch (err) {
       console.warn('Error loading partners data:', err);
     } finally {
@@ -88,7 +93,8 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
   };
 
   const filteredPartners = useMemo(() => {
-    return partners.filter(p => {
+    const list = Array.isArray(partners) ? partners : [];
+    return list.filter(p => {
       const name = (p.partner?.business_name || p.business_name || '').toLowerCase();
       const city = (p.partner?.city || p.city || '').toLowerCase();
       return name.includes(searchQuery.toLowerCase()) || city.includes(searchQuery.toLowerCase());
@@ -96,7 +102,8 @@ export default function PartnersTab({ onSelectPartner, defaultSubTab = 'partners
   }, [partners, searchQuery]);
 
   const filteredDirectory = useMemo(() => {
-    return directory.filter(d => {
+    const list = Array.isArray(directory) ? directory : [];
+    return list.filter(d => {
       const name = (d.business_name || d.name || '').toLowerCase();
       const type = (d.business_type || d.type || '').toLowerCase();
       const city = (d.city || d.location || '').toLowerCase();

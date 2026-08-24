@@ -7,7 +7,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed:demo": "node src/database/seed/demoSeed.js",
-    "test": "node --test tests/identity.test.js tests/masters.test.js tests/catalog.test.js tests/inventory.test.js tests/pos_stock_flow.test.js tests/catalog_frontend_flow.test.js tests/token_refresh_flow.test.js tests/purchase_order_receiving_flow.test.js tests/customer_khata_repayment_flow.test.js tests/sales_return_flow.test.js tests/offline_sync_flow.test.js tests/gst_reporting_flow.test.js tests/demo_accounts_auth.test.js tests/financial_cache_invalidation.test.js tests/production_audit.test.js tests/end_to_end_workflow.test.js tests/b2b_import_stock_flow.test.js"
+    "test": "node --test tests/identity.test.js tests/masters.test.js tests/catalog.test.js tests/inventory.test.js tests/pos_stock_flow.test.js tests/catalog_frontend_flow.test.js tests/token_refresh_flow.test.js tests/purchase_order_receiving_flow.test.js tests/customer_khata_repayment_flow.test.js tests/sales_return_flow.test.js tests/offline_sync_flow.test.js tests/gst_reporting_flow.test.js tests/demo_accounts_auth.test.js tests/financial_cache_invalidation.test.js tests/production_audit.test.js tests/end_to_end_workflow.test.js tests/b2b_import_stock_flow.test.js tests/b2b_network_endpoints_live.test.js"
   },
   "dependencies": {
     "@bull-board/api": "^8.0.1",

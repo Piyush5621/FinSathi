@@ -61,9 +61,22 @@ export default function NetworkHome() {
         API.get('/api/network/trade/credit').catch(() => ({ data: { data: { creditGiven: [], creditReceived: [] } } }))
       ]);
 
-      setInboxData(inboxRes.data?.data || []);
-      setOutboxData(outboxRes.data?.data || []);
-      setCreditData(creditRes.data?.data || { creditGiven: [], creditReceived: [] });
+      const rawInbox = inboxRes.data?.data;
+      const inboxList = Array.isArray(rawInbox) ? rawInbox : Array.isArray(rawInbox?.data) ? rawInbox.data : [];
+      setInboxData(inboxList);
+
+      const rawOutbox = outboxRes.data?.data;
+      const outboxList = Array.isArray(rawOutbox) ? rawOutbox : Array.isArray(rawOutbox?.data) ? rawOutbox.data : [];
+      setOutboxData(outboxList);
+
+      const rawCredit = creditRes.data?.data;
+      const creditObj = rawCredit && typeof rawCredit === 'object'
+        ? {
+            creditGiven: Array.isArray(rawCredit.creditGiven) ? rawCredit.creditGiven : [],
+            creditReceived: Array.isArray(rawCredit.creditReceived) ? rawCredit.creditReceived : []
+          }
+        : { creditGiven: [], creditReceived: [] };
+      setCreditData(creditObj);
     } catch (err) {
       console.warn('Failed to load network data:', err);
     } finally {
@@ -71,14 +84,15 @@ export default function NetworkHome() {
     }
   };
 
-  const pendingInboxCount = inboxData.filter(i => i.status === 'Pending').length;
+  const pendingInboxCount = Array.isArray(inboxData) ? inboxData.filter(i => i.status === 'Pending').length : 0;
 
   const filteredInbox = useMemo(() => {
-    if (inboxFilter === 'all') return inboxData;
-    if (inboxFilter === 'pending') return inboxData.filter(i => i.status === 'Pending');
-    if (inboxFilter === 'imported') return inboxData.filter(i => i.status === 'Imported');
-    if (inboxFilter === 'rejected') return inboxData.filter(i => i.status === 'Rejected');
-    return inboxData;
+    const list = Array.isArray(inboxData) ? inboxData : [];
+    if (inboxFilter === 'all') return list;
+    if (inboxFilter === 'pending') return list.filter(i => i.status === 'Pending');
+    if (inboxFilter === 'imported') return list.filter(i => i.status === 'Imported');
+    if (inboxFilter === 'rejected') return list.filter(i => i.status === 'Rejected');
+    return list;
   }, [inboxData, inboxFilter]);
 
   const handlePartnerSelectAction = (partner, targetTab) => {

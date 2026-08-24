@@ -11,25 +11,24 @@ import { successResponse, errorResponse, createdResponse } from "../utils/respon
 export const searchBusinesses = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { q } = req.query;
+    const qParam = (req.query.q || req.query.query || '').trim();
 
-    if (!q || q.trim().length < 2) {
-      return errorResponse(res, "Search query must be at least 2 characters", 400);
-    }
-
-    const term = q.trim().toLowerCase();
-
-    const { data: results, error } = await supabase
+    let queryBuilder = supabase
       .from("users")
       .select("id, business_name, business_type, city, state, phone, gstin, name")
-      .or(`business_name.ilike.%${term}%,phone.ilike.%${term}%,gstin.ilike.%${term}%`)
-      .neq("id", userId)
-      .limit(20);
+      .neq("id", userId);
+
+    if (qParam.length > 0) {
+      const term = qParam.toLowerCase();
+      queryBuilder = queryBuilder.or(`business_name.ilike.%${term}%,phone.ilike.%${term}%,gstin.ilike.%${term}%`);
+    }
+
+    const { data: results, error } = await queryBuilder.limit(20);
 
     if (error) throw error;
 
     // Annotate with existing connection status
-    const enriched = await Promise.all(results.map(async (biz) => {
+    const enriched = await Promise.all((results || []).map(async (biz) => {
       const { data: conn } = await supabase
         .from("business_connections")
         .select("id, status, connection_type")
