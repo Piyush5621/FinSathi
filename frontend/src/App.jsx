@@ -66,7 +66,7 @@ function App() {
           <StoreProvider>
             <Toaster position="top-right" />
             <ErrorBoundary>
-              <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#F8FAFC]"><Loader /></div>}>
+              <Suspense fallback={<div className="flex h-screen items-center justify-center bg-app-bg text-app-text"><Loader /></div>}>
               <Routes>
               {/* 🟢 Public Routes */}
               <Route path="/" element={<LandingPage />} />

@@ -1,37 +1,52 @@
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, ShoppingCart, Package, Users, Menu } from 'lucide-react';
 
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Receipt, Package, DollarSign } from 'lucide-react';
-
-const mobileNavItems = [
-  { path: '/dashboard', label: 'Dash', icon: LayoutDashboard },
-  { path: '/billing', label: 'POS', icon: Receipt },
-  { path: '/inventory', label: 'Stock', icon: Package },
-  { path: '/payments', label: 'Cash', icon: DollarSign },
-];
-
-export default function BottomNav() {
-  const location = useLocation();
+export function BottomNav({ onOpenMenu }) {
+  const navItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/billing', label: 'POS Billing', icon: ShoppingCart },
+    { path: '/inventory', label: 'Inventory', icon: Package },
+    { path: '/customers', label: 'Customers', icon: Users },
+  ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-slate-900 border-t border-slate-800 z-50 px-2 py-3 pb-safe">
-      <div className="flex justify-around items-center">
-        {mobileNavItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-                isActive ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              <Icon size={24} className={isActive ? 'drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' : ''} />
-              <span className="text-[10px] font-bold tracking-wider">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
+    <nav 
+      aria-label="Mobile Navigation"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-30 h-16 bg-app-surface/95 backdrop-blur-md border-t border-app-border px-2 flex items-center justify-around shadow-modal"
+    >
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        return (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-btn transition-colors ${
+                isActive
+                  ? 'text-app-primary font-semibold'
+                  : 'text-app-text-muted hover:text-app-text'
+              }`
+            }
+          >
+            <Icon size={19} />
+            <span className="text-micro leading-none">{item.label}</span>
+          </NavLink>
+        );
+      })}
+
+      {/* Menu / More Button */}
+      <button
+        type="button"
+        onClick={onOpenMenu}
+        className="flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-btn text-app-text-muted hover:text-app-text transition-colors cursor-pointer"
+        aria-label="Open Full Menu"
+      >
+        <Menu size={19} />
+        <span className="text-micro leading-none">More</span>
+      </button>
+    </nav>
   );
 }
+
+export default BottomNav;

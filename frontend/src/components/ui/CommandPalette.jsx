@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { useCommandStore } from '../../store/commandStore';
 import { 
   Search, FileText, UserPlus, PackagePlus, BarChart3, 
-  Settings, CreditCard, Users, LayoutDashboard 
+  Settings, CreditCard, Users, LayoutDashboard, ShoppingCart,
+  DollarSign, Package, Truck, ShieldAlert, Bot
 } from 'lucide-react';
-import './CommandPalette.css'; // Add styling for cmdk
+import './CommandPalette.css';
 
 const CommandPalette = () => {
   const navigate = useNavigate();
@@ -31,15 +32,18 @@ const CommandPalette = () => {
 
   // Default global commands
   const defaultCommands = [
-    { id: 'nav-dashboard', title: 'Go to Dashboard', icon: <LayoutDashboard size={16} />, action: () => navigate('/dashboard') },
-    { id: 'nav-billing', title: 'Open Billing', icon: <CreditCard size={16} />, action: () => navigate('/billing') },
-    { id: 'nav-inventory', title: 'Open Stock & Inventory', icon: <PackagePlus size={16} />, action: () => navigate('/inventory') },
-    { id: 'nav-customers', title: 'Manage Customers', icon: <Users size={16} />, action: () => navigate('/customers') },
-    { id: 'nav-staff', title: 'Staff Hub', icon: <Users size={16} />, action: () => navigate('/staff') },
-    { id: 'nav-expenses', title: 'Expenses', icon: <BarChart3 size={16} />, action: () => navigate('/expenses') },
-    { id: 'nav-pnl', title: 'Profit & Loss', icon: <BarChart3 size={16} />, action: () => navigate('/pnl') },
-    { id: 'nav-general', title: 'General Hub', icon: <Settings size={16} />, action: () => navigate('/general') },
-    { id: 'nav-settings', title: 'Settings & Profile', icon: <Settings size={16} />, action: () => navigate('/settings') },
+    { id: 'nav-dashboard', title: 'Dashboard Overview', icon: <LayoutDashboard size={16} />, action: () => navigate('/dashboard') },
+    { id: 'nav-billing', title: 'POS Billing Register', icon: <ShoppingCart size={16} />, action: () => navigate('/billing') },
+    { id: 'nav-invoices', title: 'Invoice Ledger', icon: <FileText size={16} />, action: () => navigate('/invoice-history') },
+    { id: 'nav-inventory', title: 'Stock & Inventory', icon: <Package size={16} />, action: () => navigate('/inventory') },
+    { id: 'nav-customers', title: 'Customer Registry & Khata', icon: <Users size={16} />, action: () => navigate('/customers') },
+    { id: 'nav-suppliers', title: 'Purchases & Suppliers', icon: <Truck size={16} />, action: () => navigate('/suppliers') },
+    { id: 'nav-payments', title: 'Payments Inflow', icon: <DollarSign size={16} />, action: () => navigate('/payments') },
+    { id: 'nav-expenses', title: 'Expenses Outflow', icon: <BarChart3 size={16} />, action: () => navigate('/expenses') },
+    { id: 'nav-pnl', title: 'P&L Financials', icon: <BarChart3 size={16} />, action: () => navigate('/pnl') },
+    { id: 'nav-staff', title: 'Staff Hub & Roles', icon: <Users size={16} />, action: () => navigate('/staff') },
+    { id: 'nav-ai', title: 'AI Copilot (FinVoice)', icon: <Bot size={16} />, action: () => navigate('/ai-advisor') },
+    { id: 'nav-settings', title: 'Business Settings', icon: <Settings size={16} />, action: () => navigate('/settings') },
   ];
 
   return (
@@ -52,43 +56,43 @@ const CommandPalette = () => {
       <div className="cmdk-overlay" onClick={() => setOpen(false)} />
       
       <div className="cmdk-content">
-        <div className="flex items-center px-4 border-b border-gray-800">
-          <Search className="text-gray-400 mr-2" size={18} />
+        <div className="flex items-center px-4 border-b border-app-border">
+          <Search className="text-app-text-muted mr-2.5" size={17} />
           <Command.Input 
-            placeholder="Type a command or search..." 
-            className="w-full bg-transparent text-white border-0 focus:ring-0 placeholder-gray-500 py-4 outline-none"
+            placeholder="Type a command or search sections..." 
+            className="w-full bg-transparent text-app-text border-0 focus:ring-0 placeholder:text-app-text-muted py-3.5 text-body outline-none"
             autoFocus
           />
         </div>
 
-        <Command.List className="max-h-[300px] overflow-y-auto p-2 scrollbar-thin">
-          <Command.Empty className="py-6 text-center text-sm text-gray-500">
-            No results found.
+        <Command.List className="max-h-[320px] overflow-y-auto p-2 custom-scrollbar">
+          <Command.Empty className="py-8 text-center text-small text-app-text-muted">
+            No commands or matching records found.
           </Command.Empty>
 
-          <Command.Group heading="Navigation" className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-2">
+          <Command.Group heading="Navigation" className="text-micro font-semibold text-app-text-muted uppercase tracking-wider px-2 py-1.5">
             {defaultCommands.map((item) => (
               <Command.Item
                 key={item.id}
                 onSelect={() => handleSelect(item.action)}
-                className="flex items-center px-3 py-3 rounded-lg text-sm text-gray-300 cursor-pointer hover:bg-blue-600/20 hover:text-white ui-selected:bg-blue-600/20 ui-selected:text-white transition-colors aria-selected:bg-blue-600/20 aria-selected:text-white"
+                className="flex items-center px-3 py-2.5 rounded-btn text-small text-app-text cursor-pointer hover:bg-app-surface-secondary transition-colors aria-selected:bg-app-primary-subtle aria-selected:text-app-primary"
               >
-                <div className="mr-3 text-gray-400">{item.icon}</div>
-                {item.title}
+                <div className="mr-3 text-app-text-muted shrink-0">{item.icon}</div>
+                <span className="font-medium truncate">{item.title}</span>
               </Command.Item>
             ))}
           </Command.Group>
           
           {commands.length > 0 && (
-            <Command.Group heading="Page Actions" className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-2 mt-2">
+            <Command.Group heading="Page Actions" className="text-micro font-semibold text-app-text-muted uppercase tracking-wider px-2 py-1.5 mt-2">
               {commands.map((cmd) => (
                 <Command.Item
                   key={cmd.id}
                   onSelect={() => handleSelect(cmd.action)}
-                  className="flex items-center px-3 py-3 rounded-lg text-sm text-gray-300 cursor-pointer hover:bg-blue-600/20 hover:text-white aria-selected:bg-blue-600/20 aria-selected:text-white transition-colors"
+                  className="flex items-center px-3 py-2.5 rounded-btn text-small text-app-text cursor-pointer hover:bg-app-surface-secondary transition-colors aria-selected:bg-app-primary-subtle aria-selected:text-app-primary"
                 >
-                  <div className="mr-3 text-gray-400">{cmd.icon || <FileText size={16} />}</div>
-                  {cmd.title}
+                  <div className="mr-3 text-app-text-muted shrink-0">{cmd.icon || <FileText size={16} />}</div>
+                  <span className="font-medium truncate">{cmd.title}</span>
                 </Command.Item>
               ))}
             </Command.Group>
