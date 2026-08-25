@@ -5,15 +5,56 @@ frontend/node_modules/
 .pnp
 .pnp.js
 
-# Testing & Coverage
+# Testing, E2E, Load Testing & Coverage
+tests/
+backend/tests/
+frontend/tests/
+**/tests/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.playwright/
 coverage/
 .nyc_output/
+*.test.js
+*.test.jsx
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.jsx
+*.spec.ts
+*.spec.tsx
+playwright.config.js
+jest.config.*
+vitest.config.*
+
+# Developer-Only Documentation, Guides, PRDs & Internal Notes
+BRAIN.md
+BUG_TRACKER.md
+Newsetup.md
+guide.md
+SUPABASE_SETUP.md
+FinSathi_v2_PRD.docx
+TODO.md
+frontend/TODO.md
+docs/DEMO_ACCOUNTS.md
+docs/FINSATHI_PROJECT_KNOWLEDGE.md
+docs/KAROBAR_PROJECT_KNOWLEDGE.md
+docs/UI_UX_AUDIT.md
+*.docx
+*.xlsx
+*.bak
+*.dump
+*.tmp
+*.temp
 
 # Production Builds
 dist/
 build/
 backend/dist/
 frontend/dist/
+dist-ssr/
 .vercel
 
 # Environment Variables & Secrets
@@ -33,13 +74,16 @@ frontend/.env.*
 
 # Debug & Logs
 *.log
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+lerna-debug.log*
 
 # Editor & IDE
 .vscode/
+!.vscode/extensions.json
 .idea/
 *.suo
 *.ntvs*
@@ -54,7 +98,9 @@ thumbs.db
 Desktop.ini
 desktop.ini
 
-# Scratch & Temporary Scripts
+# Scratch, Diagnostic & Developer Scripts
+scratch/
+**/scratch/
 backend/scratch/
 frontend/scratch/
 backend/create_test_user.js

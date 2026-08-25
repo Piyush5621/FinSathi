@@ -7,10 +7,31 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
 dist
 dist-ssr
 *.local
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+tests/
+test-results/
+playwright-report/
+*.test.js
+*.test.jsx
+*.spec.js
+*.spec.jsx
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Scratch & Internal Notes
+scratch/
+TODO.md
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +43,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
