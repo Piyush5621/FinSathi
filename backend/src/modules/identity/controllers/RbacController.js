@@ -125,4 +125,19 @@ export class RbacController {
       next(err);
     }
   }
+
+  static async getStaffAssignments(req, res, next) {
+    try {
+      const { id: staffId } = req.params;
+      const assignments = await RbacService.getStaffAssignments(staffId);
+
+      res.status(200).json({
+        success: true,
+        message: "Staff store role assignments retrieved successfully.",
+        data: assignments
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

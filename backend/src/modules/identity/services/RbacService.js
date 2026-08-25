@@ -132,4 +132,8 @@ export class RbacService {
 
     return assignment;
   }
+
+  static async getStaffAssignments(staffId) {
+    return RbacRepository.findStaffAssignments(staffId);
+  }
 }
