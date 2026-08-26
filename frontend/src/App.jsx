@@ -42,6 +42,10 @@ const ExecutiveAnalytics = lazyWithRetry(() => import("./pages/Analytics/Executi
 
 const Settings = lazyWithRetry(() => import("./pages/Profile/Profile"));
 const Plans = lazyWithRetry(() => import("./pages/Subscription/Plans"));
+const AlertsAutomationCenter = lazyWithRetry(() => import("./pages/Alerts/AlertsAutomationCenter"));
+const PredictiveForecastingCenter = lazyWithRetry(() => import("./pages/Analytics/PredictiveForecastingCenter"));
+const WorkflowAutomationCenter = lazyWithRetry(() => import("./pages/Automation/WorkflowAutomationCenter"));
+const MultiStoreIntelligenceCenter = lazyWithRetry(() => import("./pages/Analytics/MultiStoreIntelligenceCenter"));
 
 // Business Network Module
 const NetworkHome = lazyWithRetry(() => import('./pages/Network/v2/NetworkHome'));
@@ -110,11 +114,23 @@ function App() {
                 <Route path="/audit-center" element={<AuditCenter />} />
                 <Route path="/backup-wizard" element={<BackupWizard />} />
                 <Route path="/executive-analytics" element={<ExecutiveAnalytics />} />
+                <Route path="/reports" element={<ExecutiveAnalytics />} />
+                <Route path="/analytics" element={<ExecutiveAnalytics />} />
                 <Route path="/subscription/plans" element={<Plans />} />
                 <Route path="/expenses" element={<ExpensePage />} />
                 <Route path="/pnl" element={<PnlPage />} />
                 <Route path="/health-score" element={<BusinessHealthPage />} />
                 <Route path="/ai-advisor" element={<AiAdvisorPage />} />
+                <Route path="/intelligence" element={<AiAdvisorPage />} />
+                <Route path="/decision-center" element={<AiAdvisorPage />} />
+                <Route path="/alerts" element={<AlertsAutomationCenter />} />
+                <Route path="/automation" element={<AlertsAutomationCenter />} />
+                <Route path="/forecasting" element={<PredictiveForecastingCenter />} />
+                <Route path="/predictions" element={<PredictiveForecastingCenter />} />
+                <Route path="/workflows" element={<WorkflowAutomationCenter />} />
+                <Route path="/autopilot" element={<WorkflowAutomationCenter />} />
+                <Route path="/multi-store" element={<MultiStoreIntelligenceCenter />} />
+                <Route path="/enterprise-intelligence" element={<MultiStoreIntelligenceCenter />} />
                 <Route path="/growth" element={<Navigate to="/general?tab=growth" replace />} />
                 <Route path="/marketplace" element={<Navigate to="/general?tab=marketplace" replace />} />
                 <Route path="/reminders" element={<Navigate to="/general?tab=reminders" replace />} />

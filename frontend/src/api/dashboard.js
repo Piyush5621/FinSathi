@@ -11,7 +11,8 @@ export const getSalesSummary = async () => {
   return data || {};
 };
 
-export const getDashboardData = async () => {
-  const { data } = await API.get("/dashboard");
+export const getDashboardData = async (storeId = null) => {
+  const url = storeId ? `/dashboard?store_id=${storeId}` : '/dashboard';
+  const { data } = await API.get(url);
   return data || null;
 };

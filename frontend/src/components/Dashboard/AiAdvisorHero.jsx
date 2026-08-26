@@ -26,7 +26,7 @@ export default function AiAdvisorHero({ dashboardData }) {
     {
       id: 'welcome',
       role: 'assistant',
-      text: "Hello! I am FinVoice, your AI business advisor. I've analyzed your financial ledger. What insights would you like to review today?"
+      text: "Hello! I am KaroBar AI, your business intelligence advisor. I've analyzed your real-time ledger. What insights would you like to review today?"
     }
   ]);
   const [loading, setLoading] = useState(false);
@@ -275,7 +275,7 @@ export default function AiAdvisorHero({ dashboardData }) {
             <div className="flex items-center gap-2">
               <Bot className="text-indigo-600" size={16} />
               <div>
-                <h3 className="text-xs font-black text-slate-800 tracking-tight">FinVoice Assistant</h3>
+                <h3 className="text-xs font-black text-slate-800 tracking-tight">KaroBar AI Assistant</h3>
                 <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Natural Query Engine</p>
               </div>
             </div>
@@ -319,7 +319,7 @@ export default function AiAdvisorHero({ dashboardData }) {
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{animationDelay: '150ms'}} />
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{animationDelay: '300ms'}} />
                   </div>
-                  FinVoice is thinking...
+                  KaroBar AI is thinking...
                 </div>
               </div>
             )}

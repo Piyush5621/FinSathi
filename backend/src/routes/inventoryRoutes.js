@@ -236,6 +236,130 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// Stock adjustment for an item
+router.post('/:id/adjust', async (req, res) => {
+  const { id } = req.params;
+  const { adjustment_type, quantity, reason, remarks, batch_id } = req.body;
+
+  try {
+    const qty = Number(quantity);
+    if (!qty || qty <= 0) {
+      return res.status(400).json({ error: "Adjustment quantity must be greater than 0" });
+    }
+
+    // Fetch existing product
+    const { data: item, error: fetchErr } = await supabase
+      .from('inventory')
+      .select('*, inventory_batches(*)')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (fetchErr || !item) {
+      return res.status(404).json({ error: "Product not found or access denied" });
+    }
+
+    const currentStock = Number(item.stock || 0);
+    const newStock = adjustment_type === 'decrease' 
+      ? Math.max(0, currentStock - qty) 
+      : currentStock + qty;
+
+    // Update master stock
+    const { data: updated, error: updateErr } = await supabase
+      .from('inventory')
+      .update({ stock: newStock })
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    // If batch specified, update batch stock as well
+    if (batch_id) {
+      const batch = (item.inventory_batches || []).find(b => b.id === batch_id);
+      if (batch) {
+        const currentBatchStock = Number(batch.stock || 0);
+        const newBatchStock = adjustment_type === 'decrease'
+          ? Math.max(0, currentBatchStock - qty)
+          : currentBatchStock + qty;
+        await supabase
+          .from('inventory_batches')
+          .update({ stock: newBatchStock })
+          .eq('id', batch_id);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Stock ${adjustment_type === 'decrease' ? 'decreased' : 'increased'} by ${qty} units (${reason || 'Adjustment'})`,
+      item: updated,
+      previous_stock: currentStock,
+      new_stock: newStock
+    });
+  } catch (err) {
+    console.error("Stock adjustment error:", err);
+    res.status(500).json({ error: "Failed to adjust stock", details: err.message });
+  }
+});
+
+// Bulk import products from CSV
+router.post('/bulk', async (req, res) => {
+  const { products } = req.body;
+  if (!Array.isArray(products) || products.length === 0) {
+    return res.status(400).json({ error: "Products array is required" });
+  }
+
+  try {
+    const formatted = products.map(p => ({
+      user_id: req.user.id,
+      name: String(p.name || 'Unnamed Product').trim(),
+      sku: p.sku ? String(p.sku).trim() : undefined,
+      description: p.description || '',
+      company: p.company || p.category || '',
+      price: Number(p.price || p.sellingPrice || 0),
+      cost_price: Number(p.cost_price || p.costPrice || 0),
+      wholesale_price: Number(p.wholesale_price || 0),
+      stock: Number(p.stock || 0),
+      gst_percent: Number(p.gst_percent || 0),
+      units: p.units || p.unit || 'pcs'
+    }));
+
+    const { data, error } = await supabase
+      .from('inventory')
+      .insert(formatted)
+      .select();
+
+    if (error) throw error;
+
+    // Create initial batches for products with stock
+    const batchInserts = (data || [])
+      .filter(item => item.stock > 0)
+      .map(item => ({
+        inventory_id: item.id,
+        batch_name: 'Opening Stock',
+        sku_variant: item.sku,
+        cost_price: item.cost_price,
+        selling_price: item.price,
+        stock: item.stock
+      }));
+
+    if (batchInserts.length > 0) {
+      await supabase.from('inventory_batches').insert(batchInserts).catch(e => console.warn("Batch insert warning:", e));
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully imported ${data?.length || 0} products`,
+      imported_count: data?.length || 0,
+      data
+    });
+  } catch (err) {
+    console.error("Bulk inventory import error:", err);
+    res.status(500).json({ error: "Failed to import products", details: err.message });
+  }
+});
+
 // Delete inventory item
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;

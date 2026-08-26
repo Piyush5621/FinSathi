@@ -6,7 +6,7 @@ import {
   HeartPulse, Bot, Globe, ArrowLeftRight, ShieldCheck, 
   Settings, LayoutGrid, Calendar, Lock, ChevronLeft, ChevronRight,
   ChevronDown, ShieldAlert, Database, Sparkles, BarChart2, DollarSign,
-  HelpCircle, Wifi, WifiOff, X
+  HelpCircle, Wifi, WifiOff, X, Bell, Compass, Zap, Building2
 } from 'lucide-react';
 import Logo from './Logo';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -191,7 +191,11 @@ export const getRoleNavigation = (user) => {
       type: 'group',
       label: 'INTELLIGENCE',
       items: [
-        { path: '/ai-advisor', label: 'AI Copilot (FinVoice)', icon: Bot },
+        { path: '/ai-advisor', label: 'AI Copilot (KaroBar AI)', icon: Bot },
+        { path: '/alerts', label: 'Smart Alerts & Automation', icon: Bell },
+        { path: '/forecasting', label: 'Predictive Forecasting', icon: Compass },
+        { path: '/workflows', label: 'Workflow Autopilot', icon: Zap },
+        { path: '/multi-store', label: 'Multi-Store Intelligence', icon: Building2 },
         ...(isOwner ? [{ path: '/founder-dashboard', label: 'Founder Console', icon: Sparkles }] : []),
       ],
     });

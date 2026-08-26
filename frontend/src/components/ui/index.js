@@ -6,6 +6,7 @@ export { default as Checkbox, Checkbox as UICheckbox } from './Checkbox';
 export { default as Switch, Switch as UISwitch } from './Switch';
 export { default as Badge, getStatusVariant } from './Badge';
 export { default as Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './Card';
+export { MetricCard, InsightCard, AnalyticsCard, ActionCard, AlertCard, ActivityCard, SectionCard } from './CardSystem';
 export { default as KpiCard } from './KpiCard';
 export { default as Table, Thead, Tbody, Tr, Th, Td } from './Table';
 export { default as Pagination } from './Pagination';

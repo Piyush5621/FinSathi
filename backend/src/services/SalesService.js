@@ -159,6 +159,7 @@ export const SalesService = {
         // 3. Create Sale Record
         const saleData = {
             customer_id,
+            store_id: salePayload.store_id || salePayload.storeId || null,
             invoice_no: salePayload.invoice_no || `INV-${Date.now()}`, // Inject unique invoice number to satisfy DB constraint
             items, // JSONB
             subtotal,

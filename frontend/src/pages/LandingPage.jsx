@@ -19,13 +19,13 @@ const LandingPage = () => {
     const [chartHovered, setChartHovered] = useState(false);
     const [chartHoverData, setChartHoverData] = useState({ day: 'Fri', sales: '₹48,250', margin: '68.2%' });
     
-    // FinVoice Chat States
+    // KaroBar AI Chat States
     const [chatQuery, setChatQuery] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [chatMessages, setChatMessages] = useState([
         { 
             sender: 'bot', 
-            text: "Hello! I am FinVoice. You can ask me anything about your sales, margins, stock, or customers in Hindi, English, or Hinglish.",
+            text: "Hello! I am KaroBar AI. You can ask me anything about your sales, margins, stock, or customers in Hindi, English, or Hinglish.",
             timestamp: "10:32 AM" 
         }
     ]);
@@ -68,8 +68,8 @@ const LandingPage = () => {
             a: "Extremely secure. Karobar is built with multi-tenant database isolation using PostgreSQL Row-Level Security (RLS) on Supabase. Your ledgers, invoices, and settings are strictly containerized and visible only to your logged-in credentials."
         },
         {
-            q: "What is FinVoice AI, and does it support Hinglish queries?",
-            a: "FinVoice is our custom NLP assistant. You can speak or type in English, Hindi, or Hinglish (e.g., 'Mera yesterday's profit margin kitna hai?'). It extracts data points securely from your local database and returns natural summaries with beautiful widgets."
+            q: "What is KaroBar AI, and does it support Hinglish queries?",
+            a: "KaroBar AI is our custom business NLP assistant. You can speak or type in English, Hindi, or Hinglish (e.g., 'Mera yesterday's profit margin kitna hai?'). It extracts data points securely from your local database and returns natural summaries with beautiful widgets."
         },
         {
             q: "Do I need a paid WhatsApp Business API account for payment reminders?",
@@ -360,7 +360,7 @@ const LandingPage = () => {
                                         <BarChart2 size={14} /> Dashboard Overview
                                     </div>
                                     <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${activeTab === 'ai' ? 'bg-white/5 text-white' : 'text-slate-400 hover:text-slate-200'}`} onClick={() => setActiveTab('ai')}>
-                                        <Cpu size={14} /> FinVoice AI Assistant
+                                        <Cpu size={14} /> KaroBar AI Assistant
                                     </div>
                                     <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${activeTab === 'cashflow' ? 'bg-white/5 text-white' : 'text-slate-400 hover:text-slate-200'}`} onClick={() => setActiveTab('cashflow')}>
                                         <Activity size={14} /> Cash Flow Forecast
@@ -401,7 +401,7 @@ const LandingPage = () => {
                                     </div>
                                     <span className="text-xs font-bold text-slate-500">Workspace</span>
                                     <span className="text-slate-300">/</span>
-                                    <span className="text-xs font-bold text-slate-800 capitalize">{activeTab === 'overview' ? 'Dashboard Overview' : activeTab === 'ai' ? 'FinVoice AI Assistant' : 'Cash Flow Forecast'}</span>
+                                    <span className="text-xs font-bold text-slate-800 capitalize">{activeTab === 'overview' ? 'Dashboard Overview' : activeTab === 'ai' ? 'KaroBar AI Assistant' : 'Cash Flow Forecast'}</span>
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[10px] font-semibold text-slate-500">
@@ -599,7 +599,7 @@ const LandingPage = () => {
                                                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }} />
                                                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '150ms' }} />
                                                     <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-                                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider ml-1">FinVoice is searching...</span>
+                                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider ml-1">KaroBar AI is searching...</span>
                                                 </div>
                                             )}
                                         </div>
@@ -707,7 +707,7 @@ const LandingPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <FeatureBox 
                             icon={Cpu} 
-                            title="FinVoice AI Assistant" 
+                            title="KaroBar AI Assistant" 
                             desc="Speak or type in English, Hindi, or Hinglish. Instantly generate profit breakdowns, identify critical anomalies, or review sales metrics using Gemini AI intents." 
                             delay={0.1} 
                         />

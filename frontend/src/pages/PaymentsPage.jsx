@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { Search, DollarSign, User, Trash2, PlusCircle } from 'lucide-react';
+import { Search, DollarSign, User, Trash2, PlusCircle, ArrowDownLeft, AlertTriangle } from 'lucide-react';
 import AddPaymentModal from "../components/AddPaymentModal";
 import API from "../services/apiClient";
 import { toast } from "react-hot-toast";
 import { Card } from "../components/ui/Card";
+import { MetricCard } from "../components/ui/CardSystem";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
@@ -90,6 +91,7 @@ export default function PaymentsPage() {
 
     const totalCollected = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
     const totalPendingAll = customers.reduce((sum, c) => sum + c.pending, 0);
+    const customersWithPendingCount = customers.filter(c => c.pending > 0).length;
 
     const handleDeletePayment = async (id) => {
         if (!window.confirm("Are you sure? This will reverse the payment from the customer's balance.")) return;
@@ -104,50 +106,74 @@ export default function PaymentsPage() {
     };
 
     return (
-        <div className="space-y-[32px] animate-fade-in-up">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-[16px]">
+        <div className="space-y-6 animate-fade-in-up max-w-[1400px] mx-auto pb-16">
+            {/* Header & KPI Summary */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-[22px] font-bold text-[#0F172A] flex items-center gap-[8px]">
-                        <DollarSign size={24} className="text-[#3B82F6]" /> Payments Center
+                    <h1 className="text-2xl font-bold text-app-text flex items-center gap-2 tracking-tight">
+                        <DollarSign size={24} className="text-app-primary" /> Payments Center
                     </h1>
-                    <p className="text-[14px] text-[#64748B] mt-[4px]">Manage outstanding balances and record customer payments.</p>
-                </div>
-                
-                {/* Stats */}
-                <div className="flex gap-[16px]">
-                    {activeTab === 'balances' ? (
-                       <div className="bg-[#FEF2F2] border border-[#FECACA] px-[24px] py-[12px] rounded-xl flex flex-col items-end">
-                           <span className="text-[11px] font-bold text-[#DC2626] uppercase">Total Outstanding</span>
-                           <span className="text-[20px] font-bold text-[#991B1B]">₹{totalPendingAll.toLocaleString()}</span>
-                       </div>
-                    ) : (
-                       <div className="bg-[#F0FDF4] border border-[#BBF7D0] px-[24px] py-[12px] rounded-xl flex flex-col items-end">
-                           <span className="text-[11px] font-bold text-[#16A34A] uppercase">Total Collected</span>
-                           <span className="text-[20px] font-bold text-[#15803D]">₹{totalCollected.toLocaleString()}</span>
-                       </div>
-                    )}
+                    <p className="text-small text-app-text-secondary mt-1">Manage customer khata balances and record incoming payments.</p>
                 </div>
             </div>
 
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <MetricCard 
+                    title="Total Outstanding Due"
+                    value={`₹${totalPendingAll.toLocaleString('en-IN')}`}
+                    subtitle={`${customersWithPendingCount} customers with credit`}
+                    icon={<AlertTriangle size={20} />}
+                    iconBg="bg-app-danger-subtle text-app-danger"
+                    badge="Pending Khata"
+                    badgeVariant="danger"
+                />
+                <MetricCard 
+                    title="Total Payments Received"
+                    value={`₹${totalCollected.toLocaleString('en-IN')}`}
+                    subtitle={`${payments.length} transactions recorded`}
+                    icon={<ArrowDownLeft size={20} />}
+                    iconBg="bg-app-success-subtle text-app-success"
+                    badge="Collected"
+                    badgeVariant="success"
+                />
+                <MetricCard 
+                    title="Active Khata Customers"
+                    value={customers.length}
+                    subtitle="Registered in customer directory"
+                    icon={<User size={20} />}
+                    iconBg="bg-app-primary-subtle text-app-primary"
+                    badge="Directory"
+                    badgeVariant="primary"
+                />
+            </div>
+
             {/* TABS */}
-            <div className="flex gap-[24px] border-b border-[#E2E8F0]">
+            <div className="flex gap-6 border-b border-app-border">
                 <button
+                    type="button"
                     onClick={() => setActiveTab("balances")}
-                    className={`pb-[12px] text-[14px] font-semibold border-b-2 transition-all flex items-center gap-[8px] ${
-                        activeTab === "balances" ? "border-[#3B82F6] text-[#3B82F6]" : "border-transparent text-[#64748B] hover:text-[#0F172A]"
+                    className={`pb-3 text-small font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                        activeTab === "balances" 
+                            ? "border-app-primary text-app-primary" 
+                            : "border-transparent text-app-text-secondary hover:text-app-text"
                     }`}
                 >
-                    <User size={18} /> Customer Balances
+                    <User size={16} /> Customer Balances ({customers.length})
                 </button>
                 <button
+                    type="button"
                     onClick={() => setActiveTab("history")}
-                    className={`pb-[12px] text-[14px] font-semibold border-b-2 transition-all flex items-center gap-[8px] ${
-                        activeTab === "history" ? "border-[#3B82F6] text-[#3B82F6]" : "border-transparent text-[#64748B] hover:text-[#0F172A]"
+                    className={`pb-3 text-small font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                        activeTab === "history" 
+                            ? "border-app-primary text-app-primary" 
+                            : "border-transparent text-app-text-secondary hover:text-app-text"
                     }`}
                 >
-                    <DollarSign size={18} /> Payment History
+                    <DollarSign size={16} /> Payment History ({payments.length})
                 </button>
             </div>
+
 
             {/* FILTERS */}
             <div className="flex flex-col md:flex-row gap-[16px] items-center">

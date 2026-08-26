@@ -15,9 +15,9 @@ export const useSalesSummary = () => {
   });
 };
 
-export const useDashboardData = () => {
+export const useDashboardData = (storeId = null) => {
   return useQuery({
-    queryKey: ["dashboardData"],
-    queryFn: getDashboardData,
+    queryKey: ["dashboardData", storeId],
+    queryFn: () => getDashboardData(storeId),
   });
 };

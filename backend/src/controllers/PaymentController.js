@@ -272,6 +272,14 @@ export const deletePayment = async (req, res) => {
                 .eq("user_id", req.user.id);
         }
 
+        // Invalidate Financial Intelligence Cache
+        try {
+            const orgId = req.tenantId || req.user?.organization_id || req.user.id;
+            await FinancialCacheService.invalidate(orgId, req.user.id);
+        } catch (cErr) {
+            console.warn("[PaymentController] Cache invalidation warning:", cErr.message);
+        }
+
         res.status(200).json({ message: "Payment deleted and balances reverted" });
 
     } catch (error) {

@@ -42,7 +42,7 @@ const CommandPalette = () => {
     { id: 'nav-expenses', title: 'Expenses Outflow', icon: <BarChart3 size={16} />, action: () => navigate('/expenses') },
     { id: 'nav-pnl', title: 'P&L Financials', icon: <BarChart3 size={16} />, action: () => navigate('/pnl') },
     { id: 'nav-staff', title: 'Staff Hub & Roles', icon: <Users size={16} />, action: () => navigate('/staff') },
-    { id: 'nav-ai', title: 'AI Copilot (FinVoice)', icon: <Bot size={16} />, action: () => navigate('/ai-advisor') },
+    { id: 'nav-ai', title: 'AI Copilot (KaroBar AI)', icon: <Bot size={16} />, action: () => navigate('/ai-advisor') },
     { id: 'nav-settings', title: 'Business Settings', icon: <Settings size={16} />, action: () => navigate('/settings') },
   ];
 

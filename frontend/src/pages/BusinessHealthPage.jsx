@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import API from '../services/apiClient';
 import HealthScoreHero from '../components/Dashboard/HealthScoreHero';
-import { Card } from '../components/ui/Card';
+import { Card, MetricCard, AlertCard, SectionCard } from '../components/ui';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import Skeleton from '../components/ui/Skeleton';
@@ -95,123 +95,79 @@ export default function BusinessHealthPage() {
           <HealthScoreHero data={data} />
 
           {/* Component Breakdown Cards */}
-          <div>
-            <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-4">
+          <div className="space-y-3">
+            <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary">
               Detailed Component Breakdown
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {[
-                {
-                  label: 'Sales Activity',
-                  icon: TrendingUp,
-                  score: data.components.sales.score,
-                  weight: '30%',
-                  color: 'text-indigo-600',
-                  bg: 'bg-indigo-50',
-                  bar: 'bg-indigo-500',
-                  detail: `₹${data.components.sales.details.currentPeriodSales.toLocaleString('en-IN')} this period`
-                },
-                {
-                  label: 'Cash Flow',
-                  icon: Wallet,
-                  score: data.components.cashFlow.score,
-                  weight: '25%',
-                  color: 'text-emerald-600',
-                  bg: 'bg-emerald-50',
-                  bar: 'bg-emerald-500',
-                  detail: `Expense ratio: ${data.components.cashFlow.details.ratio * 100 | 0}%`
-                },
-                {
-                  label: 'Inventory',
-                  icon: Package,
-                  score: data.components.inventory.score,
-                  weight: '20%',
-                  color: 'text-amber-600',
-                  bg: 'bg-amber-50',
-                  bar: 'bg-amber-500',
-                  detail: `${data.components.inventory.details.lowStockCount} low stock items`
-                },
-                {
-                  label: 'Collections',
-                  icon: Users,
-                  score: data.components.collection.score,
-                  weight: '15%',
-                  color: 'text-rose-600',
-                  bg: 'bg-rose-50',
-                  bar: 'bg-rose-500',
-                  detail: `${data.components.collection.details.rate}% collected`
-                },
-                {
-                  label: 'Profile Setup',
-                  icon: CheckCircle2,
-                  score: data.components.profile.score,
-                  weight: '10%',
-                  color: 'text-purple-600',
-                  bg: 'bg-purple-50',
-                  bar: 'bg-purple-500',
-                  detail: `${data.components.profile.details.completedFields}/${data.components.profile.details.totalFields} fields done`
-                },
-              ].map((comp) => {
-                const Icon = comp.icon;
-                return (
-                  <Card key={comp.label} className="p-5 bg-white border border-slate-100 shadow-sm rounded-[20px] flex flex-col gap-3">
-                    <div className="flex justify-between items-start">
-                      <div className={`p-2 rounded-lg ${comp.bg}`}>
-                        <Icon size={15} className={comp.color} />
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest border border-slate-200 bg-slate-50 px-1.5 py-0.5 rounded-lg">
-                        {comp.weight}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{comp.label}</p>
-                      <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">{comp.score}<span className="text-base text-slate-400">/100</span></h3>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                        <div className={`h-full ${comp.bar} rounded-full`} style={{ width: `${comp.score}%` }} />
-                      </div>
-                      <p className="text-[9px] font-semibold text-slate-400">{comp.detail}</p>
-                    </div>
-                  </Card>
-                );
-              })}
+              <MetricCard
+                title="Sales Activity"
+                value={`${data.components.sales.score}/100`}
+                badge="30% Weight"
+                progress={data.components.sales.score}
+                subtitle={`₹${data.components.sales.details.currentPeriodSales.toLocaleString('en-IN')} revenue`}
+                icon={<TrendingUp size={20} />}
+                iconBg="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400"
+              />
+
+              <MetricCard
+                title="Cash Flow"
+                value={`${data.components.cashFlow.score}/100`}
+                badge="25% Weight"
+                progress={data.components.cashFlow.score}
+                subtitle={`Expense ratio: ${data.components.cashFlow.details.ratio * 100 | 0}%`}
+                icon={<Wallet size={20} />}
+                iconBg="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400"
+              />
+
+              <MetricCard
+                title="Inventory Health"
+                value={`${data.components.inventory.score}/100`}
+                badge="20% Weight"
+                progress={data.components.inventory.score}
+                subtitle={`${data.components.inventory.details.lowStockCount} low stock items`}
+                icon={<Package size={20} />}
+                iconBg="bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400"
+              />
+
+              <MetricCard
+                title="Collections"
+                value={`${data.components.collection.score}/100`}
+                badge="15% Weight"
+                progress={data.components.collection.score}
+                subtitle={`${data.components.collection.details.rate}% collected`}
+                icon={<Users size={20} />}
+                iconBg="bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400"
+              />
+
+              <MetricCard
+                title="Profile Setup"
+                value={`${data.components.profile.score}/100`}
+                badge="10% Weight"
+                progress={data.components.profile.score}
+                subtitle={`${data.components.profile.details.completedFields}/${data.components.profile.details.totalFields} fields done`}
+                icon={<CheckCircle2 size={20} />}
+                iconBg="bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400"
+              />
             </div>
           </div>
 
           {/* Recommendations */}
           {data.recommendations && data.recommendations.length > 0 && (
-            <div>
-              <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-4">
+            <div className="space-y-3">
+              <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary">
                 Priority Action Items
               </h2>
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {data.recommendations.map((rec, i) => (
-                  <div
+                  <AlertCard
                     key={rec.id || i}
-                    className={`flex items-start gap-3 p-4 rounded-2xl border ${getPriorityColor(rec.priority)}`}
-                  >
-                    {getPriorityIcon(rec.priority)}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <h4 className="text-xs font-bold text-slate-800">{rec.title}</h4>
-                        <Badge className={`text-[8px] uppercase tracking-wider py-0.5 px-1.5 ${rec.priority === 'critical' ? 'bg-rose-100 text-rose-700' : rec.priority === 'high' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                          {rec.priority}
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed">{rec.message}</p>
-                    </div>
-                    {rec.link && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs shrink-0"
-                        onClick={() => navigate(rec.link)}
-                      >
-                        <ArrowRight size={12} />
-                      </Button>
-                    )}
-                  </div>
+                    title={rec.title}
+                    description={rec.message}
+                    priority={rec.priority}
+                    actionLabel="Take Action →"
+                    onAction={rec.link ? () => navigate(rec.link) : undefined}
+                  />
                 ))}
               </div>
             </div>

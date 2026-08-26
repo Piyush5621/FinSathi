@@ -241,7 +241,7 @@ Return your analysis as a valid JSON object with the following fields (do NOT in
     const healthData = await HealthScoreService.calculateAndLog(userId).catch(() => null);
     const creditData = await CreditRulesService.calculateCreditMetrics(userId).catch(() => null);
 
-    const systemPrompt = `You are FinVoice, the AI Business Coach for Indian MSMEs.
+    const systemPrompt = `You are KaroBar AI, the AI Business Coach for Indian MSMEs.
 Analyze the business stats and provide a structured coaching recommendation.
 You MUST format your output as a valid JSON object with the following fields (no markdown blocks, just raw JSON):
 {
