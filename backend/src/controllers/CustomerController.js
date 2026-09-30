@@ -1,5 +1,5 @@
 import { supabase } from "../config/db.js";
-import { createNotification } from "./notificationHelper.js";
+import { createNotification } from "../utils/notificationHelper.js";
 import { CustomerPaymentService } from "../services/CustomerPaymentService.js";
 
 /** Get all customers */

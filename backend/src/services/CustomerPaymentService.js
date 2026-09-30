@@ -1,6 +1,6 @@
 import { adminSupabase } from "../admin/adminSupabase.js";
 import { adjustCustomerKhataBalance } from "../utils/khataBalanceHelper.js";
-import { createNotification } from "../controllers/notificationHelper.js";
+import { createNotification } from "../utils/notificationHelper.js";
 import { FinancialCacheService } from "../utils/cache.js";
 
 /**
