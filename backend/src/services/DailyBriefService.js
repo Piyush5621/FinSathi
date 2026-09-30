@@ -175,7 +175,7 @@ Return your analysis as a valid JSON object with the following fields (do NOT in
     {
       "title": "A short, specific, actionable item name (e.g., 'Restock Wheat Flour', 'Follow up with Amit Kumar for ₹5,000 due')",
       "priority": "Critical" | "High" | "Medium" | "Low",
-      "type": "restock" | "collection" | "crm" | "general"
+      "type": "restock" | "collection" | "expense" | "general"
     }
   ]
 }`;

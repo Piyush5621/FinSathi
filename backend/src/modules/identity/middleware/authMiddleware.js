@@ -21,26 +21,39 @@ export const authenticate = async (req, res, next) => {
 
     const decoded = TokenService.verifyAccessToken(token);
 
+    // Normalize user ID across variations (user_id, id, sub)
+    const normalizedUserId = decoded.user_id || decoded.id || decoded.sub;
+    if (normalizedUserId && !decoded.user_id) {
+      decoded.user_id = normalizedUserId;
+    }
+    if (normalizedUserId && !decoded.id) {
+      decoded.id = normalizedUserId;
+    }
+
     // Verify against DB to check for token invalidation / lockout / active status
     if (decoded.user_id) {
       const user = await AuthRepository.findOwnerById(decoded.user_id);
       if (!user || !user.is_active) {
         throw new UnauthorizedError("Account suspended or inactive.");
       }
-      if (user.jwt_version !== decoded.jwt_version) {
+      if (decoded.jwt_version !== undefined && user.jwt_version !== decoded.jwt_version) {
         throw new UnauthorizedError("Session has been invalidated. Please log in again.");
+      }
+      if (!decoded.tenant_id && user.organization_id) {
+        decoded.tenant_id = user.organization_id;
       }
     } else if (decoded.staff_id) {
       const staff = await AuthRepository.findStaffById(decoded.staff_id);
       if (!staff || !staff.is_login_enabled || staff.status === "suspended" || staff.status === "disabled") {
         throw new UnauthorizedError("Staff account disabled or inactive.");
       }
-      if (staff.jwt_version !== decoded.jwt_version) {
+      if (decoded.jwt_version !== undefined && staff.jwt_version !== decoded.jwt_version) {
         throw new UnauthorizedError("Session has been invalidated. Please log in again.");
       }
     } else {
       throw new UnauthorizedError("Invalid token subject.");
     }
+
 
     req.user = decoded;
     req.token = token;
@@ -60,7 +73,12 @@ export const attachTenant = async (req, res, next) => {
       throw new UnauthorizedError();
     }
     
-    req.tenantId = req.user.tenant_id;
+    req.tenantId = req.user.tenant_id || req.user.organization_id;
+    if (!req.tenantId && req.user.user_id) {
+      const user = await AuthRepository.findOwnerById(req.user.user_id);
+      req.tenantId = user?.organization_id;
+      req.user.tenant_id = req.tenantId;
+    }
     // Instantiate a request-scoped Supabase client that sends user JWT headers
     req.db = createSupabaseUserClient(req.token);
     
@@ -69,6 +87,7 @@ export const attachTenant = async (req, res, next) => {
     next(err);
   }
 };
+
 
 /**
  * 3. Attach Permissions Middleware
@@ -91,11 +110,21 @@ export const attachPermissions = async (req, res, next) => {
 
     req.isOwner = false;
     
-    // Resolve active store context (read from header, default to active_store_id or first assignment)
-    const storeId = req.headers["x-store-id"];
+    // Resolve active store context (read from header, or auto-detect from staff's first assignment)
+    let storeId = req.headers["x-store-id"];
+    if (!storeId && staff_id) {
+      // Auto-detect: find the staff's primary store assignment
+      const assignments = await RbacRepository.findStaffAssignments(staff_id);
+      if (assignments && assignments.length > 0) {
+        storeId = assignments[0].store_id;
+      }
+    }
+
     if (!storeId) {
-      // If store context not established, fallback to check overrides only or restrict
-      req.permissions = [];
+      // No store assignment at all - only check user-level overrides
+      const overrides = await RbacRepository.findUserPermissionOverrides(staff_id);
+      const overrideKeys = overrides.map(o => o.permissions?.key).filter(Boolean);
+      req.permissions = overrideKeys;
       return next();
     }
 
@@ -105,12 +134,12 @@ export const attachPermissions = async (req, res, next) => {
     
     if (mapping && mapping.role_id) {
       const rolePerms = await RbacRepository.findRolePermissions(mapping.role_id);
-      rolePermissions = rolePerms.map(rp => rp.permissions.key);
+      rolePermissions = rolePerms.map(rp => rp.permissions?.key).filter(Boolean);
     }
 
     // Get overrides
     const overrides = await RbacRepository.findUserPermissionOverrides(staff_id);
-    const overrideKeys = overrides.map(o => o.permissions.key);
+    const overrideKeys = overrides.map(o => o.permissions?.key).filter(Boolean);
 
     // Merge permissions
     const merged = new Set([...rolePermissions, ...overrideKeys]);

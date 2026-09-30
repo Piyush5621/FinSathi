@@ -320,6 +320,10 @@ async function executeIntentQuery(userId, intent) {
  * STEP 3: Format the raw data into a natural language response via LLM.
  */
 async function formatResponse(data, originalQuery, language) {
+  if (data.type === "PERMISSION_DENIED") {
+    return data.message;
+  }
+
   // Build a human-friendly data description
   let dataDesc = "";
   switch (data.type) {
@@ -424,6 +428,35 @@ export const AIService = {
     try {
       const intent = await extractIntent(userQuery, contextData);
       console.log(`AI Intent: ${intent.intent} | Period: ${intent.period} | Lang: ${intent.language}`);
+
+      // Enforce role permission requirements for staff accounts
+      if (contextData.isStaff) {
+        const perms = contextData.staffPermissions || [];
+        const role = contextData.staffRole || "Staff";
+        const hasPerm = (p) => perms.includes("*") || perms.includes(p);
+
+        const permRequirements = {
+          PROFIT_REPORT: () => hasPerm("adjust_costs") || role === "Manager",
+          EXPENSE_QUERY: () => hasPerm("adjust_costs") || role === "Manager" || role === "Accountant",
+          STAFF_SALARY: () => hasPerm("admin_setup") || role === "Manager",
+          CUSTOMER_BALANCE: () => hasPerm("view_billing") || role === "Manager" || role === "Accountant",
+          SALES_SUMMARY: () => hasPerm("view_billing") || hasPerm("create_sales") || role === "Manager" || role === "Cashier",
+          INVENTORY_CHECK: () => hasPerm("view_catalog") || role === "Manager" || role === "Warehouse Staff"
+        };
+
+        const checkFn = permRequirements[intent.intent];
+        if (checkFn && !checkFn()) {
+          const restrictedMessage = `Access restricted: Your staff role (${role}) does not have permission to view ${intent.intent.replace(/_/g, " ").toLowerCase()} data. Please contact your store administrator.`;
+          return {
+            success: true,
+            intent: intent.intent,
+            period: intent.period,
+            data: { type: "PERMISSION_DENIED", message: restrictedMessage },
+            summary: restrictedMessage,
+            chartType: "list"
+          };
+        }
+      }
 
       const rawData = await executeIntentQuery(userId, intent);
       const summary = await formatResponse(rawData, userQuery, intent.language);

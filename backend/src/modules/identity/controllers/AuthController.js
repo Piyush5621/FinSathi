@@ -2,8 +2,9 @@ import { registerSchema, loginSchema, tokenRefreshSchema, changePasswordSchema }
 import { OrganizationBootstrapService } from "../services/OrganizationBootstrapService.js";
 import { AuthenticationService } from "../services/AuthenticationService.js";
 import { parseRequestInfo } from "../utils/requestParser.js";
-import { UserDto, OrganizationDto } from "../dto/authDto.js";
+import { UserDto, OrganizationDto, StaffDto } from "../dto/authDto.js";
 import { ValidationError } from "../errors/appErrors.js";
+import { AuthRepository } from "../repositories/AuthRepository.js";
 
 const REFRESH_COOKIE_NAME = "refreshToken";
 const REFRESH_COOKIE_OPTIONS = {

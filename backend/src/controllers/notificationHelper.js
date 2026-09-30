@@ -10,7 +10,7 @@ export const createNotification = async (userId, { title, type = "info" }) => {
   try {
     const { error } = await supabase
       .from("notifications")
-      .insert([{ user_id: userId, title, type }]);
+      .insert([{ user_id: userId, title, message: title, type }]);
 
     if (error) throw error;
     console.log("📢 Notification created:", title);

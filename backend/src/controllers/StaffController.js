@@ -70,8 +70,8 @@ export const addStaff = async (req, res) => {
     const orgId = req.tenantId || req.user?.organization_id || req.user?.tenant_id;
     const userId = req.user?.id || req.user?.user_id;
     const staffId = req.user?.staff_id;
-
-    if (staffId) {
+    const role = (req.user?.role || "").toLowerCase();
+    if (role === 'cashier' || (staffId && role !== 'manager' && role !== 'admin')) {
       return res.status(403).json({ error: "Only business owners and managers can add staff" });
     }
 
@@ -159,8 +159,9 @@ export const updateStaff = async (req, res) => {
     const orgId = req.tenantId || req.user?.organization_id || req.user?.tenant_id;
     const userId = req.user?.id || req.user?.user_id;
     const staffId = req.user?.staff_id;
+    const role = (req.user?.role || "").toLowerCase();
 
-    if (staffId && staffId !== id) {
+    if (role === 'cashier' || (staffId && staffId !== id)) {
       return res.status(403).json({ error: "Only business owners can update staff settings" });
     }
 
@@ -256,8 +257,9 @@ export const updateStaffStatus = async (req, res) => {
     const orgId = req.tenantId || req.user?.organization_id || req.user?.tenant_id;
     const userId = req.user?.id || req.user?.user_id;
     const staffId = req.user?.staff_id;
+    const role = (req.user?.role || "").toLowerCase();
 
-    if (staffId) {
+    if (role === 'cashier' || staffId) {
       return res.status(403).json({ error: "Only business owners can change employee status" });
     }
 
@@ -325,8 +327,9 @@ export const deleteStaff = async (req, res) => {
     const orgId = req.tenantId || req.user?.organization_id || req.user?.tenant_id;
     const userId = req.user?.id || req.user?.user_id;
     const staffId = req.user?.staff_id;
+    const role = (req.user?.role || "").toLowerCase();
 
-    if (staffId) {
+    if (role === 'cashier' || staffId) {
       return res.status(403).json({ error: "Only business owners can remove staff" });
     }
 
@@ -372,9 +375,6 @@ export const getAttendance = async (req, res) => {
     // If staff user, forcefully restrict to their own attendance
     if (sessionStaffId) {
       query = query.eq('staff_id', sessionStaffId);
-    } else if (orgId) {
-      query = query.or(`organization_id.eq.${orgId},user_id.eq.${userId}`);
-      if (staff_id) query = query.eq('staff_id', staff_id);
     } else {
       query = query.eq('user_id', userId);
       if (staff_id) query = query.eq('staff_id', staff_id);
@@ -424,176 +424,6 @@ export const markAttendance = async (req, res) => {
   }
 };
 
-export const getPayroll = async (req, res) => {
-  try {
-    const orgId = req.tenantId || req.user?.organization_id || req.user?.tenant_id;
-    const userId = req.user?.id || req.user?.user_id;
-    const sessionStaffId = req.user?.staff_id;
-    const { staff_id, type } = req.query;
-
-    let query = supabase
-      .from('payroll')
-      .select('*, staff(name, position, phone, email, base_salary, qr_token)')
-      .order('created_at', { ascending: false });
-
-    // If staff user, strictly restrict to their own payslips
-    if (sessionStaffId) {
-      query = query.eq('staff_id', sessionStaffId);
-    } else if (orgId) {
-      query = query.or(`organization_id.eq.${orgId},user_id.eq.${userId}`);
-      if (staff_id) query = query.eq('staff_id', staff_id);
-    } else {
-      query = query.eq('user_id', userId);
-      if (staff_id) query = query.eq('staff_id', staff_id);
-    }
-
-    if (type) query = query.eq('payment_type', type);
-
-    const { data, error } = await query;
-    if (error) throw error;
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-export const processPayment = async (req, res) => {
-  try {
-    const orgId = req.tenantId || req.user?.organization_id || req.user?.tenant_id;
-    const userId = req.user?.id || req.user?.user_id;
-    const sessionStaffId = req.user?.staff_id;
-
-    if (sessionStaffId) {
-      return res.status(403).json({ error: "Only business owners and managers can process salary payouts" });
-    }
-
-    const {
-      staff_id,
-      month,
-      year,
-      period_start,
-      period_end,
-      base_pay,
-      present_days,
-      half_days,
-      absent_days,
-      payable_days,
-      advance_deduction,
-      deductions,
-      bonus,
-      total_paid,
-      payment_status,
-      payment_type,
-      payment_date,
-      attendance_snapshot,
-      notes
-    } = req.body;
-
-    if (!staff_id) {
-      return res.status(400).json({ error: "Staff ID is required" });
-    }
-
-    const { data: staffMember, error: staffErr } = await supabase
-      .from('staff')
-      .select('*')
-      .eq('id', staff_id)
-      .single();
-
-    if (staffErr || !staffMember) {
-      return res.status(404).json({ error: "Staff member not found" });
-    }
-
-    if (orgId && staffMember.organization_id && staffMember.organization_id !== orgId) {
-      return res.status(404).json({ error: "Staff member not found" });
-    }
-    if (!orgId && staffMember.user_id !== userId) {
-      return res.status(404).json({ error: "Staff member not found" });
-    }
-
-    const payType = payment_type || 'salary';
-
-    if (payType === 'salary') {
-      let dupQuery = supabase
-        .from('payroll')
-        .select('id')
-        .eq('staff_id', staff_id)
-        .eq('payment_type', 'salary');
-
-      if (month && year) {
-        dupQuery = dupQuery.eq('month', month).eq('year', year);
-      } else if (period_start && period_end) {
-        dupQuery = dupQuery.eq('period_start', period_start).eq('period_end', period_end);
-      }
-
-      const { data: existingPayout } = await dupQuery.maybeSingle();
-      if (existingPayout) {
-        return res.status(409).json({
-          error: `Salary payout for this employee and period (${month ? `${month}/${year}` : `${period_start} to ${period_end}`}) has already been processed.`
-        });
-      }
-    }
-
-    const payload = {
-      staff_id,
-      month: month || new Date().getMonth() + 1,
-      year: year || new Date().getFullYear(),
-      period_start: period_start || null,
-      period_end: period_end || null,
-      base_pay: Number(base_pay || 0),
-      present_days: Number(present_days || 0),
-      half_days: Number(half_days || 0),
-      absent_days: Number(absent_days || 0),
-      payable_days: Number(payable_days || 0),
-      advance_deduction: Number(advance_deduction || 0),
-      deductions: Number(deductions || 0),
-      bonus: Number(bonus || 0),
-      total_paid: Number(total_paid || 0),
-      payment_status: payment_status || 'paid',
-      payment_type: payType,
-      payment_date: payment_date || new Date().toISOString(),
-      attendance_snapshot: attendance_snapshot || null,
-      notes: notes || null,
-      user_id: userId,
-      organization_id: orgId || null,
-      calculated_at: new Date().toISOString()
-    };
-
-    const { data: record, error } = await supabase
-      .from('payroll')
-      .insert([payload])
-      .select('*, staff(name, position, phone, email, base_salary, qr_token)')
-      .single();
-
-    if (error) throw error;
-    res.status(201).json(record);
-  } catch (error) {
-    console.error("processPayment error:", error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-export const deletePayroll = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const sessionStaffId = req.user?.staff_id;
-
-    if (sessionStaffId) {
-      return res.status(403).json({ error: "Only business owners can delete payment records" });
-    }
-
-    const { error } = await supabase
-      .from('payroll')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', req.user.id);
-
-    if (error) throw error;
-    res.status(200).json({ message: "Payment deleted" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
 // Self-service endpoints for logged in staff
 export const getMyProfile = async (req, res) => {
   try {
@@ -620,6 +450,98 @@ export const getMyProfile = async (req, res) => {
       return res.status(200).json({ ...user, role: 'Owner' });
     }
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Staff self-service: Update own profile (name, phone, avatar only)
+ * PUT /api/staff/me/profile
+ */
+export const updateMyProfile = async (req, res) => {
+  try {
+    const staffId = req.user?.staff_id;
+    if (!staffId) {
+      return res.status(403).json({ error: 'Only staff members can use this endpoint' });
+    }
+
+    // Staff can only update safe fields - not role, salary, login settings etc.
+    const { name, phone, avatar_url } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (phone !== undefined) updates.phone = phone;
+    if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+    updates.updated_at = new Date().toISOString();
+
+    const { data: updatedStaff, error } = await supabase
+      .from('staff')
+      .update(updates)
+      .eq('id', staffId)
+      .select('id, name, phone, email, position, status, is_login_enabled')
+      .single();
+
+    if (error) throw error;
+    res.status(200).json(updatedStaff);
+  } catch (error) {
+    console.error('updateMyProfile error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Staff self-service: Change own password
+ * PUT /api/staff/me/password
+ */
+export const updateMyPassword = async (req, res) => {
+  try {
+    const staffId = req.user?.staff_id;
+    if (!staffId) {
+      return res.status(403).json({ error: 'Only staff members can use this endpoint' });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'currentPassword and newPassword (min 6 chars) are required' });
+    }
+
+    // Fetch current password hash
+    const { data: staff, error: fetchErr } = await supabase
+      .from('staff')
+      .select('password_hash, jwt_version')
+      .eq('id', staffId)
+      .single();
+
+    if (fetchErr || !staff) {
+      return res.status(404).json({ error: 'Staff member not found' });
+    }
+
+    if (!staff.password_hash) {
+      return res.status(400).json({ error: 'No password set for this account. Contact your manager.' });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, staff.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash and save new password
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await supabase
+      .from('staff')
+      .update({
+        password_hash: newHash,
+        jwt_version: (staff.jwt_version || 1) + 1,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', staffId);
+
+    // Revoke all existing sessions so staff must log in again with new password
+    await SessionService.revokeAllSessionsForStaff(staffId).catch(() => {});
+
+    res.status(200).json({ message: 'Password updated successfully. Please log in again with your new password.' });
+  } catch (error) {
+    console.error('updateMyPassword error:', error);
     res.status(500).json({ error: error.message });
   }
 };

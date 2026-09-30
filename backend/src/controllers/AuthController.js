@@ -94,12 +94,21 @@ export const registerUser = async (req, res) => {
     await sendWelcomeEmail(email, name, businessName);
 
     // ✅ 6. Generate Token
-    const secret = process.env.JWT_SECRET || "supersecret_jwt_key_change_me_in_production";
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error("JWT_SECRET is not configured on server.");
     const token = jwt.sign(
-      { id: newUser?.id || email, email: email, name: name }, // specific payload
+      {
+        id: newUser?.id,
+        user_id: newUser?.id,
+        email: email,
+        name: name,
+        tenant_id: newOrg?.id,
+        jwt_version: 1
+      },
       secret,
       { expiresIn: "7d" }
     );
+
 
     // ✅ 7. Return Success
     // ✅ 7. Return Success
@@ -154,12 +163,21 @@ export const loginUser = async (req, res) => {
     console.log(`User logged in successfully: ${email}`);
 
     // ✅ Generate Token
-    const secret = process.env.JWT_SECRET || "supersecret_jwt_key_change_me_in_production";
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error("JWT_SECRET is not configured on server.");
     const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name },
+      {
+        id: user.id,
+        user_id: user.id,
+        email: user.email,
+        name: user.name,
+        tenant_id: user.organization_id,
+        jwt_version: user.jwt_version || 1
+      },
       secret,
       { expiresIn: "7d" }
     );
+
 
     // ✅ Success response
     res.status(200).json({ message: "Login successful", token, user });

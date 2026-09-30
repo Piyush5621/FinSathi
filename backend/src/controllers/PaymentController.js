@@ -1,159 +1,55 @@
 import { supabase } from "../config/db.js";
-import { FinancialCacheService } from "../utils/cache.js";
+import { CustomerPaymentService } from "../services/CustomerPaymentService.js";
 
-// ✅ Add Payment (FIFO Logic)
+/**
+ * Add Payment (Canonical FIFO Logic via CustomerPaymentService)
+ * Route: POST /api/payments/add
+ */
 export const addPayment = async (req, res) => {
-    const { customer_id, amount, date, payment_mode, payment_method, reference, notes, idempotency_key } = req.body;
-    const payAmount = Math.round(parseFloat(amount) * 100) / 100;
-    const idempotencyKey = idempotency_key || req.headers?.["x-idempotency-key"] || null;
-
-    if (!customer_id || isNaN(payAmount) || payAmount <= 0) {
-        return res.status(400).json({ error: "Invalid payment details" });
-    }
+    const { customer_id, customerId, amount, date, payment_mode, payment_method, reference, notes, idempotency_key, idempotencyKey } = req.body;
+    const targetCustId = customer_id || customerId;
+    const key = idempotency_key || idempotencyKey || req.headers?.["x-idempotency-key"] || null;
+    const mode = payment_mode || payment_method || "cash";
 
     try {
         const userId = req.user?.id;
+        const result = await CustomerPaymentService.recordRepayment({
+            userId,
+            customerId: targetCustId,
+            amount,
+            paymentMode: mode,
+            reference,
+            notes,
+            date,
+            idempotencyKey: key,
+            tenantId: req.tenantId || req.user?.organization_id
+        });
 
-        // Idempotency Check: Prevent duplicate payment submissions
-        if (idempotencyKey) {
-            const { data: existingPay } = await supabase
-                .from("payments")
-                .select("*")
-                .eq("user_id", userId)
-                .eq("customer_id", customer_id)
-                .eq("idempotency_key", idempotencyKey)
-                .maybeSingle();
-
-            if (existingPay) {
-                return res.status(409).json({
-                    error: "A payment with this idempotency key has already been processed.",
-                    payment: existingPay
-                });
-            }
-        } else {
-            // Check for rapid identical submissions (within last 3 seconds)
-            const threeSecondsAgo = new Date(Date.now() - 3000).toISOString();
-            const { data: recentPay } = await supabase
-                .from("payments")
-                .select("*")
-                .eq("user_id", userId)
-                .eq("customer_id", customer_id)
-                .eq("amount", payAmount)
-                .gte("created_at", threeSecondsAgo)
-                .maybeSingle();
-
-            if (recentPay) {
-                return res.status(409).json({
-                    error: "Duplicate payment submission detected.",
-                    payment: recentPay
-                });
-            }
+        if (result.isDuplicate) {
+            return res.status(result.status || 409).json({
+                error: result.message,
+                message: result.message,
+                payment: result.payment
+            });
         }
 
-        // 1. Record the Payment
-        const { data: payment, error: payError } = await supabase
-            .from("payments")
-            .insert([{
-                user_id: userId,
-                customer_id,
-                amount: payAmount,
-                date: date || new Date(),
-                payment_mode: payment_mode || payment_method || "cash",
-                reference: reference || notes || null,
-                idempotency_key: idempotencyKey
-            }])
-            .select()
-            .single();
-
-        if (payError) {
-            console.error("Supabase Payment Insert Error:", payError);
-            throw payError;
-        }
-
-        // 2. Fetch Unpaid Invoices (Oldest First - FIFO)
-        const { data: invoices, error: invError } = await supabase
-            .from("sales")
-            .select("*")
-            .eq("customer_id", customer_id)
-            .eq("user_id", userId)
-            .neq("payment_status", "paid")
-            .order("date", { ascending: true })
-            .order("created_at", { ascending: true });
-
-        if (invError) throw invError;
-
-        // 3. Distribute Payment
-        let remaining = payAmount;
-
-        if (Array.isArray(invoices)) {
-            for (const inv of invoices) {
-                if (remaining <= 0) break;
-
-                const total = Math.round(parseFloat(inv.total || 0) * 100) / 100;
-                const paidSoFar = Math.round(parseFloat(inv.amount_paid || 0) * 100) / 100;
-                const due = Math.round((total - paidSoFar) * 100) / 100;
-                if (due <= 0) continue;
-
-                // Calculate how much to pay for this invoice
-                const toPay = Math.round(Math.min(due, remaining) * 100) / 100;
-                const newPaidAmount = Math.round((paidSoFar + toPay) * 100) / 100;
-
-                // Determine new status
-                let newStatus = "partial";
-                if (newPaidAmount >= total - 0.01) {
-                    newStatus = "paid";
-                }
-
-                // Update Invoice
-                await supabase
-                    .from("sales")
-                    .update({
-                        amount_paid: newPaidAmount,
-                        payment_status: newStatus,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq("id", inv.id)
-                    .eq("user_id", userId);
-
-                remaining = Math.round((remaining - toPay) * 100) / 100;
-            }
-        }
-
-        // 4. Update Customer Balance
-        const { data: customer } = await supabase
-            .from("customers")
-            .select("outstanding_balance")
-            .eq("id", customer_id)
-            .eq("user_id", userId)
-            .maybeSingle();
-
-        if (customer) {
-            const currentBal = Math.round(parseFloat(customer.outstanding_balance || 0) * 100) / 100;
-            const newBal = Math.round(Math.max(0, currentBal - payAmount) * 100) / 100;
-            await supabase
-                .from("customers")
-                .update({ outstanding_balance: newBal, updated_at: new Date().toISOString() })
-                .eq("id", customer_id)
-                .eq("user_id", userId);
-        }
-
-        // Invalidate Financial Intelligence Cache
-        try {
-            const orgId = req.tenantId || req.user?.organization_id || userId;
-            await FinancialCacheService.invalidate(orgId, userId);
-        } catch (cErr) {
-            console.warn("[PaymentController] Cache invalidation warning:", cErr.message);
-        }
-
-        res.status(201).json({ message: "Payment recorded and allocated", payment });
+        return res.status(201).json({
+            message: "Payment recorded and allocated",
+            payment: result.payment,
+            receipt: result.receipt,
+            customer: result.updatedCustomer
+        });
 
     } catch (error) {
         console.error("Add Payment Error:", error);
-        res.status(500).json({ error: error.message || "Failed to process payment", details: error });
+        return res.status(error.status || 500).json({ error: error.message || "Failed to process payment", details: error });
     }
 };
 
-// ✅ Get Payment History
+/**
+ * Get Payment History for a Customer
+ * Route: GET /api/payments/:customerId
+ */
 export const getCustomerPayments = async (req, res) => {
     const { customerId } = req.params;
     try {
@@ -161,134 +57,43 @@ export const getCustomerPayments = async (req, res) => {
             .from("payments")
             .select("*")
             .eq("customer_id", customerId)
-            .eq("user_id", req.user.id) // ✅ Filter by user
+            .eq("user_id", req.user.id)
             .order("date", { ascending: false });
 
         if (error) throw error;
         res.status(200).json(data);
     } catch (error) {
-        console.error(error);
+        console.error("Get Payments Error:", error);
         res.status(500).json({ error: "Failed to fetch payments" });
     }
 };
-// ✅ Delete Payment (and Revert Invoice Balances)
+
+/**
+ * Delete Payment (Canonical Revert Logic via CustomerPaymentService)
+ * Route: DELETE /api/payments/:id
+ */
 export const deletePayment = async (req, res) => {
     const { id } = req.params;
 
     try {
-        // 1. Get Payment Details
-        const { data: payment, error: fetchError } = await supabase
-            .from("payments")
-            .select("*")
-            .eq("id", id)
-            .eq("user_id", req.user.id) // ✅ Check ownership
-            .single();
+        const result = await CustomerPaymentService.deleteRepayment({
+            userId: req.user.id,
+            paymentId: id,
+            tenantId: req.tenantId || req.user?.organization_id
+        });
 
-        if (fetchError || !payment) {
-            return res.status(404).json({ error: "Payment not found" });
-        }
-
-        // 2. Delete the Payment Record
-        const { error: deleteError } = await supabase
-            .from("payments")
-            .delete()
-            .eq("id", id)
-            .eq("user_id", req.user.id); // ✅ Check ownership
-
-        if (deleteError) throw deleteError;
-
-        // 3. Revert the Amount from Invoices (Reverse Logic)
-        // We need to decrease 'amount_paid' on invoices by the payment amount.
-        // Strategy: Find invoices with amount_paid > 0 for this customer.
-        // We don't strictly know which ones this payment touched, but we must reduce the total paid for the customer.
-        // We will reduce from strict LIFO (Latest invoices first) or similar? 
-        // Actually, since AddPayment does FIFO (Oldest first), reversing it efficiently is tricky without a link.
-        // But to keep "Pending" correct, we just need to reduce the total amount_paid across invoices.
-
-        // Let's reverse from the *Latest Updated* or just *Any*? 
-        // Let's try to reverse from the *Newest* invoices that have payment, to leave older debts if any. 
-        // Or reverse match the FIFO? If we paid Oldest, maybe we should unpay Oldest?
-        // Risky if we unpay the WRONG Old receipt.
-
-        // BETTER APPROACH for Consistency: 
-        // Since we blindly applied to Oldest, we should probably un-apply from the invoices that currently have payment.
-        // Iterate invoices with amount_paid > 0, order by Date DESC (Newest first).
-
-        const { data: invoices, error: invError } = await supabase
-            .from("sales")
-            .select("*")
-            .eq("customer_id", payment.customer_id)
-            .eq("user_id", req.user.id) // ✅ Filter by user
-            .gt("amount_paid", 0)
-            .order("date", { ascending: false }); // Newest first
-
-        if (invError) throw invError;
-
-        let remainingToRevert = parseFloat(payment.amount);
-
-        for (const inv of invoices) {
-            if (remainingToRevert <= 0.01) break;
-
-            const currentPaid = parseFloat(inv.amount_paid);
-            const toDeduct = Math.min(currentPaid, remainingToRevert);
-            const newPaid = currentPaid - toDeduct;
-
-            // Determine Status
-            let newStatus = "partial";
-            if (newPaid <= 0.01) {
-                newStatus = "unpaid";
-            } else if (newPaid >= parseFloat(inv.total) - 0.01) {
-                // Should not happen when reducing, unless it stays fully paid (if we didn't touch it)
-                newStatus = "paid";
-            }
-
-            await supabase
-                .from("sales")
-                .update({
-                    amount_paid: newPaid,
-                    payment_status: newStatus
-                })
-                .eq("id", inv.id)
-                .eq("user_id", req.user.id); // ✅ Check ownership
-
-            remainingToRevert -= toDeduct;
-        }
-
-        // 4. Restore Customer Balance
-        const { data: customer } = await supabase
-            .from("customers")
-            .select("outstanding_balance")
-            .eq("id", payment.customer_id)
-            .eq("user_id", req.user.id)
-            .maybeSingle();
-
-        if (customer) {
-            const currentBal = parseFloat(customer.outstanding_balance || 0);
-            const newBal = currentBal + parseFloat(payment.amount || 0);
-            await supabase
-                .from("customers")
-                .update({ outstanding_balance: newBal, updated_at: new Date().toISOString() })
-                .eq("id", payment.customer_id)
-                .eq("user_id", req.user.id);
-        }
-
-        // Invalidate Financial Intelligence Cache
-        try {
-            const orgId = req.tenantId || req.user?.organization_id || req.user.id;
-            await FinancialCacheService.invalidate(orgId, req.user.id);
-        } catch (cErr) {
-            console.warn("[PaymentController] Cache invalidation warning:", cErr.message);
-        }
-
-        res.status(200).json({ message: "Payment deleted and balances reverted" });
+        return res.status(200).json(result);
 
     } catch (error) {
         console.error("Delete Payment Error:", error);
-        res.status(500).json({ error: "Failed to delete payment" });
+        return res.status(error.status || 500).json({ error: error.message || "Failed to delete payment" });
     }
 };
 
-// ✅ Get All Payments (with Customer Details)
+/**
+ * Get All Payments (with Customer Details)
+ * Route: GET /api/payments
+ */
 export const getAllPayments = async (req, res) => {
     try {
         const { data, error } = await supabase

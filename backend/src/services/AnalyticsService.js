@@ -4,18 +4,43 @@ import { ExpenseRepository } from "../repositories/ExpenseRepository.js";
 import { FinancialCacheService, FinancialCacheKeys } from "../utils/cache.js";
 
 export const AnalyticsService = {
-    async getPnl(userId, orgId = null) {
+    async getPnl(userId, orgId = null, options = {}) {
+        const { startDate, endDate, storeId } = options;
+        const isFiltered = Boolean(startDate || endDate || storeId);
         const targetId = orgId || userId;
-        const cacheKey = FinancialCacheKeys.analyticsPnl(targetId);
-        const cached = await FinancialCacheService.get(cacheKey);
-        if (cached) return cached;
+        const cacheKey = isFiltered 
+            ? `${FinancialCacheKeys.analyticsPnl(targetId)}_${startDate || ''}_${endDate || ''}_${storeId || ''}`
+            : FinancialCacheKeys.analyticsPnl(targetId);
 
-        const sales = await SalesRepository.getAllForBilling(userId);
+        if (!isFiltered) {
+            const cached = await FinancialCacheService.get(cacheKey);
+            if (cached) return cached;
+        }
+
+        let sales = await SalesRepository.getAllForBilling(userId);
         let expensesData = [];
         try {
             expensesData = await ExpenseRepository.findAll(userId);
         } catch(e) {
             console.error("No expenses module found or error:", e);
+        }
+
+        if (storeId) {
+            sales = sales.filter(s => String(s.store_id || '') === String(storeId));
+            expensesData = expensesData.filter(e => String(e.store_id || '') === String(storeId));
+        }
+
+        if (startDate || endDate) {
+            const start = startDate ? new Date(startDate) : new Date(0);
+            const end = endDate ? new Date(endDate) : new Date(8640000000000000);
+            sales = sales.filter(s => {
+                const d = new Date(s.date || s.created_at || 0);
+                return d >= start && d <= end;
+            });
+            expensesData = expensesData.filter(e => {
+                const d = new Date(e.date || e.created_at || 0);
+                return d >= start && d <= end;
+            });
         }
         
         const revenue = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
@@ -23,7 +48,9 @@ export const AnalyticsService = {
         const profit = revenue - expenses;
 
         const result = { revenue, expenses, profit };
-        await FinancialCacheService.set(cacheKey, result, 300);
+        if (!isFiltered) {
+            await FinancialCacheService.set(cacheKey, result, 300);
+        }
         return result;
     },
     async getSalesTrend(userId, month, startDate, endDate) {

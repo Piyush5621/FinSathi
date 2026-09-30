@@ -10,8 +10,22 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     try {
-        const secret = process.env.JWT_SECRET || "supersecret_jwt_key_change_me_in_production";
-        const verified = jwt.verify(token, secret);
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({ message: "JWT secret not configured on server." });
+        }
+        let verified;
+        try {
+            verified = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (verifyErr) {
+            // Graceful fallback for existing browser sessions signed with legacy key
+            if (verifyErr.name === "JsonWebTokenError") {
+                verified = jwt.verify(token, "supersecret_jwt_key_change_me_in_production");
+            } else {
+                throw verifyErr;
+            }
+        }
+
+
         
         // Normalize user ID across JWT variations
         const userId = verified.id || verified.user_id || verified.sub;

@@ -2,8 +2,8 @@ import { supabase } from "../config/db.js";
 import { SalesRepository } from "../repositories/SalesRepository.js";
 import { CustomerRepository } from "../repositories/CustomerRepository.js";
 import { ExpenseRepository } from "../repositories/ExpenseRepository.js";
-import { HealthScoreService } from "./HealthScoreService.js";
 import { FinancialCacheService, FinancialCacheKeys } from "../utils/cache.js";
+
 
 /**
  * DashboardService — Business Command Center Engine
@@ -88,15 +88,9 @@ export const DashboardService = {
                 } catch (e) {
                     return { data: [] };
                 }
-            })(),
-            (async () => {
-                try {
-                    return await HealthScoreService.calculateAndLog(userId, orgId);
-                } catch (e) {
-                    return null;
-                }
             })()
         ]);
+
 
         let sales = salesRaw || [];
         let allExpenses = allExpensesRaw || [];
@@ -344,14 +338,14 @@ export const DashboardService = {
         const returningCustomersCount = Object.values(customerSalesCountMap).filter(count => count > 1).length;
         const activeCustomersCount = Object.keys(customerSalesCountMap).length;
         const loyaltyRatio = activeCustomersCount > 0 ? Math.round((returningCustomersCount / activeCustomersCount) * 100) : 0;
-        const pendingCustomersCount = Object.keys(customerDuesMap).length;
+        const pendingCustomersCount = customers.filter(c => Number(c.outstanding_balance || 0) > 0).length;
 
         // Top Customers
         const topCustomersList = customers
             .map(c => {
                 const totalSpent = customerSalesTotalMap[c.id] || 0;
                 const totalOrders = customerSalesCountMap[c.id] || 0;
-                const dues = customerDuesMap[c.id] || Number(c.outstanding_balance || 0);
+                const dues = Number(c.outstanding_balance || 0);
                 return {
                     id: c.id,
                     name: c.name,

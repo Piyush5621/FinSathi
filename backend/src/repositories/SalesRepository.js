@@ -1,13 +1,133 @@
 import { supabase } from "../config/db.js";
+import { getPostgresPool } from "../config/postgres.js";
 
 /**
  * Repository for Sales data access
  */
 export const SalesRepository = {
+    async findSalesWithPagination(userId, options = {}) {
+        const pool = getPostgresPool();
+        const page = Math.max(1, parseInt(options.page || 1, 10));
+        const limit = Math.max(1, Math.min(100, parseInt(options.limit || 20, 10)));
+        const offset = (page - 1) * limit;
+        const search = (options.search || '').trim();
+        const status = (options.status || 'all').toLowerCase();
+        const customerId = options.customer_id || options.customerId || null;
+        const startDate = options.startDate || null;
+        const endDate = options.endDate || null;
+
+        const conditions = [`s.user_id = $1`];
+        const params = [userId];
+
+        // Status filter
+        if (status && status !== 'all') {
+            if (status === 'overdue') {
+                conditions.push(`s.payment_status NOT IN ('paid', 'cancelled') AND (s.due_date < CURRENT_DATE OR (s.due_date IS NULL AND s.date < (NOW() - INTERVAL '30 days')))`);
+            } else if (status === 'unpaid') {
+                conditions.push(`s.payment_status IN ('unpaid', 'partial')`);
+            } else if (status === 'paid') {
+                conditions.push(`s.payment_status = 'paid'`);
+            } else if (status === 'partial') {
+                conditions.push(`s.payment_status = 'partial'`);
+            } else if (status === 'cancelled') {
+                conditions.push(`s.payment_status = 'cancelled'`);
+            } else if (status === 'returned') {
+                conditions.push(`(s.payment_status = 'returned' OR jsonb_array_length(COALESCE(s.returns, '[]'::jsonb)) > 0)`);
+            }
+        }
+
+        // Customer filter
+        if (customerId) {
+            params.push(customerId);
+            conditions.push(`s.customer_id = $${params.length}`);
+        }
+
+        // Date range filter
+        if (startDate) {
+            params.push(startDate);
+            conditions.push(`s.date >= $${params.length}`);
+        }
+        if (endDate) {
+            params.push(endDate);
+            conditions.push(`s.date <= $${params.length}`);
+        }
+
+        // Search filter
+        if (search) {
+            params.push(`%${search}%`);
+            const pIdx = params.length;
+            conditions.push(`(
+                s.invoice_no ILIKE $${pIdx} 
+                OR c.name ILIKE $${pIdx} 
+                OR c.phone ILIKE $${pIdx} 
+                OR s.notes ILIKE $${pIdx}
+                OR s.total::text ILIKE $${pIdx}
+            )`);
+        }
+
+        const whereClause = conditions.join(' AND ');
+
+        // 1. Fetch Paginated Records with joined Customer
+        params.push(limit);
+        const limitParamIdx = params.length;
+        params.push(offset);
+        const offsetParamIdx = params.length;
+
+        const client = await pool.connect();
+        try {
+            const dataQuery = `
+                SELECT 
+                    s.*,
+                    CASE WHEN c.id IS NOT NULL THEN
+                        json_build_object('id', c.id, 'name', c.name, 'phone', c.phone, 'email', c.email, 'outstanding_balance', c.outstanding_balance)
+                    ELSE NULL END as customers
+                FROM public.sales s
+                LEFT JOIN public.customers c ON s.customer_id = c.id
+                WHERE ${whereClause}
+                ORDER BY s.date DESC, s.created_at DESC
+                LIMIT $${limitParamIdx} OFFSET $${offsetParamIdx}
+            `;
+            const dataResult = await client.query(dataQuery, params);
+
+            // 2. Fetch Count & Aggregates
+            const countParams = params.slice(0, offsetParamIdx - 2);
+            const countQuery = `
+                SELECT 
+                    COUNT(*)::int as total_count,
+                    COALESCE(SUM(s.total), 0)::numeric as total_billed,
+                    COALESCE(SUM(s.amount_paid), 0)::numeric as total_paid,
+                    COALESCE(SUM(CASE WHEN s.payment_status NOT IN ('paid', 'cancelled') THEN GREATEST(0, s.total - COALESCE(s.amount_paid, 0)) ELSE 0 END), 0)::numeric as pending_due
+                FROM public.sales s
+                LEFT JOIN public.customers c ON s.customer_id = c.id
+                WHERE ${whereClause}
+            `;
+            const countResult = await client.query(countQuery, countParams);
+            const agg = countResult.rows[0] || {};
+            const totalCount = Number(agg.total_count || 0);
+
+            return {
+                sales: dataResult.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total: totalCount,
+                    totalPages: Math.ceil(totalCount / limit) || 1
+                },
+                summary: {
+                    totalBilled: Number(agg.total_billed || 0),
+                    totalPaid: Number(agg.total_paid || 0),
+                    pendingDue: Number(agg.pending_due || 0)
+                }
+            };
+        } finally {
+            client.release();
+        }
+    },
+
     async findAllSales(userId, limit = 100, orderBy = 'date', ascending = false) {
         const { data, error } = await supabase
             .from("sales")
-            .select("*, customers(name)")
+            .select("*, customers(name, phone, email, outstanding_balance)")
             .eq("user_id", userId)
             .order(orderBy, { ascending })
             .limit(limit);
@@ -81,7 +201,7 @@ export const SalesRepository = {
     async findById(userId, id) {
         const { data, error } = await supabase
             .from("sales")
-            .select("*")
+            .select("*, customers(id, name, phone, email, outstanding_balance)")
             .eq("id", id)
             .eq("user_id", userId)
             .single();

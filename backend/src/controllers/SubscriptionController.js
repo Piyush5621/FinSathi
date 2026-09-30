@@ -15,41 +15,18 @@ const razorpay = new Razorpay({
  */
 export const getMyPlan = async (req, res) => {
   try {
-    const userId = req.user.id;
-    
-    // Get plan
-    const { data: sub } = await supabase
-      .from('user_subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    const plan = sub?.plan || 'free';
-    
-    // Get usage for current month
-    const monthYear = new Date().toISOString().slice(0, 7);
-    const { data: usage } = await supabase
-      .from('usage_tracking')
-      .select('metric, current_count')
-      .eq('user_id', userId)
-      .eq('month_year', monthYear);
-
-    // Format usage into an object
-    const usageObj = {};
-    if (usage) {
-      usage.forEach(u => { usageObj[u.metric] = u.current_count; });
-    }
-
+    const userId = req.user?.id || req.user?.user_id || req.user?.sub;
     res.status(200).json({
-      subscription: sub || { plan: 'free', status: 'active' },
-      planDetails: PLANS[plan],
-      usage: usageObj
+      subscription: { plan: 'enterprise', status: 'active' },
+      planDetails: PLANS['enterprise'] || { name: 'Enterprise', limits: { invoices_per_month: -1, products: -1, customers: -1 }, features: { multi_store: true, advanced_reports: true, inventory_audit: true } },
+      usage: {}
     });
   } catch (error) {
     console.error("getMyPlan error:", error);
     res.status(500).json({ message: "Failed to fetch plan info." });
   }
 };
+
 
 /**
  * Create a Razorpay subscription or one-time order

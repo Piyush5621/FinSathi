@@ -112,11 +112,29 @@ export class AuthenticationService {
 
     // 7. Resolve staff roles if staff
     let roleId = null;
+    let roleName = null;
+    let permissionKeys = [];
     if (!isOwner) {
       // Find staff assignment in active store context
       const assignments = await RbacRepository.findStaffAssignments(account.id);
       // Fallback: use first assignment if multiple, or null
-      roleId = assignments.length > 0 ? assignments[0].role_id : null;
+      if (assignments.length > 0) {
+        roleId = assignments[0].role_id;
+        // Fetch role name
+        const role = await RbacRepository.findRoleById(roleId).catch(() => null);
+        roleName = role?.name || null;
+        // Fetch permissions for this role
+        const rolePerms = await RbacRepository.findRolePermissions(roleId).catch(() => []);
+        permissionKeys = rolePerms.map(rp => rp.permissions?.key).filter(Boolean);
+      }
+      // Also fetch user-level permission overrides
+      const overrides = await RbacRepository.findUserPermissionOverrides(account.id).catch(() => []);
+      const overrideKeys = overrides.map(o => o.permissions?.key).filter(Boolean);
+      // Merge unique permissions
+      permissionKeys = [...new Set([...permissionKeys, ...overrideKeys])];
+    } else {
+      roleName = 'Owner';
+      permissionKeys = ['*'];
     }
 
     // 8. Generate JWT Access Token
@@ -151,6 +169,8 @@ export class AuthenticationService {
         userId: actorUserId,
         staffId: actorStaffId,
         roleId,
+        role: roleName,
+        permissions: permissionKeys,
         name: account.name,
         email: isOwner ? account.email : account.email || null,
         phone: account.phone

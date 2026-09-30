@@ -16,19 +16,22 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   // Build standard response structure
+  const errorMessage = err.message || (isOperational ? 'Invalid request' : 'An internal error occurred. Please try again later.');
   const responseBody = {
     success: false,
-    message: err.message || (isOperational ? 'Invalid request' : 'An internal error occurred. Please try again later.'),
-    error: {
+    message: errorMessage,
+    error: errorMessage,
+    error_details: {
       type: name,
-      message: err.message || 'An internal error occurred. Please try again later.',
+      message: errorMessage,
       details: err.details || null
     }
   };
 
   if (process.env.NODE_ENV !== 'production' && !isOperational) {
-    responseBody.error.stack = err.stack;
+    responseBody.error_details.stack = err.stack;
   }
+
 
   res.status(httpCode).json(responseBody);
 };

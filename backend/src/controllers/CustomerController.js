@@ -1,6 +1,6 @@
 import { supabase } from "../config/db.js";
 import { createNotification } from "./notificationHelper.js";
-import { FinancialCacheService } from "../utils/cache.js";
+import { CustomerPaymentService } from "../services/CustomerPaymentService.js";
 
 /** Get all customers */
 export const getCustomers = async (req, res) => {
@@ -30,22 +30,29 @@ export const getCustomers = async (req, res) => {
 /** Add new customer */
 export const addCustomer = async (req, res) => {
   try {
-    const { name, email, phone, city } = req.body;
+    const { name, email, phone, city, address, gstin, credit_limit, notes } = req.body;
 
-    if (!name) {
+    if (!name || !name.trim()) {
       return res.status(400).json({ message: "Name is strictly required." });
     }
 
-    // Perform the insert (✅ Added city so location is tracked)
+    const creditLimitNum = parseFloat(credit_limit);
+    const newCustomer = {
+      user_id: req.user.id,
+      name: name.trim(),
+      email: email ? email.trim() : null,
+      phone: phone ? phone.trim() : null,
+      city: city ? city.trim() : null,
+      address: address ? address.trim() : null,
+      gstin: gstin ? gstin.trim().toUpperCase() : null,
+      notes: notes || null,
+      credit_limit: isNaN(creditLimitNum) ? 0 : Math.max(0, creditLimitNum),
+      outstanding_balance: 0 // Always initialized to 0; only credit sales increase it
+    };
+
     const { data, error } = await supabase
       .from("customers")
-      .insert([{ 
-        user_id: req.user.id, 
-        name, 
-        email, 
-        phone,
-        city
-      }])
+      .insert([newCustomer])
       .select("*");
 
     if (error) throw error;
@@ -71,204 +78,97 @@ export const addCustomer = async (req, res) => {
 };
 
 /**
+ * Update customer profile
+ * Route: PUT /api/customers/:id
+ * Server-authoritative: explicitly prevents balance tampering
+ */
+export const updateCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, address, city, gstin, credit_limit, notes } = req.body;
+
+    const updatePayload = {};
+    if (name !== undefined) updatePayload.name = name.trim();
+    if (email !== undefined) updatePayload.email = email ? email.trim() : null;
+    if (phone !== undefined) updatePayload.phone = phone ? phone.trim() : null;
+    if (address !== undefined) updatePayload.address = address ? address.trim() : null;
+    if (city !== undefined) updatePayload.city = city ? city.trim() : null;
+    if (gstin !== undefined) updatePayload.gstin = gstin ? gstin.trim().toUpperCase() : null;
+    if (notes !== undefined) updatePayload.notes = notes;
+    if (credit_limit !== undefined) {
+      const numLimit = parseFloat(credit_limit);
+      updatePayload.credit_limit = isNaN(numLimit) ? 0 : Math.max(0, numLimit);
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return res.status(400).json({ error: "No valid fields provided for update." });
+    }
+
+    const { data: updatedCustomer, error } = await supabase
+      .from("customers")
+      .update(updatePayload)
+      .eq("id", id)
+      .eq("user_id", req.user.id)
+      .select("*")
+      .single();
+
+    if (error) throw error;
+    if (!updatedCustomer) {
+      return res.status(404).json({ error: "Customer not found." });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Customer profile updated successfully.",
+      customer: updatedCustomer
+    });
+  } catch (err) {
+    console.error("Update Customer Error:", err);
+    return res.status(500).json({ error: err.message || "Failed to update customer" });
+  }
+};
+
+/**
  * Record Customer Khata partial or full repayment
  * Route: POST /api/customers/:id/payments
+ * Canonical implementation via CustomerPaymentService
  */
 export const recordCustomerPayment = async (req, res) => {
   const customerId = req.params.id;
   const userId = req.user.id;
-  const { amount, payment_method, payment_mode, reference, notes, idempotency_key, date } = req.body;
-  const payAmount = parseFloat(amount);
-  const mode = payment_method || payment_mode || "cash";
-  const ref = reference || notes || null;
-  const idempotencyKey = idempotency_key || req.headers?.["x-idempotency-key"] || null;
-
-  if (isNaN(payAmount) || payAmount <= 0) {
-    return res.status(400).json({ error: "Payment amount must be greater than zero." });
-  }
+  const { amount, payment_method, payment_mode, paymentMethod, reference, notes, idempotency_key, idempotencyKey, date } = req.body;
+  const key = idempotency_key || idempotencyKey || req.headers?.["x-idempotency-key"] || null;
+  const mode = payment_method || payment_mode || paymentMethod || "cash";
 
   try {
-    // 1. Fetch Customer and verify ownership & balance
-    const { data: customer, error: custErr } = await supabase
-      .from("customers")
-      .select("*")
-      .eq("id", customerId)
-      .eq("user_id", userId)
-      .single();
+    const result = await CustomerPaymentService.recordRepayment({
+      userId,
+      customerId,
+      amount,
+      paymentMode: mode,
+      reference,
+      notes,
+      date,
+      idempotencyKey: key,
+      tenantId: req.tenantId || req.user?.organization_id
+    });
 
-    if (custErr || !customer) {
-      return res.status(404).json({ error: "Customer not found." });
-    }
-
-    const currentBalance = parseFloat(customer.outstanding_balance || 0);
-    if (currentBalance <= 0) {
-      return res.status(400).json({ error: "Customer has no outstanding balance to repay." });
-    }
-
-    if (payAmount > currentBalance + 0.01) {
-      return res.status(400).json({
-        error: `Payment amount (₹${payAmount}) exceeds customer's outstanding balance (₹${currentBalance}).`
+    if (result.isDuplicate) {
+      return res.status(result.status || 409).json({
+        error: result.message,
+        payment: result.payment
       });
-    }
-
-    // 2. Idempotency Check: Prevent duplicate payment submissions
-    if (idempotencyKey) {
-      const { data: existingPay } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("customer_id", customerId)
-        .eq("idempotency_key", idempotencyKey)
-        .maybeSingle();
-
-      if (existingPay) {
-        return res.status(409).json({
-          error: "A payment with this idempotency key has already been processed.",
-          payment: existingPay
-        });
-      }
-    } else {
-      // Check for rapid identical submissions (within last 5 seconds)
-      const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
-      const { data: recentPay } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("customer_id", customerId)
-        .eq("amount", payAmount)
-        .gte("created_at", fiveSecondsAgo)
-        .maybeSingle();
-
-      if (recentPay) {
-        return res.status(409).json({
-          error: "Duplicate payment submission detected.",
-          payment: recentPay
-        });
-      }
-    }
-
-    // 3. Fetch Unpaid Invoices (FIFO - Oldest First)
-    const { data: invoices, error: invError } = await supabase
-      .from("sales")
-      .select("*")
-      .eq("customer_id", customerId)
-      .eq("user_id", userId)
-      .neq("payment_status", "paid")
-      .order("date", { ascending: true })
-      .order("created_at", { ascending: true });
-
-    if (invError) throw invError;
-
-    // 4. Distribute Payment across Invoices
-    let remainingToDistribute = payAmount;
-    const allocatedSales = [];
-
-    if (Array.isArray(invoices)) {
-      for (const inv of invoices) {
-        if (remainingToDistribute <= 0) break;
-
-        const total = Math.round(parseFloat(inv.total || 0) * 100) / 100;
-        const paidSoFar = Math.round(parseFloat(inv.amount_paid || 0) * 100) / 100;
-        const due = Math.round((total - paidSoFar) * 100) / 100;
-        if (due <= 0) continue;
-
-        const toPay = Math.round(Math.min(due, remainingToDistribute) * 100) / 100;
-        const newPaidAmount = Math.round((paidSoFar + toPay) * 100) / 100;
-        const newStatus = newPaidAmount >= total - 0.01 ? "paid" : "partial";
-
-        await supabase
-          .from("sales")
-          .update({
-            amount_paid: newPaidAmount,
-            payment_status: newStatus,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", inv.id)
-          .eq("user_id", userId);
-
-        allocatedSales.push({
-          saleId: inv.id,
-          invoiceNo: inv.invoice_no,
-          allocatedAmount: toPay,
-          newPaidAmount,
-          newStatus
-        });
-
-        remainingToDistribute = Math.round((remainingToDistribute - toPay) * 100) / 100;
-      }
-    }
-
-    // 5. Update Customer's outstanding balance
-    const newCustomerBalance = Math.round(Math.max(0, currentBalance - payAmount) * 100) / 100;
-    const { data: updatedCustomer, error: updateCustErr } = await supabase
-      .from("customers")
-      .update({
-        outstanding_balance: newCustomerBalance,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", customerId)
-      .eq("user_id", userId)
-      .select("*")
-      .single();
-
-    if (updateCustErr) throw updateCustErr;
-
-    // 6. Record Payment in ledger
-    const { data: payment, error: payError } = await supabase
-      .from("payments")
-      .insert([{
-        user_id: userId,
-        customer_id: customerId,
-        amount: payAmount,
-        date: date || new Date().toISOString(),
-        payment_mode: mode,
-        reference: ref,
-        idempotency_key: idempotencyKey
-      }])
-      .select()
-      .single();
-
-    if (payError) throw payError;
-
-    // 7. Structured Receipt for UI / WhatsApp
-    const receipt = {
-      receiptNo: `REC-${Date.now().toString().slice(-6)}`,
-      paymentId: payment.id,
-      customerName: customer.name,
-      customerPhone: customer.phone,
-      amountPaid: payAmount,
-      previousBalance: currentBalance,
-      remainingBalance: newCustomerBalance,
-      paymentMethod: mode,
-      date: date || new Date().toISOString(),
-      allocatedSales
-    };
-
-    // Auto-create notification (non-blocking)
-    try {
-      await createNotification(userId, {
-        title: `💰 Payment received: ₹${payAmount} from ${customer.name}`,
-        type: "success"
-      });
-    } catch {}
-
-    // Invalidate Financial Intelligence Cache
-    try {
-      const orgId = req.tenantId || req.user?.organization_id || userId;
-      await FinancialCacheService.invalidate(orgId, userId);
-    } catch (cErr) {
-      console.warn("[CustomerController] Cache invalidation warning:", cErr.message);
     }
 
     return res.status(201).json({
       success: true,
       message: "Payment recorded successfully.",
-      payment,
-      customer: updatedCustomer || { id: customerId, outstanding_balance: newCustomerBalance },
-      receipt
+      payment: result.payment,
+      customer: result.updatedCustomer,
+      receipt: result.receipt
     });
   } catch (err) {
     console.error("Record Customer Payment Error:", err);
-    return res.status(500).json({ error: err.message || "Failed to process customer payment" });
+    return res.status(err.status || 500).json({ error: err.message || "Failed to process customer payment" });
   }
 };

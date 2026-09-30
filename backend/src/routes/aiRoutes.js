@@ -12,31 +12,53 @@ const router = express.Router();
  */
 router.post("/query", async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { query } = req.body;
+    const rawUserId = req.user.id;
+    const staffId = req.user.staff_id || null;
+    let targetUserId = req.user.user_id || rawUserId;
+    const isStaff = Boolean(staffId);
+    let staffRole = "Owner";
+    let staffPermissions = ["*"];
 
-    if (!query || typeof query !== "string" || query.trim().length === 0) {
-      return errorResponse(res, "Query is required.", 400);
-    }
+    if (isStaff) {
+      const { data: staffMember } = await supabase
+        .from("staff")
+        .select("user_id, role, position, store_staff(role_id, roles(name))")
+        .eq("id", staffId)
+        .maybeSingle();
 
-    if (query.trim().length > 500) {
-      return errorResponse(res, "Query too long. Max 500 characters.", 400);
+      if (staffMember) {
+        targetUserId = staffMember.user_id || targetUserId;
+        staffRole = staffMember.store_staff?.[0]?.roles?.name || staffMember.role || staffMember.position || "Staff";
+      }
+
+      if (Array.isArray(req.permissions) && req.permissions.length > 0) {
+        staffPermissions = req.permissions;
+      } else if (staffMember?.store_staff?.[0]?.role_id) {
+        const { data: rps } = await supabase
+          .from("role_permissions")
+          .select("permissions(key)")
+          .eq("role_id", staffMember.store_staff[0].role_id);
+        staffPermissions = (rps || []).map((r) => r.permissions?.key).filter(Boolean);
+      }
     }
 
     // Build context: business name, top customers, products
     const [{ data: user }, { data: customers }, { data: products }] = await Promise.all([
-      supabase.from("users").select("name, business_name").eq("id", userId).single(),
-      supabase.from("customers").select("name").eq("user_id", userId).limit(10),
-      supabase.from("inventory").select("name").eq("user_id", userId).limit(10),
+      supabase.from("users").select("name, business_name").eq("id", targetUserId).single(),
+      supabase.from("customers").select("name").eq("user_id", targetUserId).limit(10),
+      supabase.from("inventory").select("name").eq("user_id", targetUserId).limit(10),
     ]);
 
     const context = {
       businessName: user?.business_name || user?.name || "your business",
       customers: (customers || []).map((c) => c.name),
       categories: (products || []).map((p) => p.name),
+      isStaff,
+      staffRole,
+      staffPermissions
     };
 
-    const result = await AIService.query(userId, query.trim(), context);
+    const result = await AIService.query(targetUserId, query.trim(), context);
 
     return successResponse(res, result, "AI processing complete");
   } catch (err) {

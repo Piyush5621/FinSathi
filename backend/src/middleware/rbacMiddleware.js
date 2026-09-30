@@ -9,14 +9,21 @@ import { errorResponse } from "../utils/responseHelper.js";
 export const enforcePermissions = (requiredPermissionKey) => {
   return async (req, res, next) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user.id || req.user.user_id || req.user.sub;
       // Allow overriding staffId via headers for dev/testing
-      const staffId = req.headers["x-staff-id"] || req.user.staffId;
+      const staffId = req.headers["x-staff-id"] || req.user.staffId || req.user.staff_id;
+      const role = req.user.role;
 
-      // 1. If no staffId exists, assume it is the business Owner. Bypasses checks.
+      // 1. If explicit non-owner role exists without staffId, deny access
+      if (!staffId && role && !["owner", "admin"].includes(role.toLowerCase())) {
+        return errorResponse(res, "Staff context missing. Access denied.", 403);
+      }
+
+      // 2. If no staffId exists and user is owner/admin, bypass checks
       if (!staffId) {
         return next();
       }
+
 
       // 2. Fetch permission ID
       const { data: perm, error: permErr } = await supabase

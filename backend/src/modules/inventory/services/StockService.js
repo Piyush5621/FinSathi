@@ -1,950 +1,611 @@
-import { StockRepository } from "../repositories/StockRepository.js";
-import { BatchSelectionEngine } from "./BatchSelectionEngine.js";
-import { ValidationError, NotFoundError, ConflictError } from "../../masters/errors/appErrors.js";
-import { initEventPublisher } from "../../../infrastructure/events/publishers/index.js";
+import { getPostgresPool } from "../../../config/postgres.js";
 import { adminSupabase } from "../../../admin/adminSupabase.js";
+import { ValidationError, NotFoundError } from "../../masters/errors/appErrors.js";
+import { initEventPublisher } from "../../../infrastructure/events/publishers/index.js";
 
 const publisher = initEventPublisher();
 
 export class StockService {
-  static async getWarehouseBalance(warehouseId, productId, variantId, organizationId) {
-    // 1. Row-level lock to ensure up-to-date reads
-    const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
-    if (!stock) return { onHand: 0, reserved: 0, available: 0, incoming: 0, outgoing: 0 };
-    return {
-      onHand: Number(stock.on_hand),
-      reserved: Number(stock.reserved),
-      available: Number(stock.available),
-      incoming: Number(stock.incoming),
-      outgoing: Number(stock.outgoing)
-    };
-  }
-
-  static async postOpeningStock(organizationId, data, actorUserId) {
-    const { warehouseId, productId, variantId, quantity, unitCost = 0.0000, batchNumber, serialNumbers } = data;
-
-    if (quantity <= 0) {
-      throw new ValidationError("Quantity must be greater than zero.");
-    }
-
-    // 1. Row lock
-    const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
-
-    // 2. Manage batches if provided
-    let batchId = null;
-    if (batchNumber) {
-      // Find or create batch
-      const { data: existBatch } = await adminSupabase
-        .from("inventory_batches")
-        .select("id")
-        .eq("batch_number", batchNumber)
-        .eq("product_id", productId)
-        .eq("organization_id", organizationId)
-        .maybeSingle();
-
-      if (existBatch) {
-        batchId = existBatch.id;
-        if (typeof existBatch.stock === 'number') {
-          await adminSupabase
-            .from("inventory_batches")
-            .update({ stock: existBatch.stock + quantity })
-            .eq("id", batchId);
-        }
-      } else {
-        const { data: newBatch, error: bErr } = await adminSupabase
-          .from("inventory_batches")
-          .insert({
-            organization_id: organizationId,
-            product_id: productId,
-            warehouse_id: warehouseId,
-            batch_number: batchNumber,
-            purchase_cost: unitCost,
-            stock: quantity,
-            created_by: actorUserId
-          })
-          .select()
-          .single();
-
-        if (bErr) throw bErr;
-        batchId = newBatch.id;
-        publisher.publish("inventory.batch.created", { id: batchId, organizationId, batchNumber });
-      }
-    }
-
-    // 3. Serial validation and tracking
-    if (Array.isArray(serialNumbers)) {
-      for (const sn of serialNumbers) {
-        const { data: existSn } = await adminSupabase
-          .from("inventory_serial_numbers")
-          .select("id")
-          .eq("serial_number", sn)
-          .eq("organization_id", organizationId)
-          .maybeSingle();
-
-        if (existSn) {
-          throw new ConflictError(`Serial number '${sn}' already registered in organization.`);
-        }
-
-        await adminSupabase.from("inventory_serial_numbers").insert({
-          organization_id: organizationId,
-          product_id: productId,
-          warehouse_id: warehouseId,
-          batch_id: batchId,
-          serial_number: sn,
-          status: "Available",
-          created_by: actorUserId
-        });
-      }
-    }
-
-    // 4. Update Summary Balances
-    const newOnHand = Number(stock.on_hand) + quantity;
-    const newAvailable = newOnHand - Number(stock.reserved);
-
-    const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
-      on_hand: newOnHand,
-      available: newAvailable
-    });
-
-    // 5. Append to Ledger (Immutable Movement)
-    const movement = await StockRepository.createMovement({
-      organization_id: organizationId,
-      warehouse_id: warehouseId,
-      product_id: productId,
-      variant_id: variantId || null,
-      batch_id: batchId,
-      serial_number: serialNumbers ? serialNumbers[0] : null,
-      quantity,
-      movement_type: "opening_stock",
-      reference_type: "opening_stock",
-      reference_id: updatedStock.id,
-      unit_cost: unitCost,
-      total_cost: unitCost * quantity,
-      created_by: actorUserId
-    });
-
-    publisher.publish("inventory.movement.created", { id: movement.id, organizationId });
-    publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: newOnHand });
-
-    return { stock: updatedStock, movement };
-  }
-
-  static async postAdjustment(organizationId, data, actorUserId) {
-    const { warehouseId, productId, variantId, quantity, unitCost = 0.0000, reason, remarks, type } = data;
-
-    if (quantity <= 0) {
-      throw new ValidationError("Adjustment quantity must be positive.");
-    }
-
-    // 1. Adjustment validation
-    if (!reason) {
-      throw new ValidationError("Reason is required for adjustments.");
-    }
-
-    // 2. Lock stock row
-    const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
-
-    // 3. Concurrency negative stock check
-    const adjustmentQty = type === "adjustment_increase" ? quantity : -quantity;
-    const newOnHand = Number(stock.on_hand) + adjustmentQty;
-    const newAvailable = newOnHand - Number(stock.reserved);
-
-    if (newOnHand < 0) {
-      // Check preferences to see if negative stock is allowed
-      const { data: pref } = await adminSupabase
-        .from("organization_preferences")
-        .select("preferences")
-        .eq("organization_id", organizationId)
-        .maybeSingle();
-
-      const allowNegative = pref?.preferences?.allowNegativeStock || false;
-      if (!allowNegative) {
-        throw new ValidationError("Insufficient stock. Adjustment leads to negative balance.");
-      }
-    }
-
-    // 4. Update warehouse balance
-    const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
-      on_hand: newOnHand,
-      available: newAvailable
-    });
-
-    // 5. Create adjustment log
-    const adjustmentNumber = `ADJ-${Date.now()}-${Math.floor(Math.random() * 100)}`;
-    const adj = await StockRepository.createAdjustment({
-      organization_id: organizationId,
-      warehouse_id: warehouseId,
-      adjustment_number: adjustmentNumber,
-      reason,
-      remarks,
-      adjustment_type: type,
-      status: "completed",
-      created_by: actorUserId
-    });
-
-    // 6. Append to Ledger
-    const movement = await StockRepository.createMovement({
-      organization_id: organizationId,
-      warehouse_id: warehouseId,
-      product_id: productId,
-      variant_id: variantId || null,
-      quantity: adjustmentQty,
-      movement_type: type,
-      reference_type: "adjustments",
-      reference_id: adj.id,
-      unit_cost: unitCost,
-      total_cost: unitCost * quantity,
-      created_by: actorUserId
-    });
-
-    publisher.publish("inventory.adjustment.created", { id: adj.id, organizationId });
-    publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: newOnHand });
-
-    return { stock: updatedStock, movement, adjustment: adj };
-  }
-
-  static async shipTransfer(organizationId, data, actorUserId) {
-    const { sourceWarehouseId, targetWarehouseId, productId, variantId, quantity, transferNumber } = data;
-
-    if (quantity <= 0) {
-      throw new ValidationError("Transfer quantity must be positive.");
-    }
-
-    // 1. Lock source warehouse stock
-    const sourceStock = await StockRepository.lockWarehouseStock(organizationId, sourceWarehouseId, productId, variantId);
-
-    // 2. Insufficient check
-    if (Number(sourceStock.available) < quantity) {
-      throw new ValidationError("Insufficient available stock in source warehouse.");
-    }
-
-    // 3. Deduct from source warehouse
-    const newSourceOnHand = Number(sourceStock.on_hand) - quantity;
-    const newSourceAvailable = newSourceOnHand - Number(sourceStock.reserved);
-
-    await StockRepository.updateWarehouseStock(sourceStock.id, organizationId, {
-      on_hand: newSourceOnHand,
-      available: newSourceAvailable
-    });
-
-    // 4. Create transfer record in transit
-    const transferNum = transferNumber || `TRSF-${Date.now()}`;
-    const transfer = await StockRepository.createTransfer({
-      organization_id: organizationId,
-      source_warehouse_id: sourceWarehouseId,
-      target_warehouse_id: targetWarehouseId,
-      transfer_number: transferNum,
-      status: "shipped",
-      shipped_at: new Date().toISOString(),
-      created_by: actorUserId
-    });
-
-    // 5. Append Transfer Out ledger movement
-    await StockRepository.createMovement({
-      organization_id: organizationId,
-      warehouse_id: sourceWarehouseId,
-      product_id: productId,
-      variant_id: variantId || null,
-      quantity: -quantity,
-      movement_type: "transfer_out",
-      reference_type: "transfers",
-      reference_id: transfer.id,
-      created_by: actorUserId
-    });
-
-    // 6. Lock target warehouse to increase 'incoming' balance (In Transit state)
-    const targetStock = await StockRepository.lockWarehouseStock(organizationId, targetWarehouseId, productId, variantId);
-    await StockRepository.updateWarehouseStock(targetStock.id, organizationId, {
-      incoming: Number(targetStock.incoming) + quantity
-    });
-
-    publisher.publish("inventory.transfer.started", { id: transfer.id, organizationId });
-    return transfer;
-  }
-
-  static async receiveTransfer(id, organizationId, data, actorUserId) {
-    const { productId, variantId, quantity } = data;
-
-    const transfer = await adminSupabase
-      .from("inventory_transfers")
-      .select("*")
-      .eq("id", id)
-      .eq("organization_id", organizationId)
-      .maybeSingle();
-
-    if (!transfer.data) throw new NotFoundError("Transfer record not found.");
-    if (transfer.data.status !== "shipped") throw new ValidationError("Transfer is not in transit / shipped state.");
-
-    // 1. Lock target stock
-    const targetStock = await StockRepository.lockWarehouseStock(organizationId, transfer.data.target_warehouse_id, productId, variantId);
-
-    // 2. Summary update: deduct from incoming, add to on_hand
-    const newTargetOnHand = Number(targetStock.on_hand) + quantity;
-    const newTargetAvailable = newTargetOnHand - Number(targetStock.reserved);
-    const newTargetIncoming = Math.max(0, Number(targetStock.incoming) - quantity);
-
-    const updatedTargetStock = await StockRepository.updateWarehouseStock(targetStock.id, organizationId, {
-      on_hand: newTargetOnHand,
-      available: newTargetAvailable,
-      incoming: newTargetIncoming
-    });
-
-    // 3. Mark completed
-    const updatedTransfer = await StockRepository.updateTransfer(id, organizationId, {
-      status: "completed",
-      received_at: new Date().toISOString(),
-      updated_by: actorUserId
-    });
-
-    // 4. Append Transfer In ledger movement
-    await StockRepository.createMovement({
-      organization_id: organizationId,
-      warehouse_id: transfer.data.target_warehouse_id,
-      product_id: productId,
-      variant_id: variantId || null,
-      quantity,
-      movement_type: "transfer_in",
-      reference_type: "transfers",
-      reference_id: transfer.data.id,
-      created_by: actorUserId
-    });
-
-    publisher.publish("inventory.transfer.received", { id: updatedTransfer.id, organizationId });
-    return updatedTransfer;
-  }
-
-  static async createReservation(organizationId, data, actorUserId) {
-    const { warehouseId, productId, variantId, quantity, expiresMinutes = 60, referenceType, referenceId } = data;
-
-    if (quantity <= 0) {
-      throw new ValidationError("Reservation quantity must be positive.");
-    }
-
-    // 1. Lock stock row
-    const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
-
-    // 2. Validate Available stock is sufficient
-    if (Number(stock.available) < quantity) {
-      throw new ValidationError("Insufficient available stock for reservation.");
-    }
-
-    // 3. Deduct from available, add to reserved
-    const newReserved = Number(stock.reserved) + quantity;
-    const newAvailable = Number(stock.on_hand) - newReserved;
-
-    const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
-      reserved: newReserved,
-      available: newAvailable
-    });
-
-    // 4. Create Reservation row
-    const expiresAt = new Date(Date.now() + expiresMinutes * 60000).toISOString();
-    const res = await StockRepository.createReservation({
-      organization_id: organizationId,
-      warehouse_id: warehouseId,
-      product_id: productId,
-      variant_id: variantId || null,
-      quantity,
-      expires_at: expiresAt,
-      status: "active",
-      reference_type: referenceType,
-      reference_id: referenceId,
-      created_by: actorUserId
-    });
-
-    publisher.publish("inventory.reservation.created", { id: res.id, organizationId });
-    return res;
-  }
-
-  static async releaseReservation(id, organizationId, actorUserId) {
-    const res = await adminSupabase
-      .from("inventory_reservations")
-      .select("*")
-      .eq("id", id)
-      .eq("organization_id", organizationId)
-      .maybeSingle();
-
-    if (!res.data) throw new NotFoundError("Reservation not found.");
-    if (res.data.status !== "active") throw new ValidationError("Reservation is already processed/released.");
-
-    // 1. Lock stock row
-    const stock = await StockRepository.lockWarehouseStock(organizationId, res.data.warehouse_id, res.data.product_id, res.data.variant_id);
-
-    // 2. Summary update: deduct from reserved, add back to available
-    const newReserved = Math.max(0, Number(stock.reserved) - Number(res.data.quantity));
-    const newAvailable = Number(stock.on_hand) - newReserved;
-
-    await StockRepository.updateWarehouseStock(stock.id, organizationId, {
-      reserved: newReserved,
-      available: newAvailable
-    });
-
-    // 3. Mark released
-    const updatedRes = await StockRepository.updateReservation(id, organizationId, {
-      status: "released",
-      updated_by: actorUserId
-    });
-
-    // 4. Add reservation release log/event (doesn't change on_hand, only releases reserved hold)
-    publisher.publish("inventory.reservation.released", { id: updatedRes.id, organizationId });
-    return updatedRes;
-  }
-
-  static async generateDailySnapshots(organizationId, snapshotDate) {
-    // Queries all warehouse stock rows and dumps into snapshots
-    const { data: balances, error } = await adminSupabase
-      .from("warehouse_stock")
-      .select("*")
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null);
-
-    if (error) throw error;
-
-    const rows = balances.map(b => ({
-      organization_id: organizationId,
-      warehouse_id: b.warehouse_id,
-      product_id: b.product_id,
-      variant_id: b.variant_id,
-      on_hand: b.on_hand,
-      reserved: b.reserved,
-      available: b.available,
-      snapshot_date: snapshotDate
-    }));
-
-    if (rows.length > 0) {
-      const { error: insErr } = await adminSupabase
-        .from("inventory_snapshots")
-        .upsert(rows, { onConflict: "organization_id,warehouse_id,product_id,variant_id,snapshot_date" });
-
-      if (insErr) throw insErr;
-    }
-
-    return rows;
-  }
-
   /**
-   * Atomically deducts stock for a POS / invoice sale.
-   * Acquires SELECT FOR UPDATE locks, performs FEFO batch deduction, 
-   * decrements warehouse_stock, and logs immutable inventory_movements.
-   * 
-   * @param {string} organizationId 
-   * @param {object} params 
-   * @param {string} params.warehouseId 
-   * @param {string} params.saleId 
-   * @param {Array} params.items 
-   * @param {string} actorUserId 
+   * 1. Get Store Stock Balance
    */
-  static async deductSaleStock(organizationId, { warehouseId, saleId, items }, actorUserId) {
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return [];
+  static async getStoreBalance(storeIdOrObj, maybeProductId, variantId = null) {
+    let storeId = storeIdOrObj;
+    let productId = maybeProductId;
+    let vId = variantId;
+
+    if (typeof storeIdOrObj === 'object' && storeIdOrObj !== null) {
+      storeId = storeIdOrObj.storeId || storeIdOrObj.store_id;
+      productId = storeIdOrObj.productId || storeIdOrObj.product_id;
+      vId = storeIdOrObj.variantId || storeIdOrObj.variant_id || null;
     }
 
-    // 1. Validation & Pre-locking Pass:
-    // Lock all items first and verify available stock.
-    // If ANY item has insufficient stock, throw ValidationError before updating any balances.
-    const lockedStockMap = {};
-    for (const item of items) {
-      const qty = Number(item.quantity || 0);
-      if (qty <= 0) continue;
-      const productId = item.productId || item.product_id;
-      const variantId = item.variantId || item.variant_id || null;
-
-      if (!productId) {
-        throw new ValidationError("Product ID is required for each sale item.");
+    const pool = getPostgresPool();
+    const client = await pool.connect();
+    try {
+      let query;
+      let params;
+      if (vId) {
+        query = `SELECT stock FROM public.store_inventory WHERE store_id = $1 AND product_id = $2 AND variant_id = $3`;
+        params = [storeId, productId, vId];
+      } else {
+        query = `SELECT stock FROM public.store_inventory WHERE store_id = $1 AND product_id = $2 AND variant_id IS NULL`;
+        params = [storeId, productId];
       }
-
-      const lockKey = `${productId}:${variantId || 'null'}`;
-      let stock = lockedStockMap[lockKey];
-      if (!stock) {
-        stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
-        if (!stock) {
-          throw new ValidationError(`Warehouse stock record not found for product ${productId}.`);
-        }
-        lockedStockMap[lockKey] = {
-          ...stock,
-          on_hand: Number(stock.on_hand),
-          reserved: Number(stock.reserved),
-          available: Number(stock.available)
-        };
-      }
-
-      if (lockedStockMap[lockKey].available < qty || lockedStockMap[lockKey].on_hand < qty) {
-        throw new ValidationError(`Insufficient stock for product ${productId}. Available: ${lockedStockMap[lockKey].available}, Requested: ${qty}`);
-      }
-
-      // Decrement in-memory accumulator to handle multiple lines of the same product in a single cart
-      lockedStockMap[lockKey].available -= qty;
-      lockedStockMap[lockKey].on_hand -= qty;
+      const res = await client.query(query, params);
+      return res.rows.length > 0 ? Number(res.rows[0].stock) : 0;
+    } finally {
+      client.release();
     }
-
-    // 2. Deduction and Movement Pass:
-    const deductionResults = [];
-    for (const item of items) {
-      const qty = Number(item.quantity || 0);
-      if (qty <= 0) continue;
-      const productId = item.productId || item.product_id;
-      const variantId = item.variantId || item.variant_id || null;
-      const lockKey = `${productId}:${variantId || 'null'}`;
-      const stock = lockedStockMap[lockKey];
-
-      // Batch allocation (FEFO / specified batch)
-      let batchId = item.batchId || item.batch_id || null;
-      if (!batchId) {
-        try {
-          const allocations = await BatchSelectionEngine.selectBatches({
-            organizationId,
-            productId,
-            warehouseId,
-            quantityToFulfill: qty
-          });
-          if (allocations && allocations.length > 0) {
-            batchId = allocations[0].batchId;
-          }
-        } catch (selErr) {
-          console.warn(`[StockService] Batch auto-selection notice: ${selErr.message}`);
-        }
-      }
-
-      // If batchId is resolved, deduct quantity from batch if batch exists in DB
-      if (batchId) {
-        try {
-          const { data: batch } = await adminSupabase
-            .from("inventory_batches")
-            .select("id, stock, purchase_cost, cost_price")
-            .eq("id", batchId)
-            .maybeSingle();
-
-          if (batch && typeof batch.stock === 'number') {
-            const newBatchStock = Math.max(0, batch.stock - qty);
-            await adminSupabase
-              .from("inventory_batches")
-              .update({
-                stock: newBatchStock,
-                updated_at: new Date().toISOString()
-              })
-              .eq("id", batchId);
-          }
-        } catch (bErr) {
-          console.warn(`[StockService] Batch update warning for ${batchId}:`, bErr.message);
-        }
-      }
-
-      // Update warehouse stock in database
-      const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
-        on_hand: stock.on_hand,
-        available: stock.available
-      });
-
-      // Create immutable inventory movement record
-      const unitCost = Number(item.cost_price || item.costPrice || 0);
-      const movement = await StockRepository.createMovement({
-        organization_id: organizationId,
-        warehouse_id: warehouseId,
-        product_id: productId,
-        variant_id: variantId,
-        batch_id: batchId,
-        quantity: -qty,
-        movement_type: "sale",
-        reference_type: "sales",
-        reference_id: saleId,
-        unit_cost: unitCost,
-        total_cost: unitCost * qty,
-        valuation_method: "FIFO",
-        created_by: actorUserId
-      });
-
-      publisher.publish("inventory.movement.created", { id: movement.id, organizationId });
-      publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: stock.on_hand });
-
-      deductionResults.push({ stock: updatedStock, movement, batchId });
-    }
-
-    return deductionResults;
   }
 
   /**
-   * Atomically receives stock from a Purchase Order.
-   * Acquires SELECT FOR UPDATE locks on warehouse_stock, creates/updates inventory_batches,
-   * increments warehouse_stock on_hand and available, and records immutable inward inventory_movements.
-   * 
-   * @param {string} organizationId 
-   * @param {object} params 
-   * @param {string} params.warehouseId 
-   * @param {string} params.purchaseOrderId 
-   * @param {string} params.orderNo 
-   * @param {Array} params.items 
-   * @param {string} actorUserId 
+   * 2. Atomic Restock with Batch Creation and Movement Logging
+   */
+  static async restockItem({ organizationId, storeId, productId, variantId = null, quantity, costPrice = 0, sellingPrice = 0, wholesalePrice = 0, batchName = null, userId = null }) {
+    const qty = Number(quantity);
+    if (!qty || qty <= 0) {
+      throw new ValidationError("Restock quantity must be greater than zero.");
+    }
+
+    const pool = getPostgresPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Verify product exists and belongs to organization
+      const prodRes = await client.query(
+        `SELECT id, name, sku, stock, price, cost_price, store_id FROM public.inventory WHERE id = $1 AND organization_id = $2 FOR UPDATE`,
+        [productId, organizationId]
+      );
+      if (prodRes.rows.length === 0) {
+        throw new NotFoundError("Product not found in this organization.");
+      }
+      const product = prodRes.rows[0];
+
+      // Resolve storeId
+      const targetStoreId = storeId || product.store_id;
+      if (!targetStoreId) {
+        throw new ValidationError("Store ID is required for restocking.");
+      }
+
+      // 1. Lock and update store_inventory
+      let storeRes;
+      if (variantId) {
+        storeRes = await client.query(`
+          INSERT INTO public.store_inventory (organization_id, store_id, product_id, variant_id, stock, low_stock_threshold)
+          VALUES ($1, $2, $3, $4, $5, 10)
+          ON CONFLICT (store_id, product_id, variant_id) WHERE variant_id IS NOT NULL
+          DO UPDATE SET stock = store_inventory.stock + EXCLUDED.stock, updated_at = NOW()
+          RETURNING stock
+        `, [organizationId, targetStoreId, productId, variantId, qty]);
+      } else {
+        storeRes = await client.query(`
+          INSERT INTO public.store_inventory (organization_id, store_id, product_id, stock, low_stock_threshold)
+          VALUES ($1, $2, $3, $4, 10)
+          ON CONFLICT (store_id, product_id) WHERE variant_id IS NULL
+          DO UPDATE SET stock = store_inventory.stock + EXCLUDED.stock, updated_at = NOW()
+          RETURNING stock
+        `, [organizationId, targetStoreId, productId, qty]);
+      }
+      const newStoreStock = Number(storeRes.rows[0].stock);
+
+      // 2. Update master inventory.stock
+      await client.query(
+        `UPDATE public.inventory SET stock = stock + $1, updated_at = NOW() WHERE id = $2`,
+        [qty, productId]
+      );
+
+      // 3. If variant, update product_variants.stock
+      if (variantId) {
+        await client.query(
+          `UPDATE public.product_variants SET stock = stock + $1, updated_at = NOW() WHERE id = $2`,
+          [qty, variantId]
+        );
+      }
+
+      // 4. Create batch record
+      const finalCost = Number(costPrice || product.cost_price || 0);
+      const finalSelling = Number(sellingPrice || product.price || 0);
+      const finalWholesale = Number(wholesalePrice || 0);
+      const name = batchName || `Restock ${new Date().toLocaleDateString('en-IN')}`;
+
+      const batchRes = await client.query(`
+        INSERT INTO public.inventory_batches (inventory_id, store_id, variant_id, batch_name, sku_variant, cost_price, selling_price, wholesale_price, stock)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING *
+      `, [productId, targetStoreId, variantId, name, product.sku, finalCost, finalSelling, finalWholesale, qty]);
+      const createdBatch = batchRes.rows[0];
+
+      // 5. Create immutable stock movement record
+      await client.query(`
+        INSERT INTO public.stock_movements (organization_id, store_id, product_id, variant_id, batch_id, quantity_change, balance_after, movement_type, reason, reference_type, reference_id, user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [organizationId, targetStoreId, productId, variantId, createdBatch.id, qty, newStoreStock, 'RESTOCK', name, 'batches', String(createdBatch.id), userId]);
+
+      await client.query("COMMIT");
+
+      publisher.publish("inventory.restocked", { productId, variantId, storeId: targetStoreId, quantity: qty });
+
+      return {
+        success: true,
+        message: `Successfully restocked ${qty} units.`,
+        newStoreStock,
+        newStock: newStoreStock,
+        batch: createdBatch
+      };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 3. Atomic Stock Adjustment (Preventing Negative Stock)
+   */
+  static async adjustStock({ organizationId, storeId, productId, variantId = null, quantity, adjustmentType = 'decrease', reason = 'Damaged Goods', remarks = '', batchId = null, userId = null }) {
+    const qty = Number(quantity);
+    if (!qty || qty <= 0) {
+      throw new ValidationError("Adjustment quantity must be greater than zero.");
+    }
+
+    const pool = getPostgresPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Verify product
+      const prodRes = await client.query(
+        `SELECT id, name, sku, stock, store_id FROM public.inventory WHERE id = $1 AND organization_id = $2 FOR UPDATE`,
+        [productId, organizationId]
+      );
+      if (prodRes.rows.length === 0) {
+        throw new NotFoundError("Product not found in this organization.");
+      }
+      const product = prodRes.rows[0];
+      const targetStoreId = storeId || product.store_id;
+
+      // Lock store_inventory
+      let storeInvRes;
+      if (variantId) {
+        storeInvRes = await client.query(
+          `SELECT stock FROM public.store_inventory WHERE store_id = $1 AND product_id = $2 AND variant_id = $3 FOR UPDATE`,
+          [targetStoreId, productId, variantId]
+        );
+      } else {
+        storeInvRes = await client.query(
+          `SELECT stock FROM public.store_inventory WHERE store_id = $1 AND product_id = $2 AND variant_id IS NULL FOR UPDATE`,
+          [targetStoreId, productId]
+        );
+      }
+
+      let currentStoreStock = storeInvRes.rows.length > 0 ? Number(storeInvRes.rows[0].stock) : Number(product.stock || 0);
+
+      // Bounds check: Never allow negative stock
+      if (adjustmentType === 'decrease' && currentStoreStock < qty) {
+        throw new ValidationError(`Insufficient stock for adjustment. Current on-hand: ${currentStoreStock}, requested deduction: ${qty}.`);
+      }
+
+      const delta = adjustmentType === 'decrease' ? -qty : qty;
+      const newStoreStock = currentStoreStock + delta;
+
+      // Update store_inventory
+      if (variantId) {
+        await client.query(`
+          INSERT INTO public.store_inventory (organization_id, store_id, product_id, variant_id, stock, low_stock_threshold)
+          VALUES ($1, $2, $3, $4, $5, 10)
+          ON CONFLICT (store_id, product_id, variant_id) WHERE variant_id IS NOT NULL
+          DO UPDATE SET stock = EXCLUDED.stock, updated_at = NOW()
+        `, [organizationId, targetStoreId, productId, variantId, newStoreStock]);
+      } else {
+        await client.query(`
+          INSERT INTO public.store_inventory (organization_id, store_id, product_id, stock, low_stock_threshold)
+          VALUES ($1, $2, $3, $4, 10)
+          ON CONFLICT (store_id, product_id) WHERE variant_id IS NULL
+          DO UPDATE SET stock = EXCLUDED.stock, updated_at = NOW()
+        `, [organizationId, targetStoreId, productId, newStoreStock]);
+      }
+
+      // Update master inventory.stock
+      await client.query(
+        `UPDATE public.inventory SET stock = GREATEST(0, stock + $1), updated_at = NOW() WHERE id = $2`,
+        [delta, productId]
+      );
+
+      // Update variant stock if applicable
+      if (variantId) {
+        await client.query(
+          `UPDATE public.product_variants SET stock = GREATEST(0, stock + $1), updated_at = NOW() WHERE id = $2`,
+          [delta, variantId]
+        );
+      }
+
+      // Update batch stock if batch specified
+      if (batchId) {
+        await client.query(
+          `UPDATE public.inventory_batches SET stock = GREATEST(0, stock + $1), updated_at = NOW() WHERE id = $2 AND inventory_id = $3`,
+          [delta, batchId, productId]
+        );
+      }
+
+      // Record immutable stock movement
+      await client.query(`
+        INSERT INTO public.stock_movements (organization_id, store_id, product_id, variant_id, batch_id, quantity_change, balance_after, movement_type, reason, reference_type, reference_id, user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [organizationId, targetStoreId, productId, variantId, batchId || null, delta, newStoreStock, 'ADJUSTMENT', `${reason}${remarks ? ' - ' + remarks : ''}`, 'adjustments', null, userId]);
+
+      await client.query("COMMIT");
+
+      return {
+        success: true,
+        message: `Stock adjusted by ${delta > 0 ? '+' + delta : delta} units.`,
+        previousStock: currentStoreStock,
+        newStock: newStoreStock
+      };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 4. Atomic Multi-Store Transfer (Zero Stock Disappearance)
+   */
+  static async transferStock({ organizationId, sourceStoreId, destinationStoreId, productId, variantId = null, quantity, remarks = '', userId = null }) {
+    const qty = Number(quantity);
+    if (!qty || qty <= 0) {
+      throw new ValidationError("Transfer quantity must be greater than zero.");
+    }
+    if (!sourceStoreId || !destinationStoreId) {
+      throw new ValidationError("Source and destination stores are required.");
+    }
+    if (sourceStoreId === destinationStoreId) {
+      throw new ValidationError("Source and destination stores cannot be the same.");
+    }
+
+    const pool = getPostgresPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // 1. Verify both stores belong to this business / user
+      const storesRes = await client.query(
+        `SELECT id, name FROM public.stores WHERE id = ANY($1::uuid[]) AND is_active = true`,
+        [[sourceStoreId, destinationStoreId]]
+      );
+      if (storesRes.rows.length < 2) {
+        throw new ValidationError("One or both specified store branches are invalid or inactive.");
+      }
+      const sourceStore = storesRes.rows.find(s => s.id === sourceStoreId);
+      const destStore = storesRes.rows.find(s => s.id === destinationStoreId);
+
+      // 2. Lock source store inventory
+      let srcRes;
+      if (variantId) {
+        srcRes = await client.query(
+          `SELECT stock FROM public.store_inventory WHERE store_id = $1 AND product_id = $2 AND variant_id = $3 FOR UPDATE`,
+          [sourceStoreId, productId, variantId]
+        );
+      } else {
+        srcRes = await client.query(
+          `SELECT stock FROM public.store_inventory WHERE store_id = $1 AND product_id = $2 AND variant_id IS NULL FOR UPDATE`,
+          [sourceStoreId, productId]
+        );
+      }
+
+      if (srcRes.rows.length === 0 || Number(srcRes.rows[0].stock) < qty) {
+        const available = srcRes.rows.length > 0 ? Number(srcRes.rows[0].stock) : 0;
+        throw new ValidationError(`Insufficient stock at source store '${sourceStore.name}'. Available: ${available}, Requested: ${qty}.`);
+      }
+
+      const newSourceStock = Number(srcRes.rows[0].stock) - qty;
+
+      // 3. Decrement source store stock
+      if (variantId) {
+        await client.query(
+          `UPDATE public.store_inventory SET stock = $1, updated_at = NOW() WHERE store_id = $2 AND product_id = $3 AND variant_id = $4`,
+          [newSourceStock, sourceStoreId, productId, variantId]
+        );
+      } else {
+        await client.query(
+          `UPDATE public.store_inventory SET stock = $1, updated_at = NOW() WHERE store_id = $2 AND product_id = $3 AND variant_id IS NULL`,
+          [newSourceStock, sourceStoreId, productId]
+        );
+      }
+
+      // 4. Increment destination store stock (upsert)
+      let destRes;
+      if (variantId) {
+        destRes = await client.query(`
+          INSERT INTO public.store_inventory (organization_id, store_id, product_id, variant_id, stock, low_stock_threshold)
+          VALUES ($1, $2, $3, $4, $5, 10)
+          ON CONFLICT (store_id, product_id, variant_id) WHERE variant_id IS NOT NULL
+          DO UPDATE SET stock = store_inventory.stock + EXCLUDED.stock, updated_at = NOW()
+          RETURNING stock
+        `, [organizationId, destinationStoreId, productId, variantId, qty]);
+      } else {
+        destRes = await client.query(`
+          INSERT INTO public.store_inventory (organization_id, store_id, product_id, stock, low_stock_threshold)
+          VALUES ($1, $2, $3, $4, 10)
+          ON CONFLICT (store_id, product_id) WHERE variant_id IS NULL
+          DO UPDATE SET stock = store_inventory.stock + EXCLUDED.stock, updated_at = NOW()
+          RETURNING stock
+        `, [organizationId, destinationStoreId, productId, qty]);
+      }
+      const newDestStock = Number(destRes.rows[0].stock);
+
+      const transferRef = `TRF-${Date.now()}`;
+
+      // 5. Record dual stock movements
+      // Outward from source
+      await client.query(`
+        INSERT INTO public.stock_movements (organization_id, store_id, product_id, variant_id, quantity_change, balance_after, movement_type, reason, reference_type, reference_id, user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [organizationId, sourceStoreId, productId, variantId, -qty, newSourceStock, 'TRANSFER_OUT', `Transferred to ${destStore.name}${remarks ? ': ' + remarks : ''}`, 'transfers', transferRef, userId]);
+
+      // Inward to destination
+      await client.query(`
+        INSERT INTO public.stock_movements (organization_id, store_id, product_id, variant_id, quantity_change, balance_after, movement_type, reason, reference_type, reference_id, user_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [organizationId, destinationStoreId, productId, variantId, qty, newDestStock, 'TRANSFER_IN', `Received from ${sourceStore.name}${remarks ? ': ' + remarks : ''}`, 'transfers', transferRef, userId]);
+
+      await client.query("COMMIT");
+
+      return {
+        success: true,
+        message: `Successfully transferred ${qty} units from '${sourceStore.name}' to '${destStore.name}'.`,
+        transferRef,
+        sourceStock: newSourceStock,
+        sourceRemainingStock: newSourceStock,
+        destinationStock: newDestStock,
+        destinationNewStock: newDestStock
+      };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 5. Get Immutable Stock Movement History
+   */
+  static async getMovements({ organizationId, storeId = null, productId = null, limit = 50, offset = 0 }) {
+    const pool = getPostgresPool();
+    const client = await pool.connect();
+    try {
+      let whereClause = `WHERE sm.organization_id = $1`;
+      const params = [organizationId];
+      let paramIdx = 2;
+
+      if (storeId) {
+        whereClause += ` AND sm.store_id = $${paramIdx++}`;
+        params.push(storeId);
+      }
+      if (productId) {
+        whereClause += ` AND sm.product_id = $${paramIdx++}`;
+        params.push(productId);
+      }
+
+      const limitIdx = paramIdx++;
+      params.push(Number(limit) || 50);
+
+      const offsetIdx = paramIdx++;
+      params.push(Number(offset) || 0);
+
+      const query = `
+        SELECT 
+          sm.*,
+          i.name as product_name,
+          i.sku as product_sku,
+          st.name as store_name,
+          pv.name as variant_name
+        FROM public.stock_movements sm
+        LEFT JOIN public.inventory i ON sm.product_id = i.id
+        LEFT JOIN public.stores st ON sm.store_id = st.id
+        LEFT JOIN public.product_variants pv ON sm.variant_id = pv.id
+        ${whereClause}
+        ORDER BY sm.created_at DESC
+        LIMIT $${limitIdx} OFFSET $${offsetIdx}
+      `;
+
+      const res = await client.query(query, params);
+      return res.rows;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 6. Transactional CSV Bulk Import (Tenant-Safe)
+   */
+  static async bulkImport({ organizationId, storeId = null, userId, products }) {
+    if (!products || !Array.isArray(products) || products.length === 0) {
+      throw new ValidationError("Products array is required for bulk import.");
+    }
+
+    const pool = getPostgresPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Resolve storeId
+      let targetStoreId = storeId;
+      if (!targetStoreId) {
+        const storeCheck = await client.query(
+          `SELECT id FROM public.stores WHERE user_id = $1 AND is_active = true ORDER BY created_at ASC LIMIT 1`,
+          [userId]
+        );
+        targetStoreId = storeCheck.rows[0]?.id || null;
+      }
+
+      const imported = [];
+      for (const p of products) {
+        const name = String(p.name || 'Unnamed Product').trim();
+        const sku = p.sku ? String(p.sku).trim() : `SKU-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+        const price = Number(p.price || p.sellingPrice || 0);
+        const costPrice = Number(p.cost_price || p.costPrice || 0);
+        const stock = Number(p.stock || 0);
+        const units = p.units || p.unit || 'pcs';
+        const company = p.company || p.category || 'General';
+        const gstPercent = Number(p.gst_percent || 0);
+
+        // Check if SKU exists in org
+        const existRes = await client.query(
+          `SELECT id FROM public.inventory WHERE sku = $1 AND organization_id = $2`,
+          [sku, organizationId]
+        );
+        let prodId;
+        if (existRes.rows.length > 0) {
+          prodId = existRes.rows[0].id;
+          // Update existing stock
+          if (stock > 0) {
+            await client.query(
+              `UPDATE public.inventory SET stock = stock + $1, price = $2, selling_price = $2, cost_price = $3 WHERE id = $4`,
+              [stock, price, costPrice, prodId]
+            );
+          }
+        } else {
+          // Insert new product
+          const insRes = await client.query(`
+            INSERT INTO public.inventory (
+              organization_id, user_id, store_id, name, sku, company, 
+              price, selling_price, cost_price, stock, units, gst_percent, status
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9, $10, $11, 'active')
+            RETURNING id, name, sku, stock
+          `, [organizationId, userId, targetStoreId, name, sku, company, price, costPrice, stock, units, gstPercent]);
+          prodId = insRes.rows[0].id;
+          imported.push(insRes.rows[0]);
+        }
+
+        // Store inventory and batch if stock > 0
+        if (stock > 0 && targetStoreId) {
+          await client.query(`
+            INSERT INTO public.store_inventory (organization_id, store_id, product_id, stock, low_stock_threshold)
+            VALUES ($1, $2, $3, $4, 10)
+            ON CONFLICT (store_id, product_id) WHERE variant_id IS NULL
+            DO UPDATE SET stock = store_inventory.stock + EXCLUDED.stock, updated_at = NOW()
+          `, [organizationId, targetStoreId, prodId, stock]);
+
+          const bRes = await client.query(`
+            INSERT INTO public.inventory_batches (inventory_id, store_id, batch_name, sku_variant, cost_price, selling_price, stock)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id
+          `, [prodId, targetStoreId, 'Opening Stock', sku, costPrice, price, stock]);
+          const batchId = bRes.rows[0]?.id;
+
+          await client.query(`
+            INSERT INTO public.stock_movements (organization_id, store_id, product_id, batch_id, quantity_change, balance_after, movement_type, reason, user_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `, [organizationId, targetStoreId, prodId, batchId, stock, stock, 'OPENING_STOCK', 'Bulk CSV Opening Stock', userId]);
+        }
+      }
+
+      await client.query("COMMIT");
+      return {
+        success: true,
+        message: `Successfully imported ${imported.length} products.`,
+        count: imported.length,
+        data: imported
+      };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 7. Purchase Order Stock Inward Receiving
    */
   static async receivePurchaseOrderStock(organizationId, { warehouseId, purchaseOrderId, orderNo, items }, actorUserId) {
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return [];
-    }
+    if (!items || !Array.isArray(items) || items.length === 0) return [];
 
-    // 1. Pre-validation Pass: Validate all items before making any modifications
-    for (const item of items) {
-      const qty = Number(item.quantity || 0);
-      if (qty <= 0) {
-        throw new ValidationError(`Received quantity must be greater than zero for all items.`);
+    const pool = getPostgresPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Find store corresponding to warehouseId or fallback to actorUserId's store
+      let storeId = null;
+      if (warehouseId) {
+        const whRes = await client.query(`SELECT id FROM public.stores WHERE id = $1`, [warehouseId]);
+        if (whRes.rows.length > 0) storeId = warehouseId;
       }
-      const productId = item.productId || item.product_id || item.inventory_id;
-      if (!productId) {
-        throw new ValidationError("Product ID is required for each received item.");
-      }
-    }
-
-    // 2. Receipt and Inward Stock Pass:
-    const receiptResults = [];
-    for (const item of items) {
-      const qty = Number(item.quantity || 0);
-      const productId = item.productId || item.product_id || item.inventory_id;
-      const variantId = item.variantId || item.variant_id || null;
-      const unitCost = Number(item.cost_price || item.costPrice || item.purchase_cost || item.unit_price || item.unitPrice || 0);
-      const sellingPrice = Number(item.selling_price || item.sellingPrice || item.price || 0);
-      const wholesalePrice = Number(item.wholesale_price || item.wholesalePrice || 0);
-      const batchNumber = item.batch_number || item.batchNumber || `PO-${orderNo || Date.now()}-${String(productId).slice(0, 8)}`;
-      const expiryDate = item.expiry_date || item.expiryDate || null;
-
-      // Lock warehouse stock row
-      const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
-
-      // Create new inventory batch
-      let batchId = null;
-      try {
-        const { data: newBatch, error: bErr } = await adminSupabase
-          .from("inventory_batches")
-          .insert({
-            organization_id: organizationId,
-            inventory_id: productId,
-            product_id: productId,
-            variant_id: variantId,
-            warehouse_id: warehouseId,
-            batch_name: `PO #${orderNo || 'Receipt'} - ${batchNumber}`,
-            batch_number: batchNumber,
-            cost_price: unitCost,
-            purchase_cost: unitCost,
-            selling_price: sellingPrice,
-            wholesale_price: wholesalePrice,
-            expiry_date: expiryDate,
-            stock: qty,
-            created_by: actorUserId
-          })
-          .select()
-          .single();
-
-        if (!bErr && newBatch) {
-          batchId = newBatch.id;
-          publisher.publish("inventory.batch.created", { id: batchId, organizationId, batchNumber });
-        }
-      } catch (bCatchErr) {
-        console.warn(`[StockService] Batch creation warning for product ${productId}:`, bCatchErr.message);
+      if (!storeId) {
+        const sRes = await client.query(`SELECT id FROM public.stores WHERE user_id = $1 AND is_active = true LIMIT 1`, [actorUserId]);
+        storeId = sRes.rows[0]?.id || null;
       }
 
-      // Update warehouse stock balances
-      const newOnHand = Number(stock.on_hand) + qty;
-      const newAvailable = newOnHand - Number(stock.reserved);
+      for (const item of items) {
+        const qty = Number(item.quantity || 0);
+        const productId = item.productId || item.product_id || item.inventory_id;
+        const variantId = item.variantId || item.variant_id || null;
+        const unitCost = Number(item.cost_price || item.costPrice || item.purchase_cost || item.unit_price || item.unitPrice || 0);
+        const sellingPrice = Number(item.selling_price || item.sellingPrice || item.price || 0);
+        const batchNumber = item.batch_number || item.batchNumber || `PO-${orderNo || Date.now()}-${String(productId).slice(0, 8)}`;
 
-      const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
-        on_hand: newOnHand,
-        available: newAvailable
-      });
+        if (qty > 0 && productId) {
+          // 1. Update inventory.stock
+          await client.query(
+            `UPDATE public.inventory SET stock = stock + $1, cost_price = $2, updated_at = NOW() WHERE id = $3`,
+            [qty, unitCost, productId]
+          );
 
-      // Create immutable inward inventory movement record
-      const movement = await StockRepository.createMovement({
-        organization_id: organizationId,
-        warehouse_id: warehouseId,
-        product_id: productId,
-        variant_id: variantId,
-        batch_id: batchId,
-        quantity: qty, // Positive for inward movement
-        movement_type: "purchase",
-        reference_type: "purchase_orders",
-        reference_id: purchaseOrderId,
-        unit_cost: unitCost,
-        total_cost: unitCost * qty,
-        valuation_method: "FIFO",
-        created_by: actorUserId
-      });
-
-      // Update legacy inventory master record for backward compatibility
-      try {
-        const { data: legacyProd } = await adminSupabase
-          .from("inventory")
-          .select("id, stock, cost_price")
-          .eq("id", productId)
-          .maybeSingle();
-
-        if (legacyProd) {
-          const currentLegacyStock = Number(legacyProd.stock || 0);
-          await adminSupabase
-            .from("inventory")
-            .update({
-              stock: currentLegacyStock + qty,
-              cost_price: unitCost > 0 ? unitCost : legacyProd.cost_price,
-              updated_at: new Date().toISOString()
-            })
-            .eq("id", productId);
-        }
-      } catch {}
-
-      publisher.publish("inventory.movement.created", { id: movement.id, organizationId });
-      publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: newOnHand });
-
-      receiptResults.push({ stock: updatedStock, movement, batchId });
-    }
-
-    return receiptResults;
-  }
-
-  /**
-   * Atomically restores stock for returned sales items.
-   * Acquires SELECT FOR UPDATE locks on warehouse_stock, restores batch stock if batch exists,
-   * increments warehouse_stock on_hand and available, and records immutable sales_return inventory_movements.
-   * 
-   * @param {string} organizationId 
-   * @param {object} params 
-   * @param {string} params.warehouseId 
-   * @param {string} params.saleId 
-   * @param {string} params.returnId 
-   * @param {Array} params.items 
-   * @param {string} actorUserId 
-   */
-  static async returnSaleStock(organizationId, { warehouseId, saleId, returnId, items }, actorUserId) {
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return [];
-    }
-
-    // 1. Pre-validation Pass: Validate all items before modifying any balances
-    for (const item of items) {
-      const qty = Number(item.quantity || 0);
-      if (qty <= 0) {
-        throw new ValidationError("Return quantity must be greater than zero for all items.");
-      }
-      const productId = item.productId || item.product_id || item.inventory_id;
-      if (!productId) {
-        throw new ValidationError("Product ID is required for each returned item.");
-      }
-    }
-
-    // 2. Return and Stock Restoration Pass:
-    const returnResults = [];
-    for (const item of items) {
-      const qty = Number(item.quantity || 0);
-      const productId = item.productId || item.product_id || item.inventory_id;
-      const variantId = item.variantId || item.variant_id || null;
-      const batchId = item.batchId || item.batch_id || null;
-      const unitCost = Number(item.cost_price || item.costPrice || item.purchase_cost || 0);
-
-      // Lock warehouse stock row
-      const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
-
-      // If batchId is provided, restore quantity to batch
-      if (batchId) {
-        try {
-          const { data: batch } = await adminSupabase
-            .from("inventory_batches")
-            .select("id, stock")
-            .eq("id", batchId)
-            .maybeSingle();
-
-          if (batch && typeof batch.stock === 'number') {
-            await adminSupabase
-              .from("inventory_batches")
-              .update({
-                stock: batch.stock + qty,
-                updated_at: new Date().toISOString()
-              })
-              .eq("id", batchId);
+          // 2. Update store_inventory
+          let storeStock = qty;
+          if (storeId) {
+            let sRes;
+            if (variantId) {
+              sRes = await client.query(`
+                INSERT INTO public.store_inventory (organization_id, store_id, product_id, variant_id, stock, low_stock_threshold)
+                VALUES ($1, $2, $3, $4, $5, 10)
+                ON CONFLICT (store_id, product_id, variant_id) WHERE variant_id IS NOT NULL
+                DO UPDATE SET stock = store_inventory.stock + EXCLUDED.stock, updated_at = NOW()
+                RETURNING stock
+              `, [organizationId, storeId, productId, variantId, qty]);
+            } else {
+              sRes = await client.query(`
+                INSERT INTO public.store_inventory (organization_id, store_id, product_id, stock, low_stock_threshold)
+                VALUES ($1, $2, $3, $4, 10)
+                ON CONFLICT (store_id, product_id) WHERE variant_id IS NULL
+                DO UPDATE SET stock = store_inventory.stock + EXCLUDED.stock, updated_at = NOW()
+                RETURNING stock
+              `, [organizationId, storeId, productId, qty]);
+            }
+            storeStock = Number(sRes.rows[0]?.stock || qty);
           }
-        } catch (bErr) {
-          console.warn(`[StockService] Batch return restoration warning for batch ${batchId}:`, bErr.message);
+
+          // 3. Create batch
+          const bRes = await client.query(`
+            INSERT INTO public.inventory_batches (inventory_id, store_id, variant_id, batch_name, sku_variant, cost_price, selling_price, stock)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id
+          `, [productId, storeId, variantId, `PO #${orderNo || 'Receipt'} - ${batchNumber}`, batchNumber, unitCost, sellingPrice, qty]);
+          const batchId = bRes.rows[0]?.id;
+
+          // 4. Record stock movement
+          await client.query(`
+            INSERT INTO public.stock_movements (organization_id, store_id, product_id, variant_id, batch_id, quantity_change, balance_after, movement_type, reason, reference_type, reference_id, user_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `, [organizationId, storeId, productId, variantId, batchId, qty, storeStock, 'RESTOCK', `PO Received #${orderNo || ''}`, 'purchase_orders', String(purchaseOrderId || ''), actorUserId]);
         }
       }
 
-      // Update warehouse stock balances (on_hand + qty, available + qty)
-      const newOnHand = Number(stock.on_hand) + qty;
-      const newAvailable = newOnHand - Number(stock.reserved);
-
-      const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
-        on_hand: newOnHand,
-        available: newAvailable
-      });
-
-      // Create immutable sales_return inventory movement record
-      const movement = await StockRepository.createMovement({
-        organization_id: organizationId,
-        warehouse_id: warehouseId,
-        product_id: productId,
-        variant_id: variantId,
-        batch_id: batchId,
-        quantity: qty, // Positive for inward return
-        movement_type: "sales_return",
-        reference_type: "sales_returns",
-        reference_id: returnId || saleId,
-        unit_cost: unitCost,
-        total_cost: unitCost * qty,
-        valuation_method: "FIFO",
-        created_by: actorUserId
-      });
-
-      // Update legacy inventory master record for backward compatibility
-      try {
-        const { data: legacyProd } = await adminSupabase
-          .from("inventory")
-          .select("id, stock")
-          .eq("id", productId)
-          .maybeSingle();
-
-        if (legacyProd) {
-          const currentLegacyStock = Number(legacyProd.stock || 0);
-          await adminSupabase
-            .from("inventory")
-            .update({
-              stock: currentLegacyStock + qty,
-              updated_at: new Date().toISOString()
-            })
-            .eq("id", productId);
-        }
-      } catch {}
-
-      publisher.publish("inventory.movement.created", { id: movement.id, organizationId });
-      publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: newOnHand });
-
-      returnResults.push({ stock: updatedStock, movement, batchId });
+      await client.query("COMMIT");
+      return items;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
     }
-
-    return returnResults;
-  }
-
-  /**
-   * Atomically receives stock from a B2B Trade Invoice Import.
-   * Acquires SELECT FOR UPDATE locks on warehouse_stock, creates/updates inventory_batches,
-   * increments warehouse_stock on_hand and available, and records immutable inward inventory_movements.
-   * 
-   * @param {string} organizationId 
-   * @param {object} params 
-   * @param {string} params.warehouseId 
-   * @param {string} params.transactionId 
-   * @param {string} params.importId 
-   * @param {string} params.invoiceNo 
-   * @param {Array} params.items 
-   * @param {string} actorUserId 
-   */
-  static async receiveTradeImportStock(organizationId, { warehouseId, transactionId, importId, invoiceNo, items }, actorUserId) {
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return [];
-    }
-
-    // 1. Pre-validation Pass: Validate all items before modifying any balances
-    for (const item of items) {
-      const qty = Number(item.quantity || 0);
-      if (qty <= 0) {
-        throw new ValidationError("Import quantity must be greater than zero for all items.");
-      }
-      const productId = item.productId || item.product_id || item.inventory_id;
-      if (!productId) {
-        throw new ValidationError("Product ID is required for each imported item.");
-      }
-    }
-
-    // 2. Receipt and Inward Stock Pass:
-    const receiptResults = [];
-    for (const item of items) {
-      const qty = Number(item.quantity || 0);
-      const productId = item.productId || item.product_id || item.inventory_id;
-      const variantId = item.variantId || item.variant_id || null;
-      const unitCost = Number(item.cost_price || item.costPrice || item.purchase_cost || item.purchase_price || item.unit_price || item.unitPrice || 0);
-      const sellingPrice = Number(item.selling_price || item.sellingPrice || item.price || 0);
-      const batchNumber = item.batch_number || item.batchNumber || item.batch_name || `B2B-${invoiceNo || Date.now()}-${String(productId).slice(0, 8)}`;
-      const expiryDate = item.expiry_date || item.expiryDate || null;
-
-      // Lock warehouse stock row
-      const stock = await StockRepository.lockWarehouseStock(organizationId, warehouseId, productId, variantId);
-
-      // Create new inventory batch
-      let batchId = null;
-      try {
-        const { data: newBatch, error: bErr } = await adminSupabase
-          .from("inventory_batches")
-          .insert({
-            organization_id: organizationId,
-            inventory_id: productId,
-            product_id: productId,
-            variant_id: variantId,
-            warehouse_id: warehouseId,
-            batch_name: `B2B #${invoiceNo || 'Import'} - ${batchNumber}`,
-            batch_number: batchNumber,
-            cost_price: unitCost,
-            purchase_cost: unitCost,
-            selling_price: sellingPrice,
-            expiry_date: expiryDate,
-            stock: qty,
-            created_by: actorUserId
-          })
-          .select()
-          .single();
-
-        if (!bErr && newBatch) {
-          batchId = newBatch.id;
-          publisher.publish("inventory.batch.created", { id: batchId, organizationId, batchNumber });
-        }
-      } catch (bCatchErr) {
-        console.warn(`[StockService] Batch creation warning for product ${productId}:`, bCatchErr.message);
-      }
-
-      // Update warehouse stock balances
-      const newOnHand = Number(stock.on_hand) + qty;
-      const newAvailable = newOnHand - Number(stock.reserved);
-
-      const updatedStock = await StockRepository.updateWarehouseStock(stock.id, organizationId, {
-        on_hand: newOnHand,
-        available: newAvailable
-      });
-
-      // Create immutable inward inventory movement record
-      const movement = await StockRepository.createMovement({
-        organization_id: organizationId,
-        warehouse_id: warehouseId,
-        product_id: productId,
-        variant_id: variantId,
-        batch_id: batchId,
-        quantity: qty, // Positive for inward movement
-        movement_type: "purchase",
-        reference_type: "trade_transactions",
-        reference_id: transactionId || importId,
-        unit_cost: unitCost,
-        total_cost: unitCost * qty,
-        valuation_method: "FIFO",
-        created_by: actorUserId
-      });
-
-      // Update legacy inventory master record for backward compatibility
-      try {
-        const { data: legacyProd } = await adminSupabase
-          .from("inventory")
-          .select("id, stock, cost_price")
-          .eq("id", productId)
-          .maybeSingle();
-
-        if (legacyProd) {
-          const currentLegacyStock = Number(legacyProd.stock || 0);
-          await adminSupabase
-            .from("inventory")
-            .update({
-              stock: currentLegacyStock + qty,
-              cost_price: unitCost > 0 ? unitCost : legacyProd.cost_price,
-              price: sellingPrice > 0 ? sellingPrice : legacyProd.price,
-              updated_at: new Date().toISOString()
-            })
-            .eq("id", productId);
-        }
-      } catch {}
-
-      publisher.publish("inventory.movement.created", { id: movement.id, organizationId });
-      publisher.publish("inventory.stock.changed", { productId, warehouseId, organizationId, onHand: newOnHand });
-
-      receiptResults.push({ stock: updatedStock, movement, batchId });
-    }
-
-    return receiptResults;
   }
 }

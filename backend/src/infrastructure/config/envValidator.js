@@ -14,9 +14,10 @@ const envSchema = z.object({
   // Infrastructure
   REDIS_URL: z.string().url('REDIS_URL must be a valid URL (e.g. redis://127.0.0.1:6379)').optional(),
   
-  // AI Provider
-  GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required')
+  // AI Provider (Optional)
+  GEMINI_API_KEY: z.string().optional()
 });
+
 
 export const validateEnv = () => {
   try {
