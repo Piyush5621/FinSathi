@@ -175,13 +175,19 @@ export default function InventoryPage() {
     };
   }, [items]);
 
-  // Categories Extracted
-  const categories = useMemo(() => {
+  // Categories Extracted & Item Counts
+  const { categories, categoryCounts } = useMemo(() => {
     const set = new Set();
+    const counts = {};
     items.forEach(p => {
-      if (p.category) set.add(p.category);
+      const cat = p.category || 'General';
+      set.add(cat);
+      counts[cat] = (counts[cat] || 0) + 1;
     });
-    return ["all", ...Array.from(set)];
+    return {
+      categories: ["all", ...Array.from(set).sort((a, b) => a.localeCompare(b))],
+      categoryCounts: counts
+    };
   }, [items]);
 
   // Filtered & Sorted Catalog
@@ -726,55 +732,82 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* 4. SEARCH, CATEGORIES & COMMAND BAR */}
+      {/* 4. SEARCH, CATEGORY DROPDOWN & SORT COMMAND BAR */}
       <div className="p-3 bg-app-surface border border-app-border rounded-panel shadow-2xs space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
           
           {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-app-text-muted" size={15} />
+          <div className="relative flex-1 min-w-[260px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-app-text-muted pointer-events-none" size={15} />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search by Product Name, SKU, Barcode, or Category (/ or F3)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 rounded-xl bg-app-surface-subtle border border-app-border text-xs font-semibold text-app-text placeholder:text-app-text-muted focus:outline-none focus:border-app-primary transition-colors"
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-app-surface-subtle border border-app-border text-xs font-semibold text-app-text placeholder:text-app-text-muted focus:outline-none focus:border-app-primary focus:ring-1 focus:ring-app-primary transition-all"
             />
             {searchQuery && (
               <button 
+                type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-app-text-muted hover:text-app-text cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-app-text-muted hover:text-app-text cursor-pointer p-0.5"
+                title="Clear Search"
               >
                 <X size={14} />
               </button>
             )}
           </div>
 
-          {/* Sort Dropdown & Mode Toggles */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-1 text-xs">
-              <span className="text-app-text-muted text-[11px] font-semibold hidden md:inline">Sort:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-app-surface-subtle border border-app-border rounded-xl px-2.5 py-1.5 text-xs font-bold text-app-text outline-none focus:border-app-primary"
-              >
-                <option value="name">Name (A-Z)</option>
-                <option value="stock_asc">Lowest Stock First</option>
-                <option value="stock_desc">Highest Stock First</option>
-                <option value="price_desc">Highest Selling Price</option>
-                <option value="valuation_desc">Highest Stock Valuation</option>
-              </select>
+          {/* Controls: Category Dropdown, Sort Dropdown & Mode Toggles */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            
+            {/* Category Dropdown */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-app-text-secondary text-[11px] font-bold hidden sm:inline">Category:</span>
+              <div className="relative">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-app-surface border border-app-border rounded-xl pl-3 pr-8 py-1.5 text-xs font-bold text-app-text outline-none focus:border-app-primary focus:ring-1 focus:ring-app-primary appearance-none cursor-pointer hover:border-app-border-hover transition-colors shadow-2xs"
+                >
+                  <option value="all">All Categories ({items.length})</option>
+                  {categories.filter(c => c !== 'all').map(cat => (
+                    <option key={cat} value={cat}>
+                      {cat} ({categoryCounts[cat] || 0})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-app-text-muted pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-app-text-secondary text-[11px] font-bold hidden sm:inline">Sort:</span>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="bg-app-surface border border-app-border rounded-xl pl-3 pr-8 py-1.5 text-xs font-bold text-app-text outline-none focus:border-app-primary focus:ring-1 focus:ring-app-primary appearance-none cursor-pointer hover:border-app-border-hover transition-colors shadow-2xs"
+                >
+                  <option value="name">Name (A-Z)</option>
+                  <option value="stock_asc">Lowest Stock First</option>
+                  <option value="stock_desc">Highest Stock First</option>
+                  <option value="price_desc">Highest Price</option>
+                  <option value="valuation_desc">Highest Valuation</option>
+                </select>
+                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-app-text-muted pointer-events-none" />
+              </div>
             </div>
 
             {/* View Mode Toggle */}
-            <div className="inline-flex rounded-xl border border-app-border bg-app-surface-subtle p-0.5">
+            <div className="inline-flex rounded-xl border border-app-border bg-app-surface p-0.5 shadow-2xs">
               <button
                 type="button"
                 onClick={() => setViewMode('table')}
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'table' ? 'bg-app-surface text-app-primary shadow-2xs font-bold' : 'text-app-text-muted hover:text-app-text'
+                  viewMode === 'table' ? 'bg-app-primary text-white shadow-2xs font-bold' : 'text-app-text-muted hover:text-app-text'
                 }`}
                 title="Operational Table View"
               >
@@ -784,7 +817,7 @@ export default function InventoryPage() {
                 type="button"
                 onClick={() => setViewMode('grid')}
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'grid' ? 'bg-app-surface text-app-primary shadow-2xs font-bold' : 'text-app-text-muted hover:text-app-text'
+                  viewMode === 'grid' ? 'bg-app-primary text-white shadow-2xs font-bold' : 'text-app-text-muted hover:text-app-text'
                 }`}
                 title="Visual Grid Cards"
               >
@@ -794,51 +827,70 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* Quick Filter Pills (Stock Status & Categories) */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 border-t border-app-border/60">
+        {/* Second Row: Stock Health Status Pills & Active Filter Tags */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-app-border/60">
           
           {/* Stock Health Filter Pills */}
-          <div className="flex items-center gap-1 shrink-0 pr-2 border-r border-app-border">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             {[
-              { id: "all", label: "All Stock" },
-              { id: "instock", label: "In Stock" },
-              { id: "low", label: `Low (${stats.lowStockCount})` },
-              { id: "out", label: `Out (${stats.outOfStockCount})` },
-              { id: "fast", label: "Fast Movers" },
-              { id: "dead", label: "Dead Stock" }
-            ].map(f => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setStockFilter(f.id)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
-                  stockFilter === f.id
-                    ? 'bg-app-primary text-white shadow-2xs'
-                    : 'bg-app-surface-subtle text-app-text-secondary hover:text-app-text hover:bg-app-border/40'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+              { id: "all", label: "All Stock", count: items.length },
+              { id: "instock", label: "In Stock", count: stats.healthyStockCount },
+              { id: "low", label: "Low Stock", count: stats.lowStockCount, badgeColor: "bg-amber-500/20 text-amber-600 dark:text-amber-400" },
+              { id: "out", label: "Out of Stock", count: stats.outOfStockCount, badgeColor: "bg-rose-500/20 text-rose-600 dark:text-rose-400" },
+              { id: "fast", label: "Fast Movers", count: stats.fastMoversCount },
+              { id: "dead", label: "Dead Stock", count: stats.deadStockCount }
+            ].map(f => {
+              const isActive = stockFilter === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setStockFilter(f.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer select-none ${
+                    isActive
+                      ? 'bg-app-primary text-white shadow-xs'
+                      : 'bg-app-surface border border-app-border text-app-text-secondary hover:text-app-text hover:border-app-border-hover'
+                  }`}
+                >
+                  <span>{f.label}</span>
+                  {typeof f.count === 'number' && (
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                      isActive 
+                        ? 'bg-white/20 text-white' 
+                        : (f.badgeColor || 'bg-app-surface-secondary text-app-text-muted')
+                    }`}>
+                      {f.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Category Chips */}
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-            {categories.map(cat => (
+          {/* Active Filter Tags & Reset */}
+          {(selectedCategory !== 'all' || stockFilter !== 'all' || searchQuery) && (
+            <div className="flex items-center gap-2 text-xs">
+              {selectedCategory !== 'all' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-app-primary/10 border border-app-primary/30 text-app-primary font-bold text-[11px]">
+                  Category: {selectedCategory}
+                  <button type="button" onClick={() => setSelectedCategory('all')} className="hover:opacity-75 cursor-pointer">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
               <button
-                key={cat}
                 type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold capitalize whitespace-nowrap transition-colors cursor-pointer ${
-                  selectedCategory === cat
-                    ? 'bg-app-surface border border-app-primary text-app-primary font-black shadow-2xs'
-                    : 'bg-app-surface-subtle text-app-text-secondary hover:text-app-text'
-                }`}
+                onClick={() => {
+                  setSelectedCategory('all');
+                  setStockFilter('all');
+                  setSearchQuery('');
+                }}
+                className="text-[11px] font-bold text-app-text-muted hover:text-rose-500 transition-colors cursor-pointer underline underline-offset-2"
               >
-                {cat === 'all' ? 'All Categories' : cat}
+                Reset Filters
               </button>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

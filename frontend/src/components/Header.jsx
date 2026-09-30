@@ -11,6 +11,8 @@ import Dropdown, { DropdownItem, DropdownSeparator, DropdownHeader } from './ui/
 import { Badge } from './ui/Badge';
 import { useNavigate, Link } from 'react-router-dom';
 
+import { logoutUser } from '../utils/auth';
+
 export function Header({ 
   onMenuToggle, 
   onSearchClick,
@@ -25,11 +27,7 @@ export function Header({
   const isOwner = !isStaff;
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('loggedIn');
-    localStorage.removeItem('activeStoreId');
-    navigate('/login');
+    logoutUser();
   };
 
   return (
@@ -175,6 +173,20 @@ export function Header({
           </DropdownItem>
         </Dropdown>
 
+        {/* Staff Store & Owner Context Tag */}
+        {isStaff && (
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/25 rounded-full text-micro font-medium text-amber-700 dark:text-amber-300">
+            <Store size={13} className="shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="font-bold truncate max-w-[140px]">
+              {currentUser.shop_name || currentUser.business_name || 'Store'}
+            </span>
+            <span className="text-amber-500/60">•</span>
+            <span className="text-app-text-muted truncate max-w-[130px]">
+              Owner: {currentUser.owner_name || 'Store Owner'}
+            </span>
+          </div>
+        )}
+
         {/* 4. User Profile & Account Menu */}
         <Dropdown
           align="right"
@@ -200,16 +212,28 @@ export function Header({
           }
         >
           <div className="px-3.5 py-2.5 border-b border-app-border bg-app-surface-secondary/40">
-            <p className="text-small font-semibold text-app-text truncate">{currentUser.name || 'Staff User'}</p>
+            <p className="text-small font-semibold text-app-text truncate">{currentUser.name || 'User'}</p>
             <p className="text-caption text-app-text-muted truncate">{currentUser.email || ''}</p>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <Badge variant="blue" size="sm">{userRole}</Badge>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <Badge variant={userRole === 'Owner' ? 'blue' : 'emerald'} size="sm">{userRole}</Badge>
               {activeStore && (
                 <span className="text-micro text-app-text-secondary truncate">
                   • {activeStore.name}
                 </span>
               )}
             </div>
+            {isStaff && (
+              <div className="mt-2 pt-2 border-t border-app-border/60 text-micro space-y-0.5 text-app-text-secondary">
+                <div className="flex items-center justify-between">
+                  <span className="text-app-text-muted">Shop:</span>
+                  <span className="font-semibold text-app-text truncate max-w-[140px]">{currentUser.shop_name || currentUser.business_name || 'Store'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-app-text-muted">Owner:</span>
+                  <span className="font-semibold text-app-text truncate max-w-[140px]">{currentUser.owner_name || 'Store Owner'}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <DropdownItem

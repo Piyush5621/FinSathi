@@ -13,7 +13,10 @@ export const getStaff = async (req, res) => {
       .from('staff')
       .select('*, store_staff(*, stores(*), roles(*))');
 
-    if (staffId) {
+    const role = (req.user?.role || "").toLowerCase();
+    const isManager = role === 'manager' || role === 'admin' || !staffId;
+
+    if (!isManager && staffId) {
       query = query.eq('id', staffId);
     } else if (orgId) {
       query = query.or(`organization_id.eq.${orgId},user_id.eq.${userId}`);
@@ -366,14 +369,15 @@ export const deleteStaff = async (req, res) => {
 export const getAttendance = async (req, res) => {
   try {
     const { date, staff_id, start, end } = req.query;
-    const orgId = req.tenantId || req.user?.organization_id || req.user?.tenant_id;
     const userId = req.user?.id || req.user?.user_id;
     const sessionStaffId = req.user?.staff_id;
+    const role = (req.user?.role || "").toLowerCase();
+    const isManager = role === 'manager' || role === 'admin' || !sessionStaffId;
 
     let query = supabase.from('attendance').select('*, staff(name, position)');
     
-    // If staff user, forcefully restrict to their own attendance
-    if (sessionStaffId) {
+    // If regular staff (e.g. Cashier), restrict to their own attendance
+    if (!isManager && sessionStaffId) {
       query = query.eq('staff_id', sessionStaffId);
     } else {
       query = query.eq('user_id', userId);
@@ -394,32 +398,51 @@ export const getAttendance = async (req, res) => {
 
 export const markAttendance = async (req, res) => {
   try {
-    const { staff_id, date, status, clock_in } = req.body;
-    const orgId = req.tenantId || req.user?.organization_id || req.user?.tenant_id;
+    const { staff_id, date, status, clock_in, clock_out, notes } = req.body;
     const userId = req.user?.id || req.user?.user_id;
     const sessionStaffId = req.user?.staff_id;
+    const role = (req.user?.role || "").toLowerCase();
+    const isManager = role === 'manager' || role === 'admin' || !sessionStaffId;
 
-    const targetStaffId = sessionStaffId || staff_id;
+    // Non-managers can only mark attendance for their own staff record
+    const targetStaffId = (!isManager && sessionStaffId) ? sessionStaffId : (staff_id || sessionStaffId);
     if (!targetStaffId) {
       return res.status(400).json({ error: "Staff ID is required" });
     }
 
+    const attendanceDate = date || new Date().toISOString().split('T')[0];
+    const attendanceStatus = status || 'present';
+
+    const payload = { 
+      staff_id: targetStaffId, 
+      user_id: userId,
+      date: attendanceDate, 
+      status: attendanceStatus
+    };
+
+    if (clock_in) payload.clock_in = clock_in;
+    if (clock_out) payload.clock_out = clock_out;
+    if (notes) payload.notes = notes;
+
+    // Default clock_in if not set
+    if (!payload.clock_in) {
+      payload.clock_in = new Date().toISOString();
+    }
+    // If marking half_day / clocked out and clock_out not explicitly supplied, timestamp it
+    if ((attendanceStatus === 'half_day' || attendanceStatus === 'absent') && !payload.clock_out) {
+      payload.clock_out = new Date().toISOString();
+    }
+
     const { data, error } = await supabase
       .from('attendance')
-      .upsert({ 
-        staff_id: targetStaffId, 
-        user_id: userId,
-        organization_id: orgId || null,
-        date: date || new Date().toISOString().split('T')[0], 
-        status: status || 'present',
-        clock_in: clock_in || new Date().toISOString()
-      }, { onConflict: 'staff_id, date' })
-      .select()
+      .upsert(payload, { onConflict: 'staff_id, date' })
+      .select('*, staff(name, position)')
       .single();
 
     if (error) throw error;
     res.status(200).json(data);
   } catch (error) {
+    console.error("markAttendance error:", error);
     res.status(500).json({ error: error.message });
   }
 };

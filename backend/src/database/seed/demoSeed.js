@@ -441,22 +441,7 @@ export async function seedDemoData() {
     throw new Error(`Failed to create staff members: ${staffErr?.message}`);
   }
 
-  // Insert staff accounts into `users` table so direct JWT lookups find them cleanly
-  const staffAsUsersPayload = createdStaff.map(s => ({
-    name: s.name,
-    email: s.email,
-    password: hashedPassword,
-    business_name: "Sharma General Store",
-    business_type: "Retail / Grocery",
-    phone: s.phone,
-    city: "New Delhi",
-    state: "Delhi",
-    address: "B-14, Inner Circle, Connaught Place",
-    organization_id: sharmaOrg.id,
-    is_active: true
-  }));
-
-  await supabase.from("users").insert(staffAsUsersPayload);
+  // Staff members are cleanly isolated in the staff table with their user_id referencing the owner.
 
   // Map each staff member to store_staff with the appropriate role
   const staffRoleAssignments = [

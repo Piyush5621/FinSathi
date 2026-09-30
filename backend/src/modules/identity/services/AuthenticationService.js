@@ -5,6 +5,7 @@ import { TokenService } from "./TokenService.js";
 import { SessionService } from "./SessionService.js";
 import { UnauthorizedError, LockedError, ValidationError } from "../errors/appErrors.js";
 import { RbacRepository } from "../repositories/RbacRepository.js";
+import { adminSupabase } from "../../../admin/adminSupabase.js";
 
 export class AuthenticationService {
   /**
@@ -15,31 +16,43 @@ export class AuthenticationService {
     let isOwner = false;
     let actorUserId = null;
     let actorStaffId = null;
+    let owner = null;
 
-    // 1. Search Business Owner
-    account = await AuthRepository.findOwnerByEmailOrPhone(emailOrPhone);
+    // 1. Search Staff first so staff with unique logins are resolved accurately
+    account = await AuthRepository.findStaffByEmailOrPhone(emailOrPhone);
     if (account) {
-      isOwner = true;
-      actorUserId = account.id;
+      isOwner = false;
+      actorStaffId = account.id;
+      actorUserId = account.user_id; // Owner's user ID for data scoping
+
+      if (!account.is_login_enabled || account.status === "suspended" || account.status === "disabled") {
+        throw new UnauthorizedError("Your staff login access is disabled or suspended. Please contact your store manager.");
+      }
+
+      // Fetch the business owner account for this staff
+      owner = await AuthRepository.findOwnerById(account.user_id);
+      if (!owner) {
+        throw new UnauthorizedError("Associated business owner account could not be found.");
+      }
+      if (owner.is_active === false) {
+        throw new UnauthorizedError("The business owner account is currently suspended. Please contact support.");
+      }
     } else {
-      // 2. Search Staff
-      account = await AuthRepository.findStaffByEmailOrPhone(emailOrPhone);
+      // 2. Search Business Owner in users table
+      account = await AuthRepository.findOwnerByEmailOrPhone(emailOrPhone);
       if (account) {
-        isOwner = false;
-        actorStaffId = account.id;
-        
-        if (!account.is_login_enabled) {
-          throw new UnauthorizedError("Your login access is disabled. Please contact your manager.");
-        }
+        isOwner = true;
+        actorUserId = account.id;
+        actorStaffId = null;
+        owner = account;
       }
     }
 
     if (!account) {
-      // We don't have a tenant_id yet, but let's log to a default if we can, or just throw
       throw new UnauthorizedError("Invalid email/phone or password.");
     }
 
-    const tenantId = isOwner ? account.organization_id : account.organization_id;
+    const tenantId = account.organization_id || owner?.organization_id || null;
 
     // 3. Lockout Check
     if (account.locked_until && new Date(account.locked_until) > new Date()) {
@@ -57,10 +70,9 @@ export class AuthenticationService {
 
       if (attempts >= 5) {
         updates.locked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins lock
-        // Log account locked
         await AuditRepository.createLoginHistory({
           organization_id: tenantId,
-          actor_user_id: actorUserId,
+          actor_user_id: isOwner ? account.id : account.user_id,
           actor_staff_id: actorStaffId,
           event_type: "account_locked",
           ip_address: requestInfo.ipAddress || null,
@@ -78,7 +90,7 @@ export class AuthenticationService {
 
       await AuditRepository.createLoginHistory({
         organization_id: tenantId,
-        actor_user_id: actorUserId,
+        actor_user_id: isOwner ? account.id : account.user_id,
         actor_staff_id: actorStaffId,
         event_type: "login_failed",
         ip_address: requestInfo.ipAddress || null,
@@ -105,60 +117,122 @@ export class AuthenticationService {
     // 6. Create Session & Generate Refresh Token
     const { session, plaintextToken } = await SessionService.createSession({
       organizationId: tenantId,
-      userId: actorUserId,
+      userId: isOwner ? account.id : account.user_id,
       staffId: actorStaffId,
       requestInfo
     });
 
-    // 7. Resolve staff roles if staff
+    // 7. Resolve store context & organization metadata
+    let assignedStore = null;
+    const storeLookupId = isOwner ? null : account.store_id;
+    if (storeLookupId) {
+      const { data: st } = await adminSupabase.from("stores").select("*").eq("id", storeLookupId).maybeSingle();
+      assignedStore = st;
+    }
+    if (!assignedStore) {
+      const targetUserId = isOwner ? account.id : account.user_id;
+      const { data: st } = await adminSupabase.from("stores").select("*").eq("user_id", targetUserId).order("is_default", { ascending: false }).limit(1).maybeSingle();
+      assignedStore = st;
+    }
+
+    let organization = null;
+    if (tenantId) {
+      organization = await AuthRepository.findOrganizationById(tenantId).catch(() => null);
+    }
+
+    // 8. Resolve Role & Granular Permissions
     let roleId = null;
-    let roleName = null;
+    let roleName = isOwner ? 'Owner' : (account.role || account.position || 'Staff');
     let permissionKeys = [];
+
     if (!isOwner) {
       // Find staff assignment in active store context
-      const assignments = await RbacRepository.findStaffAssignments(account.id);
-      // Fallback: use first assignment if multiple, or null
-      if (assignments.length > 0) {
+      const assignments = await RbacRepository.findStaffAssignments(account.id).catch(() => []);
+      if (assignments && assignments.length > 0) {
         roleId = assignments[0].role_id;
-        // Fetch role name
         const role = await RbacRepository.findRoleById(roleId).catch(() => null);
-        roleName = role?.name || null;
-        // Fetch permissions for this role
+        if (role?.name) roleName = role.name;
         const rolePerms = await RbacRepository.findRolePermissions(roleId).catch(() => []);
         permissionKeys = rolePerms.map(rp => rp.permissions?.key).filter(Boolean);
       }
-      // Also fetch user-level permission overrides
+
+      // Canonical fallback role permissions if role_permissions join is unpopulated
+      if (permissionKeys.length === 0) {
+        const normRole = (roleName || '').toLowerCase();
+        if (normRole.includes('manager')) {
+          roleName = 'Manager';
+          permissionKeys = [
+            'view_catalog', 'edit_catalog', 'run_counts', 'adjust_costs',
+            'view_billing', 'create_sales',
+            'approve_po', 'post_invoices',
+            'manage_staff', 'view_analytics'
+          ];
+        } else if (normRole.includes('cashier')) {
+          roleName = 'Cashier';
+          permissionKeys = [
+            'view_catalog', 'view_billing', 'create_sales'
+          ];
+        } else if (normRole.includes('accountant')) {
+          roleName = 'Accountant';
+          permissionKeys = [
+            'view_catalog', 'post_invoices', 'view_billing', 'view_finance', 'view_reports'
+          ];
+        } else if (normRole.includes('warehouse') || normRole.includes('inventory')) {
+          roleName = 'Warehouse Staff';
+          permissionKeys = [
+            'view_catalog', 'run_counts', 'approve_po', 'post_invoices'
+          ];
+        } else if (normRole.includes('delivery')) {
+          roleName = 'Delivery Staff';
+          permissionKeys = ['view_catalog'];
+        } else {
+          roleName = 'Staff';
+          permissionKeys = ['view_catalog', 'view_billing'];
+        }
+      }
+
+      // Merge individual staff overrides from user_permissions
       const overrides = await RbacRepository.findUserPermissionOverrides(account.id).catch(() => []);
       const overrideKeys = overrides.map(o => o.permissions?.key).filter(Boolean);
-      // Merge unique permissions
       permissionKeys = [...new Set([...permissionKeys, ...overrideKeys])];
     } else {
       roleName = 'Owner';
       permissionKeys = ['*'];
     }
 
-    // 8. Generate JWT Access Token
+    // 9. Generate JWT Access Token with owner user_id and store_id embedded
     const accessToken = TokenService.generateAccessToken({
-      sub: isOwner ? account.id : account.id,
+      sub: account.id,
       tenant_id: tenantId,
-      user_id: actorUserId,
+      user_id: isOwner ? account.id : account.user_id, // Scoped to business owner's data
       staff_id: actorStaffId,
       role_id: roleId,
-      jwt_version: account.jwt_version,
+      role: roleName,
+      store_id: assignedStore?.id || account.store_id || null,
+      jwt_version: account.jwt_version || 1,
       session_id: session.id
     });
 
-    // 9. Write Login Audit
+    // 10. Write Login Audit
     await AuditRepository.createLoginHistory({
       organization_id: tenantId,
-      actor_user_id: actorUserId,
+      actor_user_id: isOwner ? account.id : account.user_id,
       actor_staff_id: actorStaffId,
       event_type: "login_success",
       ip_address: requestInfo.ipAddress || null,
       user_agent: requestInfo.userAgent || null,
       device: requestInfo.deviceName || null,
-      metadata: { session_id: session.id }
+      metadata: { session_id: session.id, role: roleName }
     });
+
+    // 11. Authoritative Session Payload with Owner & Shop Context
+    const ownerName = isOwner ? account.name : (owner?.name || "Store Owner");
+    const businessName = isOwner 
+      ? (account.business_name || "My Business") 
+      : (owner?.business_name || organization?.name || "Sharma General Store");
+    const shopName = businessName;
+    const storeName = assignedStore?.name || "Main Branch";
+    const storeId = assignedStore?.id || (isOwner ? null : account.store_id);
 
     return {
       accessToken,
@@ -166,14 +240,26 @@ export class AuthenticationService {
       session: {
         id: session.id,
         organizationId: tenantId,
-        userId: actorUserId,
+        userId: isOwner ? account.id : account.user_id, // Critical for data scoping
         staffId: actorStaffId,
+        isStaff: !isOwner,
+        isOwner: isOwner,
         roleId,
         role: roleName,
         permissions: permissionKeys,
         name: account.name,
-        email: isOwner ? account.email : account.email || null,
-        phone: account.phone
+        email: account.email || null,
+        phone: account.phone || null,
+        ownerName,
+        owner_name: ownerName,
+        businessName,
+        business_name: businessName,
+        shopName,
+        shop_name: shopName,
+        storeId,
+        store_id: storeId,
+        storeName,
+        store_name: storeName
       }
     };
   }
@@ -189,27 +275,34 @@ export class AuthenticationService {
       const actorStaffId = session.staff_id;
       const tenantId = session.organization_id;
 
-      // Fetch active jwt_version from DB to keep token updated
-      let jwtVersion = 1;
-      let roleId = null;
+      let roleName = "Owner";
+      let storeId = null;
 
-      if (actorUserId) {
-        const owner = await AuthRepository.findOwnerById(actorUserId);
-        jwtVersion = owner?.jwt_version || 1;
-      } else if (actorStaffId) {
+      if (actorStaffId) {
         const staff = await AuthRepository.findStaffById(actorStaffId);
         jwtVersion = staff?.jwt_version || 1;
+        roleName = staff?.role || staff?.position || "Staff";
+        storeId = staff?.store_id || null;
 
         const assignments = await RbacRepository.findStaffAssignments(actorStaffId);
-        roleId = assignments.length > 0 ? assignments[0].role_id : null;
+        if (assignments && assignments.length > 0) {
+          roleId = assignments[0].role_id;
+          const roleObj = await RbacRepository.findRoleById(roleId).catch(() => null);
+          if (roleObj?.name) roleName = roleObj.name;
+        }
+      } else if (actorUserId) {
+        const owner = await AuthRepository.findOwnerById(actorUserId);
+        jwtVersion = owner?.jwt_version || 1;
       }
 
       const accessToken = TokenService.generateAccessToken({
-        sub: actorUserId || actorStaffId,
+        sub: actorStaffId || actorUserId,
         tenant_id: tenantId,
-        user_id: actorUserId,
+        user_id: actorUserId, // Scoped to business owner
         staff_id: actorStaffId,
         role_id: roleId,
+        role: roleName,
+        store_id: storeId,
         jwt_version: jwtVersion,
         session_id: session.id
       });

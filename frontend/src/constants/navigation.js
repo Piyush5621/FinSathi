@@ -146,7 +146,7 @@ export function getNavigationSections(user = {}) {
       description: 'Expense vouchers, overhead categories & receipts'
     });
   }
-  if (isOwner || hasPerm('adjust_costs')) {
+  if (isOwner || role === 'Accountant' || role === 'Manager' || hasPerm('adjust_costs')) {
     financeItems.push({
       id: 'pnl',
       path: '/pnl',
@@ -155,7 +155,7 @@ export function getNavigationSections(user = {}) {
       description: 'Gross margin, net profit trends & operational P&L'
     });
   }
-  if (isOwner || role === 'Accountant' || role === 'Manager') {
+  if (isOwner || role === 'Accountant') {
     financeItems.push({
       id: 'gst',
       path: '/reports/gst',
@@ -164,7 +164,7 @@ export function getNavigationSections(user = {}) {
       description: 'GSTR-1, GSTR-3B filings, B2B/B2C & Excel export'
     });
   }
-  if (isOwner) {
+  if (isOwner || role === 'Manager') {
     financeItems.push({
       id: 'executive-analytics',
       path: '/executive-analytics',

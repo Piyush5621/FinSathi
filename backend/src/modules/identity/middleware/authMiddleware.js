@@ -31,7 +31,21 @@ export const authenticate = async (req, res, next) => {
     }
 
     // Verify against DB to check for token invalidation / lockout / active status
-    if (decoded.user_id) {
+    if (decoded.staff_id) {
+      const staff = await AuthRepository.findStaffById(decoded.staff_id);
+      if (!staff || !staff.is_login_enabled || staff.status === "suspended" || staff.status === "disabled") {
+        throw new UnauthorizedError("Staff account disabled or inactive.");
+      }
+      if (decoded.jwt_version !== undefined && staff.jwt_version !== decoded.jwt_version) {
+        throw new UnauthorizedError("Session has been invalidated. Please log in again.");
+      }
+      if (decoded.user_id) {
+        const owner = await AuthRepository.findOwnerById(decoded.user_id);
+        if (!owner || !owner.is_active) {
+          throw new UnauthorizedError("Business owner account suspended or inactive.");
+        }
+      }
+    } else if (decoded.user_id) {
       const user = await AuthRepository.findOwnerById(decoded.user_id);
       if (!user || !user.is_active) {
         throw new UnauthorizedError("Account suspended or inactive.");
@@ -41,14 +55,6 @@ export const authenticate = async (req, res, next) => {
       }
       if (!decoded.tenant_id && user.organization_id) {
         decoded.tenant_id = user.organization_id;
-      }
-    } else if (decoded.staff_id) {
-      const staff = await AuthRepository.findStaffById(decoded.staff_id);
-      if (!staff || !staff.is_login_enabled || staff.status === "suspended" || staff.status === "disabled") {
-        throw new UnauthorizedError("Staff account disabled or inactive.");
-      }
-      if (decoded.jwt_version !== undefined && staff.jwt_version !== decoded.jwt_version) {
-        throw new UnauthorizedError("Session has been invalidated. Please log in again.");
       }
     } else {
       throw new UnauthorizedError("Invalid token subject.");

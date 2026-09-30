@@ -45,13 +45,21 @@ export default function StaffHub() {
 
   // Active logged in user
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const userRole = currentUser.role || 'Owner';
+  const userRole = currentUser.role || (currentUser.staff_id ? 'Staff' : 'Owner');
   const isStaff = !!(currentUser.staff_id);
-  const isOwner = !isStaff;
+  const isOwner = !isStaff || userRole === 'Owner' || userRole === 'Admin';
+  const isManager = isOwner || userRole === 'Manager';
 
   // Active Tab: 'team' | 'roles' | 'attendance'
-  const defaultTab = isOwner ? 'team' : 'attendance';
-  const activeTab = searchParams.get('tab') || defaultTab;
+  const defaultTab = isManager ? 'team' : 'attendance';
+  let activeTab = searchParams.get('tab') || defaultTab;
+  if (!isManager && activeTab !== 'attendance') {
+    activeTab = 'attendance';
+  }
+  if (!isOwner && activeTab === 'roles') {
+    activeTab = isManager ? 'team' : 'attendance';
+  }
+
   const setActiveTab = (tab) => {
     setSearchParams({ tab });
   };
@@ -399,9 +407,12 @@ export default function StaffHub() {
     { id: 'team', label: 'Team Directory', icon: Users, badge: staff.length },
     { id: 'roles', label: 'Roles & Access', icon: ShieldCheck, badge: roles.length },
     { id: 'attendance', label: 'Attendance & Kiosk', icon: Calendar, badge: presentTodayCount ? `${presentTodayCount} In` : null }
+  ] : (userRole === 'Manager' ? [
+    { id: 'team', label: 'Team Directory', icon: Users, badge: staff.length },
+    { id: 'attendance', label: 'Attendance & Kiosk', icon: Calendar, badge: presentTodayCount ? `${presentTodayCount} In` : null }
   ] : [
     { id: 'attendance', label: 'My Attendance Log', icon: Calendar }
-  ];
+  ]);
 
   // Calendar days generation for Attendance Tab
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
@@ -414,17 +425,17 @@ export default function StaffHub() {
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              {isOwner ? 'Workforce & Staff Operations' : 'My Attendance & Store Log'}
+              {isManager ? 'Workforce & Staff Operations' : 'My Attendance & Store Log'}
             </h1>
-            {currentUser.store_name && (
+            {(currentUser.store_name || currentUser.shop_name) && (
               <Badge variant="secondary" className="text-xs font-bold py-0.5 px-2.5 bg-slate-100 text-slate-700 border-slate-200">
                 <Store size={12} className="inline mr-1 text-emerald-600" />
-                {currentUser.store_name}
+                {currentUser.store_name || currentUser.shop_name}
               </Badge>
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            {isOwner 
+            {isManager 
               ? 'Manage employee rosters, role capabilities, store assignments, and attendance.'
               : 'View your live attendance records and store check-in history.'}
           </p>
@@ -524,9 +535,9 @@ export default function StaffHub() {
       </div>
 
       {/* ==================================================== */}
-      {/* TAB 1: TEAM DIRECTORY (OWNER ONLY)                   */}
+      {/* TAB 1: TEAM DIRECTORY (OWNER & MANAGER)              */}
       {/* ==================================================== */}
-      {activeTab === 'team' && isOwner && (
+      {activeTab === 'team' && isManager && (
         <Card noPadding className="overflow-hidden border border-slate-200/80 shadow-2xs rounded-2xl bg-white">
           {/* Filter Bar */}
           <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-50/50">

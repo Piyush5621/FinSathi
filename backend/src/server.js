@@ -192,4 +192,30 @@ import { errorHandler } from "./middleware/errorHandler.js";
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT}`);
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    logger.error(
+      `Port ${PORT} is already in use by another process. Please stop the existing process or specify a different PORT in your .env file.`
+    );
+    process.exit(1);
+  } else {
+    logger.error(`Server error: ${err.message}`);
+    process.exit(1);
+  }
+});
+
+const gracefulShutdown = () => {
+  logger.info("Received termination signal, closing HTTP server...");
+  server.close(() => {
+    logger.info("HTTP server closed.");
+    process.exit(0);
+  });
+};
+
+process.on("SIGINT", gracefulShutdown);
+process.on("SIGTERM", gracefulShutdown);
+

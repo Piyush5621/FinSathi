@@ -7,12 +7,12 @@
  * via tenant_id, not user_id, to avoid corrupting ownership scope.
  */
 export const enforceOwnership = (req, res, next) => {
-    const userId = req.user?.user_id || req.user?.id || req.user?.sub;
+    const userId = req.user?.user_id || req.user?.id;
     const staffId = req.user?.staff_id;
-    const tenantId = req.user?.tenant_id;
+    const tenantId = req.user?.tenant_id || req.user?.organization_id;
+    const storeId = req.headers['x-store-id'] || req.user?.store_id;
 
     if (req.user) {
-        // Only normalize user ID fields if this is an owner (not staff-only)
         if (userId) {
             req.user.id = userId;
             req.user.user_id = userId;
@@ -23,13 +23,15 @@ export const enforceOwnership = (req, res, next) => {
             if (Array.isArray(req.body)) {
                 req.body = req.body.map(item => ({
                     ...item,
-                    ...(userId ? { user_id: userId } : {}),
+                    ...(userId && !item.user_id ? { user_id: userId } : {}),
+                    ...(staffId && !item.staff_id ? { staff_id: staffId } : {}),
+                    ...(storeId && !item.store_id ? { store_id: storeId } : {}),
                     ...(tenantId && !item.organization_id ? { organization_id: tenantId } : {})
                 }));
             } else {
-                // Only inject user_id if it's a valid owner userId (not null/undefined for staff)
-                if (userId) req.body.user_id = userId;
-                // Inject organization_id from tenant context if not already set
+                if (userId && !req.body.user_id) req.body.user_id = userId;
+                if (staffId && !req.body.staff_id) req.body.staff_id = staffId;
+                if (storeId && !req.body.store_id) req.body.store_id = storeId;
                 if (tenantId && !req.body.organization_id) req.body.organization_id = tenantId;
             }
         }
@@ -38,6 +40,7 @@ export const enforceOwnership = (req, res, next) => {
         req.user_scope = {
             ...(userId ? { user_id: userId } : {}),
             ...(staffId ? { staff_id: staffId } : {}),
+            ...(storeId ? { store_id: storeId } : {}),
             ...(tenantId ? { organization_id: tenantId } : {})
         };
     }

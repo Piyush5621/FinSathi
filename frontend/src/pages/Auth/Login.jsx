@@ -74,32 +74,49 @@ const Login = () => {
       const accessToken = res.data.token || res.data.data?.accessToken;
       const sessionRaw = res.data.user || res.data.data?.session || {};
       
+      const isStaffUser = Boolean(sessionRaw.isStaff || sessionRaw.staffId || sessionRaw.staff_id);
+      const userRole = sessionRaw.role || (isStaffUser ? 'Staff' : 'Owner');
+
       const userToStore = {
         id: sessionRaw.userId || sessionRaw.id || sessionRaw.user_id || null,
         user_id: sessionRaw.userId || sessionRaw.id || sessionRaw.user_id || null,
         staff_id: sessionRaw.staffId || sessionRaw.staff_id || null,
-        role: sessionRaw.role || ((!sessionRaw.staffId && !sessionRaw.staff_id) ? 'Owner' : null),
+        is_staff: isStaffUser,
+        role: userRole,
         role_id: sessionRaw.roleId || sessionRaw.role_id || null,
-        permissions: sessionRaw.permissions || ((!sessionRaw.staffId && !sessionRaw.staff_id) ? ['*'] : []),
+        permissions: sessionRaw.permissions || (!isStaffUser ? ['*'] : []),
         name: sessionRaw.name || '',
         email: sessionRaw.email || credentials.email || '',
         phone: sessionRaw.phone || '',
         organization_id: sessionRaw.organizationId || sessionRaw.organization_id || null,
         tenant_id: sessionRaw.organizationId || sessionRaw.organization_id || null,
-        business_name: sessionRaw.business_name || sessionRaw.businessName || '',
+        business_name: sessionRaw.business_name || sessionRaw.businessName || sessionRaw.shopName || sessionRaw.shop_name || '',
         business_type: sessionRaw.business_type || sessionRaw.businessType || '',
+        owner_name: sessionRaw.ownerName || sessionRaw.owner_name || '',
+        shop_name: sessionRaw.shopName || sessionRaw.shop_name || sessionRaw.businessName || sessionRaw.business_name || '',
+        store_id: sessionRaw.storeId || sessionRaw.store_id || null,
+        store_name: sessionRaw.storeName || sessionRaw.store_name || '',
         is_active: sessionRaw.is_active !== false,
       };
       
       setAccessToken(accessToken);
       localStorage.setItem("user", JSON.stringify(userToStore));
       localStorage.setItem("loggedIn", "true");
+      if (userToStore.store_id) {
+        localStorage.setItem("activeStoreId", userToStore.store_id);
+      }
       
-      toast.success("Welcome back! Loading your workspace...", {
-        icon: '🚀',
-        style: { borderRadius: '12px', background: '#111', color: '#fff' }
-      });
-      setTimeout(() => navigate("/dashboard"), 300);
+      toast.success(
+        isStaffUser && userToStore.shop_name
+          ? `Welcome ${userToStore.name}! Connected to ${userToStore.shop_name}.`
+          : "Welcome back! Loading your workspace...",
+        {
+          icon: '🚀',
+          style: { borderRadius: '12px', background: '#111', color: '#fff' }
+        }
+      );
+      const targetPath = userRole === 'Cashier' ? '/billing' : '/dashboard';
+      setTimeout(() => navigate(targetPath), 300);
     } catch (err) {
       setHasError(true);
       const msg = err.response?.data?.message || "Invalid email or password. Please try again.";

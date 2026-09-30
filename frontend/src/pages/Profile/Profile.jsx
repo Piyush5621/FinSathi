@@ -14,6 +14,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { useStore } from '../../contexts/StoreContext';
+import { logoutUser } from '../../utils/auth';
 
 const TABS = [
   { id: 'account', label: 'Account & Security', icon: User, desc: 'Personal credentials & password', roleReq: 'all' },
@@ -483,13 +484,47 @@ export default function SettingsHub() {
                   <p className="text-xs text-slate-500 leading-relaxed">
                     If you suspect unauthorized activity, invalidate all current authentication sessions across other browsers and mobile devices.
                   </p>
-                  <button
-                    onClick={handleLogoutAll}
-                    className="w-full py-2.5 px-3 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <LogOut size={13} /> Sign Out All Other Devices
-                  </button>
+                  <div className="space-y-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={logoutUser}
+                      className="w-full py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <LogOut size={14} /> Sign Out of This Account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogoutAll}
+                      className="w-full py-2.5 px-3 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <ShieldAlert size={13} /> Sign Out All Other Devices
+                    </button>
+                  </div>
                 </div>
+
+                {/* Staff Business & Store Context Card (only for staff) */}
+                {isStaff && (
+                  <div className="bg-amber-50/60 p-5 rounded-2xl border border-amber-200/80 shadow-2xs space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Store size={16} className="text-amber-700" />
+                      <h3 className="text-xs font-black text-amber-900 uppercase tracking-wider">Business & Store Context</h3>
+                    </div>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center justify-between py-1 border-b border-amber-100">
+                        <span className="text-amber-800 font-medium">Business / Shop</span>
+                        <span className="font-bold text-slate-900">{currentUser.shop_name || currentUser.business_name || 'Store'}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1 border-b border-amber-100">
+                        <span className="text-amber-800 font-medium">Store Owner</span>
+                        <span className="font-bold text-slate-900">{currentUser.owner_name || 'Store Owner'}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-amber-800 font-medium">Assigned Branch</span>
+                        <span className="font-bold text-slate-900">{currentUser.store_name || activeStore?.name || 'Main Branch'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Staff Role & Permissions Card (only for staff) */}
                 {isStaff && (

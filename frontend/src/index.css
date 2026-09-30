@@ -5,16 +5,19 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
   /* Light Mode Design Tokens */
-  --bg-app: #F7F8FA;
+  --bg-app: #F8F9FA;
   --surface-app: #FFFFFF;
   --surface-secondary: #F1F3F5;
+  --surface-subtle: #F8F9FA;
   --surface-elevated: #FFFFFF;
-  --text-primary: #111827;
-  --text-secondary: #667085;
-  --text-muted: #98A2B3;
-  --border-app: #E4E7EC;
-  --border-subtle: #F2F4F7;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --border-app: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --border-hover: #CBD5E1;
 
   --primary-app: #3157D5;
   --primary-hover: #2647B8;
@@ -35,33 +38,36 @@
 }
 
 .dark {
+  color-scheme: dark;
   /* Dark Mode Design Tokens */
-  --bg-app: #0B0F14;
+  --bg-app: #0B0F17;
   --surface-app: #111827;
-  --surface-secondary: #172033;
+  --surface-secondary: #1E293B;
+  --surface-subtle: #162032;
   --surface-elevated: #1F2937;
   --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --border-app: #263244;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+  --border-app: #283548;
   --border-subtle: #1E293B;
+  --border-hover: #3E4E68;
 
   --primary-app: #5B7CFF;
   --primary-hover: #7590FF;
-  --primary-subtle: rgba(91, 124, 255, 0.12);
+  --primary-subtle: rgba(91, 124, 255, 0.14);
 
   --success-app: #22C55E;
-  --success-subtle: rgba(34, 197, 94, 0.12);
+  --success-subtle: rgba(34, 197, 94, 0.14);
   --warning-app: #F59E0B;
-  --warning-subtle: rgba(245, 158, 11, 0.12);
+  --warning-subtle: rgba(245, 158, 11, 0.14);
   --danger-app: #EF4444;
-  --danger-subtle: rgba(239, 68, 68, 0.12);
+  --danger-subtle: rgba(239, 68, 68, 0.14);
   --info-app: #60A5FA;
-  --info-subtle: rgba(96, 165, 250, 0.12);
+  --info-subtle: rgba(96, 165, 250, 0.14);
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.35);
-  --shadow-modal: 0 16px 40px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 16px 40px rgba(0, 0, 0, 0.6);
 }
 
 @layer base {
@@ -80,6 +86,15 @@
     min-height: 100vh;
     overflow-x: hidden;
     max-width: 100vw;
+  }
+
+  select, input, textarea {
+    color-scheme: light dark;
+  }
+
+  select option {
+    background-color: var(--surface-app);
+    color: var(--text-primary);
   }
 }
 

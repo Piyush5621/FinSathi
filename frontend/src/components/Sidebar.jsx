@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   ChevronLeft, ChevronRight, ChevronDown, 
-  X, Sparkles
+  X, Sparkles, LogOut, User
 } from 'lucide-react';
 import Logo from './Logo';
-import { useSubscription } from '../contexts/SubscriptionContext';
+import { logoutUser } from '../utils/auth';
 import Tooltip from './ui/Tooltip';
 import { Badge } from './ui/Badge';
 import { getNavigationSections } from '../constants/navigation';
@@ -21,8 +21,9 @@ export function Sidebar({
 }) {
   const location = useLocation();
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isStaff = !!(currentUser.staff_id);
   const navSections = getNavigationSections(currentUser);
-  const { subscription, usage } = useSubscription();
+  const userRole = currentUser.role || (isStaff ? 'Staff' : 'Owner');
 
   // Active path checking helper
   const isCurrentPath = (path) => {
@@ -182,30 +183,61 @@ export function Sidebar({
 
       {/* 3. Footer / Subscription & Collapse Bar */}
       <div className="p-3 border-t border-app-border space-y-2 shrink-0 bg-app-surface-secondary/40">
-        {/* Subscription Plan Chip (Expanded view only) */}
-        {!isCollapsed && subscription && (
-          <div className="p-2.5 rounded-card bg-app-surface border border-app-border/80 flex flex-col gap-1.5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-micro font-bold uppercase tracking-wider text-app-text-muted">
-                {subscription.plan || 'Free'} Plan
-              </span>
-              {subscription.plan !== 'enterprise' && (
-                <Link
-                  to="/subscription/plans"
-                  className="text-micro font-bold text-app-primary hover:underline"
-                >
-                  Upgrade
-                </Link>
-              )}
+        {/* If Staff: show business & owner context badge */}
+        {!isCollapsed && isStaff && (
+          <div className="p-2 rounded-card bg-amber-500/10 border border-amber-500/25 text-micro">
+            <div className="font-bold text-amber-700 dark:text-amber-300 truncate">
+              {currentUser.shop_name || currentUser.business_name || 'Store'}
             </div>
-            {usage?.invoices && (
-              <div className="w-full bg-app-surface-secondary h-1.5 rounded-full overflow-hidden">
-                <div 
-                  className="bg-app-primary h-full rounded-full transition-all duration-500" 
-                  style={{ width: `${Math.min(100, (usage.invoices.used / (usage.invoices.limit || 1)) * 100)}%` }} 
-                />
+            <div className="text-[11px] text-app-text-muted truncate">
+              Owner: {currentUser.owner_name || 'Store Owner'}
+            </div>
+          </div>
+        )}
+
+        {/* User Profile & Direct Logout Action */}
+        {!isCollapsed ? (
+          <div className="p-2.5 rounded-card bg-app-surface border border-app-border/80 flex items-center justify-between gap-2 shadow-xs">
+            <Link 
+              to="/profile" 
+              className="flex items-center gap-2 min-w-0 flex-1 hover:opacity-80 transition-opacity"
+              title="View Profile"
+            >
+              <div className="w-8 h-8 rounded-btn bg-app-primary text-white flex items-center justify-center font-bold text-micro shrink-0 shadow-xs">
+                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
               </div>
-            )}
+              <div className="flex flex-col min-w-0 leading-tight">
+                <span className="text-caption font-semibold text-app-text truncate">
+                  {currentUser.name || 'User'}
+                </span>
+                <span className="text-micro text-app-text-muted truncate">
+                  {userRole}
+                </span>
+              </div>
+            </Link>
+
+            <button
+              type="button"
+              onClick={logoutUser}
+              className="p-1.5 rounded-btn text-app-danger hover:bg-app-danger-subtle hover:text-red-400 transition-colors shrink-0 cursor-pointer"
+              title="Sign Out"
+              aria-label="Sign Out"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <Tooltip content="Sign Out" side="right">
+              <button
+                type="button"
+                onClick={logoutUser}
+                className="w-10 h-10 rounded-btn text-app-danger hover:bg-app-danger-subtle flex items-center justify-center transition-colors cursor-pointer"
+                aria-label="Sign Out"
+              >
+                <LogOut size={17} />
+              </button>
+            </Tooltip>
           </div>
         )}
 
