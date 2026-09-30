@@ -3,31 +3,27 @@ import { useNavigate } from "react-router-dom";
 import { useDashboardData } from "../../hooks/useDashboard";
 import { 
   MetricCard, 
-  InsightCard, 
-  AnalyticsCard, 
   ActionCard, 
   AlertCard, 
   ActivityCard, 
   SectionCard 
 } from "../../components/ui/CardSystem";
-import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/Card";
-import { Badge } from "../../components/ui/Badge";
+import { Card } from "../../components/ui/Card";
 import Skeleton from "../../components/ui/Skeleton";
 import { 
   ShoppingCart, PackagePlus, UserPlus, TrendingDown,
   TrendingUp, Users, ArrowRight, DollarSign, Wallet, 
-  FileText, HeartPulse, Sparkles, Activity, AlertCircle, 
-  RefreshCw, Clock, Check, ShieldCheck, Store, Calendar,
-  Truck, Receipt, BarChart2, Package, ArrowUpRight, ArrowDownRight,
-  ChevronRight, AlertTriangle, CheckCircle2, Search, Zap, Building2, Eye
+  HeartPulse, Activity, AlertCircle, 
+  RefreshCw, Clock, ShieldCheck, Store, Calendar,
+  Truck, Receipt, BarChart2, Package, Sparkles,
+  ChevronRight, AlertTriangle, CheckCircle2, Zap
 } from 'lucide-react';
 import { 
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, 
+  ResponsiveContainer, AreaChart, Area, 
   XAxis, YAxis, Tooltip, CartesianGrid 
 } from 'recharts';
 import toast from "react-hot-toast";
 import API from '../../services/apiClient';
-
 import { useStore } from "../../contexts/StoreContext";
 
 // 🕒 Isolated Live Clock Widget — prevents re-rendering parent Dashboard tree every second
@@ -47,26 +43,29 @@ const LiveClockWidget = React.memo(() => {
   });
 
   const formattedDate = time.toLocaleDateString('en-IN', {
-    weekday: 'long',
+    weekday: 'short',
     year: 'numeric',
-    month: 'long',
+    month: 'short',
     day: 'numeric'
   });
 
   return (
-    <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-btn px-4 py-2.5 flex flex-col justify-center shrink-0 shadow-xs">
+    <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-btn px-3.5 py-2 flex items-center gap-3 shrink-0 shadow-xs">
       <div className="flex items-center gap-2">
-        <Clock size={15} className="text-indigo-300 animate-pulse" />
-        <span className="font-mono text-base font-black text-white tabular-nums tracking-tight">
+        <Clock size={15} className="text-indigo-300 animate-pulse shrink-0" />
+        <span className="font-mono text-sm sm:text-base font-black text-white tabular-nums tracking-tight">
           {formattedTime}
         </span>
       </div>
-      <span className="text-[10px] font-semibold text-slate-300 mt-0.5">
+      <div className="h-4 w-px bg-white/20 hidden sm:block" />
+      <span className="text-[11px] font-semibold text-slate-300 hidden sm:inline-block">
         {formattedDate}
       </span>
     </div>
   );
 });
+
+LiveClockWidget.displayName = 'LiveClockWidget';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -74,10 +73,17 @@ export default function Dashboard() {
   const { data, isLoading, error, refetch } = useDashboardData(activeStoreId);
   
   // Current user context
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+
   const userRole = currentUser.role || 'Owner';
-  const isStaff = Boolean(currentUser.staff_id) || (userRole !== 'Owner' && userRole !== 'Admin');
-  const isOwnerOrManager = userRole === 'Owner' || userRole === 'Manager' || userRole === 'Admin';
+  const isStaff = !!(currentUser.staff_id);
+  const isOwnerOrManager = !isStaff || userRole === 'Manager';
 
   // Staff clock-in state
   const [clockedIn, setClockedIn] = useState(false);
@@ -137,7 +143,7 @@ export default function Dashboard() {
   // Handle errors
   useEffect(() => {
     if (error) {
-      toast.error("Error refreshing dashboard");
+      toast.error("Error refreshing dashboard data");
     }
   }, [error]);
 
@@ -212,20 +218,6 @@ export default function Dashboard() {
     };
   }, [data, snapshot]);
 
-  const moneyFlow = useMemo(() => {
-    return data?.moneyFlow || {
-      moneyIn: snapshot.todaySales,
-      moneyOut: snapshot.todayExpenses,
-      net: snapshot.netCashFlow,
-      breakdown: {
-        salesCollections: snapshot.todaySales,
-        customerPayments: 0,
-        expenses: snapshot.todayExpenses,
-        supplierPurchases: 0
-      }
-    };
-  }, [data, snapshot]);
-
   const inventoryHealth = useMemo(() => {
     return data?.inventoryHealth || {
       totalProducts: snapshot.totalProductsCount,
@@ -265,29 +257,29 @@ export default function Dashboard() {
     if (selectedPeriod === 'Today') {
       return (salesPerformance.trendToday || []).map(h => ({
         name: h.hour,
-        revenue: h.revenue,
-        orders: h.orders
+        revenue: Number(h.revenue || 0),
+        orders: Number(h.orders || 0)
       }));
     }
     if (selectedPeriod === '7 Days') {
       return (salesPerformance.trend7Days || []).map(d => ({
         name: d.name,
-        revenue: d.revenue ?? d.sales ?? 0,
-        orders: d.orders || 0
+        revenue: Number(d.revenue ?? d.sales ?? 0),
+        orders: Number(d.orders || 0)
       }));
     }
     if (selectedPeriod === '30 Days') {
       return (salesPerformance.trend30Days || []).map(d => ({
         name: d.name,
-        revenue: d.revenue ?? d.sales ?? 0,
-        orders: d.orders || 0
+        revenue: Number(d.revenue ?? d.sales ?? 0),
+        orders: Number(d.orders || 0)
       }));
     }
     if (selectedPeriod === '12 Months') {
       return (salesPerformance.trend12Months || []).map(m => ({
         name: m.name,
-        revenue: m.revenue ?? m.sales ?? 0,
-        orders: m.orders || 0
+        revenue: Number(m.revenue ?? m.sales ?? 0),
+        orders: Number(m.orders || 0)
       }));
     }
     return salesPerformance.trend7Days || [];
@@ -303,38 +295,87 @@ export default function Dashboard() {
 
   const activePeriodAov = activePeriodOrders > 0 ? Math.round(activePeriodRevenue / activePeriodOrders) : 0;
 
+  // Error state with non-destructive retry
+  if (error && !data) {
+    return (
+      <div className="space-y-6 pb-20 max-w-[1400px] mx-auto">
+        <div className="p-8 rounded-panel border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20 text-center space-y-4 shadow-card">
+          <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
+            <AlertCircle size={24} />
+          </div>
+          <div className="max-w-md mx-auto">
+            <h2 className="text-base sm:text-lg font-bold text-app-text">Unable to load dashboard data</h2>
+            <p className="text-small text-app-text-secondary mt-1">
+              There was an issue communicating with the server. Your data is safe. Click below to retry.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="px-4 py-2 bg-app-primary hover:bg-app-primary-hover text-white font-bold text-small rounded-btn transition-colors inline-flex items-center gap-2 cursor-pointer shadow-xs"
+          >
+            <RefreshCw size={15} /> Retry Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading Skeleton matching the streamlined layout
   if (isLoading || !data) {
     return (
-      <div className="space-y-6 pb-16 max-w-[1400px] mx-auto">
-        {/* Skeleton Header */}
-        <div className="bg-app-surface border border-app-border rounded-panel p-6 shadow-card flex flex-col md:flex-row justify-between gap-4">
-          <div className="space-y-2">
-            <Skeleton height="24px" width="160px" />
-            <Skeleton height="32px" width="300px" />
-            <Skeleton height="16px" width="220px" />
+      <div className="space-y-6 pb-20 max-w-[1400px] mx-auto animate-fade-in">
+        {/* Skeleton Top Header */}
+        <div className="bg-app-surface border border-app-border rounded-panel p-5 sm:p-6 shadow-card flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="space-y-2.5">
+            <div className="flex gap-2">
+              <Skeleton height="22px" width="80px" rounded="rounded-control" />
+              <Skeleton height="22px" width="140px" rounded="rounded-control" />
+            </div>
+            <Skeleton height="32px" width="280px" />
+            <Skeleton height="16px" width="240px" />
           </div>
-          <div className="flex gap-3 items-center">
-            <Skeleton height="40px" width="150px" rounded="rounded-btn" />
-            <Skeleton height="40px" width="120px" rounded="rounded-btn" />
+          <div className="flex gap-3 items-center flex-wrap">
+            <Skeleton height="40px" width="160px" rounded="rounded-btn" />
+            <Skeleton height="40px" width="140px" rounded="rounded-btn" />
+            <Skeleton height="40px" width="40px" rounded="rounded-btn" />
           </div>
         </div>
 
-        {/* Skeleton KPI Grid */}
+        {/* Skeleton Unified 4-Pillar Snapshot */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
+          {[...Array(4)].map((_, i) => (
             <Skeleton key={i} height="130px" rounded="rounded-panel" />
           ))}
         </div>
 
-        {/* Skeleton Sections */}
+        {/* Skeleton Sales Trend & Health Pairing */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 space-y-6">
-            <Skeleton height="350px" rounded="rounded-panel" />
-            <Skeleton height="280px" rounded="rounded-panel" />
+          <div className="lg:col-span-7">
+            <Skeleton height="370px" rounded="rounded-panel" />
           </div>
-          <div className="lg:col-span-4 space-y-6">
-            <Skeleton height="280px" rounded="rounded-panel" />
-            <Skeleton height="350px" rounded="rounded-panel" />
+          <div className="lg:col-span-5">
+            <Skeleton height="370px" rounded="rounded-panel" />
+          </div>
+        </div>
+
+        {/* Skeleton Alerts & Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7">
+            <Skeleton height="220px" rounded="rounded-panel" />
+          </div>
+          <div className="lg:col-span-5">
+            <Skeleton height="220px" rounded="rounded-panel" />
+          </div>
+        </div>
+
+        {/* Skeleton Activity & Top Performers */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7">
+            <Skeleton height="340px" rounded="rounded-panel" />
+          </div>
+          <div className="lg:col-span-5">
+            <Skeleton height="340px" rounded="rounded-panel" />
           </div>
         </div>
       </div>
@@ -342,41 +383,42 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6 pb-20 max-w-[1400px] mx-auto">
+    <div className="space-y-6 pb-20 max-w-[1400px] mx-auto animate-fade-in">
       
       {/* ========================================================================= */}
-      {/* 🟢 1. BUSINESS HEADER & LIVE CLOCK COMMAND BAR                           */}
+      {/* 🟢 1. STORE CONTEXT & COMMAND HEADER                                      */}
       {/* ========================================================================= */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800/80 rounded-panel p-5 sm:p-6 text-white shadow-elevated relative overflow-hidden">
-        {/* Subtle decorative mesh background */}
+        {/* Subtle decorative background glow */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-brand-blue/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          {/* Business Title & Welcome */}
-          <div className="space-y-1.5">
+          {/* Store Context & Page Title */}
+          <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-control text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/15 backdrop-blur-sm">
-                <ShieldCheck size={13} className="text-emerald-400" /> {userRole}
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-control text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/15 backdrop-blur-sm">
+                <ShieldCheck size={13} className="text-emerald-400 shrink-0" /> {userRole}
               </span>
               {currentUser.store_name && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-control text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/15 backdrop-blur-sm">
-                  <Store size={13} className="text-amber-300" /> {currentUser.store_name}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-control text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/15 backdrop-blur-sm">
+                  <Store size={13} className="text-amber-300 shrink-0" /> {currentUser.store_name}
                 </span>
               )}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
-              {getGreeting()}, {currentUser.business_name || currentUser.name || 'Merchant'} 👋
-            </h1>
-
-            <p className="text-xs sm:text-small text-slate-300 font-medium">
-              Here's what's happening in your business today.
-            </p>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
+                Dashboard
+              </h1>
+              <p className="text-xs sm:text-small text-slate-300 font-medium mt-0.5">
+                {getGreeting()}, {currentUser.business_name || currentUser.name || 'Merchant'} • Real-time overview of business performance and operations.
+              </p>
+            </div>
           </div>
 
-          {/* Right Header Section: Live Clock & Action Triggers */}
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Right Header Controls: Live Clock, Attendance Trigger, Quick POS, Refresh */}
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Live Business Clock Widget */}
             <LiveClockWidget />
 
@@ -386,23 +428,24 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleToggleClock}
                 disabled={clockLoading}
-                className={`px-4 py-2.5 rounded-btn font-bold text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer ${
+                className={`px-3.5 py-2 rounded-btn font-bold text-xs transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95 ${
                   clockedIn 
                     ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
                     : 'bg-white text-slate-900 hover:bg-slate-100'
                 }`}
+                title={clockedIn ? 'Click to clock out' : 'Click to clock in'}
               >
                 <Clock size={14} />
                 {clockLoading ? 'Updating...' : clockedIn ? 'Clocked In (Active)' : 'Clock In Now'}
               </button>
             )}
 
-            {/* Quick Action Button */}
+            {/* Quick Action Button for Owner/Manager */}
             {isOwnerOrManager && (
               <button 
                 type="button"
                 onClick={() => navigate('/billing')} 
-                className="px-4 py-2.5 bg-app-primary hover:bg-app-primary-hover text-white font-bold text-xs rounded-btn transition-all flex items-center gap-2 shadow-xs hover:scale-[1.02] active:scale-[0.98] cursor-pointer shrink-0"
+                className="px-4 py-2 bg-app-primary hover:bg-app-primary-hover text-white font-bold text-xs rounded-btn transition-all flex items-center gap-2 shadow-xs hover:scale-[1.02] active:scale-[0.98] cursor-pointer shrink-0"
               >
                 <ShoppingCart size={15} /> + Quick Sale (POS)
               </button>
@@ -426,185 +469,345 @@ export default function Dashboard() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 🟢 CASHIER SPECIALIZED WORKSPACE VIEW                                     */}
+      {/* 🟢 ROLE-SPECIFIC WORKSPACE: CASHIER                                       */}
       {/* ========================================================================= */}
       {userRole === 'Cashier' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ActionCard label="New POS Bill" description="Create instant invoice" icon={<ShoppingCart size={20} />} onClick={() => navigate('/billing')} />
-            <ActionCard label="Invoice History" description="Recent customer bills" icon={<Receipt size={20} />} onClick={() => navigate('/invoice-history')} />
-            <ActionCard label="Customer Khata" description="Search & record payments" icon={<Users size={20} />} onClick={() => navigate('/customers')} />
-            <ActionCard label="My Payslips" description="View salary slips" icon={<DollarSign size={20} />} onClick={() => navigate('/staff?tab=payroll')} />
+          <div className="space-y-2">
+            <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary flex items-center gap-1.5">
+              <Zap size={14} className="text-app-primary" /> Cashier Actions
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <ActionCard label="New POS Bill" description="Create instant invoice" icon={<ShoppingCart size={20} />} onClick={() => navigate('/billing')} />
+              <ActionCard label="Invoice History" description="Recent customer bills" icon={<Receipt size={20} />} onClick={() => navigate('/invoice-history')} />
+              <ActionCard label="Customer Khata" description="Search & record payments" icon={<Users size={20} />} onClick={() => navigate('/customers')} />
+              <ActionCard label="Stock Check" description="Browse item inventory" icon={<Package size={20} />} onClick={() => navigate('/inventory')} />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <MetricCard title="Today's Counter Bills" value={snapshot.todayOrders} subtitle={`Processed in ${currentUser.store_name || 'Active Branch'}`} icon={<Receipt size={20} />} />
-            <MetricCard title="On Duty Status" value={clockedIn ? 'Present' : 'Not Clocked'} subtitle="Today's attendance log" badge={clockedIn ? 'Active' : 'Pending'} badgeVariant={clockedIn ? 'success' : 'warning'} icon={<Clock size={20} />} />
-            <MetricCard title="Terminal Branch" value={currentUser.store_name || 'Main Counter'} subtitle="Ready for fast barcode billing" icon={<Store size={20} />} />
+          <div className="space-y-2">
+            <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary flex items-center gap-1.5">
+              <Activity size={14} className="text-app-primary" /> Shift Status
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <MetricCard 
+                title="Today's Counter Bills" 
+                value={snapshot.todayOrders} 
+                subtitle={`Processed in ${currentUser.store_name || 'Active Branch'}`} 
+                icon={<Receipt size={20} />} 
+              />
+              <MetricCard 
+                title="On Duty Status" 
+                value={clockedIn ? 'Present' : 'Not Clocked'} 
+                subtitle="Today's attendance log" 
+                badge={clockedIn ? 'Active' : 'Pending'} 
+                badgeVariant={clockedIn ? 'success' : 'warning'} 
+                icon={<Clock size={20} />} 
+              />
+              <MetricCard 
+                title="Terminal Branch" 
+                value={currentUser.store_name || 'Main Counter'} 
+                subtitle="Ready for fast barcode billing" 
+                icon={<Store size={20} />} 
+              />
+            </div>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 🟢 WAREHOUSE SPECIALIZED WORKSPACE VIEW                                   */}
+      {/* 🟢 ROLE-SPECIFIC WORKSPACE: WAREHOUSE STAFF                               */}
       {/* ========================================================================= */}
       {userRole === 'Warehouse Staff' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ActionCard label="Inventory Stock" description="Browse all SKUs" icon={<Package size={20} />} onClick={() => navigate('/inventory')} />
-            <ActionCard label="Receive Supplier PO" description="Stock intake & batches" icon={<Truck size={20} />} onClick={() => navigate('/suppliers')} />
-            <ActionCard label="Low Stock Items" description={`${inventoryHealth.lowStockCount} items below threshold`} icon={<AlertTriangle size={20} />} onClick={() => navigate('/inventory')} />
-            <ActionCard label="My Attendance" description="Log daily shift" icon={<Calendar size={20} />} onClick={() => navigate('/staff?tab=attendance')} />
+          <div className="space-y-2">
+            <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary flex items-center gap-1.5">
+              <Zap size={14} className="text-app-primary" /> Warehouse Operations
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <ActionCard label="Inventory Stock" description="Browse all SKUs" icon={<Package size={20} />} onClick={() => navigate('/inventory')} />
+              <ActionCard label="Receive Supplier PO" description="Stock intake & batches" icon={<Truck size={20} />} onClick={() => navigate('/suppliers')} />
+              <ActionCard label="Low Stock Items" description={`${inventoryHealth.lowStockCount} items below threshold`} icon={<AlertTriangle size={20} />} onClick={() => navigate('/inventory')} />
+              <ActionCard label="My Attendance" description="Log daily shift" icon={<Calendar size={20} />} onClick={() => navigate('/staff?tab=attendance')} />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <MetricCard title="Catalog Products" value={inventoryHealth.totalProducts} subtitle="Active tracked inventory items" icon={<Package size={20} />} />
-            <MetricCard title="Low Stock Alerts" value={inventoryHealth.lowStockCount} subtitle="Items requiring replenishment" badge={inventoryHealth.lowStockCount > 0 ? 'Action Needed' : 'Healthy'} badgeVariant={inventoryHealth.lowStockCount > 0 ? 'danger' : 'success'} icon={<AlertTriangle size={20} />} />
-            <MetricCard title="Fulfillment Branch" value={currentUser.store_name || 'Main Warehouse'} subtitle="Active store location" icon={<Store size={20} />} />
+          <div className="space-y-2">
+            <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary flex items-center gap-1.5">
+              <Package size={14} className="text-app-primary" /> Inventory Status
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <MetricCard 
+                title="Catalog Products" 
+                value={inventoryHealth.totalProducts} 
+                subtitle="Active tracked inventory items" 
+                icon={<Package size={20} />} 
+              />
+              <MetricCard 
+                title="Low Stock Alerts" 
+                value={inventoryHealth.lowStockCount} 
+                subtitle="Items requiring replenishment" 
+                badge={inventoryHealth.lowStockCount > 0 ? 'Action Needed' : 'Healthy'} 
+                badgeVariant={inventoryHealth.lowStockCount > 0 ? 'danger' : 'success'} 
+                icon={<AlertTriangle size={20} />} 
+              />
+              <MetricCard 
+                title="Fulfillment Branch" 
+                value={currentUser.store_name || 'Main Warehouse'} 
+                subtitle="Active store location" 
+                icon={<Store size={20} />} 
+              />
+            </div>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 🟢 ACCOUNTANT SPECIALIZED WORKSPACE VIEW                                  */}
+      {/* 🟢 ROLE-SPECIFIC WORKSPACE: ACCOUNTANT                                    */}
       {/* ========================================================================= */}
       {userRole === 'Accountant' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ActionCard label="Sales Ledger" description="Audit customer invoices" icon={<Receipt size={20} />} onClick={() => navigate('/invoice-history')} />
-            <ActionCard label="Record Expense" description="Add voucher or receipt" icon={<TrendingDown size={20} />} onClick={() => navigate('/expenses')} />
-            <ActionCard label="GST Reports" description="GSTR-1 & GSTR-3B audit" icon={<BarChart2 size={20} />} onClick={() => navigate('/reports/gst')} />
-            <ActionCard label="Customer Khata" description="Receivables reconciliation" icon={<Users size={20} />} onClick={() => navigate('/customers')} />
+          <div className="space-y-2">
+            <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary flex items-center gap-1.5">
+              <Zap size={14} className="text-app-primary" /> Accounting Shortcuts
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <ActionCard label="Sales Ledger" description="Audit customer invoices" icon={<Receipt size={20} />} onClick={() => navigate('/invoice-history')} />
+              <ActionCard label="Record Expense" description="Add voucher or receipt" icon={<TrendingDown size={20} />} onClick={() => navigate('/expenses')} />
+              <ActionCard label="GST Reports" description="GSTR-1 & GSTR-3B audit" icon={<BarChart2 size={20} />} onClick={() => navigate('/reports/gst')} />
+              <ActionCard label="Customer Khata" description="Receivables reconciliation" icon={<Users size={20} />} onClick={() => navigate('/customers')} />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <MetricCard title="Total Billed Today" value={`₹${Number(snapshot.todaySales).toLocaleString('en-IN')}`} subtitle="Gross invoice revenue logged" icon={<Receipt size={20} />} />
-            <MetricCard title="Pending Collections" value={`₹${Number(snapshot.outstandingReceivables).toLocaleString('en-IN')}`} subtitle={`Across ${snapshot.pendingCustomersCount || 0} customer khatas`} badge="Overdue Dues" badgeVariant="danger" icon={<Users size={20} />} />
-            <MetricCard title="P&L Summary" value={`₹${Number(snapshot.grossProfit).toLocaleString('en-IN')}`} subtitle={`Estimated Gross Margin: ${snapshot.profitMarginPercent}%`} icon={<DollarSign size={20} />} />
+          <div className="space-y-2">
+            <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary flex items-center gap-1.5">
+              <DollarSign size={14} className="text-app-primary" /> Financial Snapshot
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <MetricCard 
+                title="Total Billed Today" 
+                value={`₹${Number(snapshot.todaySales || 0).toLocaleString('en-IN')}`} 
+                subtitle="Gross invoice revenue logged" 
+                icon={<Receipt size={20} />} 
+              />
+              <MetricCard 
+                title="Pending Collections" 
+                value={`₹${Number(snapshot.outstandingReceivables || 0).toLocaleString('en-IN')}`} 
+                subtitle={`Across ${snapshot.pendingCustomersCount || 0} customer khatas`} 
+                badge="Overdue Dues" 
+                badgeVariant="danger" 
+                icon={<Users size={20} />} 
+              />
+              <MetricCard 
+                title="P&L Summary" 
+                value={`₹${Number(snapshot.grossProfit || 0).toLocaleString('en-IN')}`} 
+                subtitle={`Estimated Gross Margin: ${snapshot.profitMarginPercent}%`} 
+                icon={<DollarSign size={20} />} 
+              />
+            </div>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 🟢 2. BUSINESS SNAPSHOT (8 PRIMARY KPI CARDS) — OWNER & MANAGER           */}
+      {/* 🟢 OWNER & MANAGER VIEW: UNIFIED EXECUTIVE COMMAND CENTER                 */}
       {/* ========================================================================= */}
       {isOwnerOrManager && (
         <>
-          <div className="space-y-3">
+          {/* --------------------------------------------------------------------- */}
+          {/* 1. UNIFIED EXECUTIVE BUSINESS SNAPSHOT (4-PILLAR COMMAND GRID)        */}
+          {/* --------------------------------------------------------------------- */}
+          <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary flex items-center gap-1.5">
-                <Activity size={14} className="text-app-primary" /> Business Snapshot
+                <Activity size={14} className="text-app-primary" /> Executive Snapshot
               </h2>
-              <span className="text-micro text-app-text-muted">
-                Live updates • INR (₹)
+              <span className="text-micro font-semibold text-app-text-muted">
+                Live metrics • Tabular numerals (₹)
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Card 1: Today's Sales */}
+              {/* Pillar 1: Today's Sales */}
               <MetricCard
                 title="Today's Sales"
                 value={`₹${Number(snapshot.todaySales || 0).toLocaleString('en-IN')}`}
                 change={`${snapshot.todaySalesGrowth >= 0 ? '+' : ''}${snapshot.todaySalesGrowth}%`}
                 changeType={snapshot.todaySalesGrowth >= 0 ? 'increase' : 'decrease'}
                 changePeriod="vs yesterday"
+                subtitle={`Est. Profit: ₹${Number(snapshot.grossProfit || 0).toLocaleString('en-IN')}`}
                 icon={<ShoppingCart size={20} />}
                 iconBg="bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
                 onClick={() => navigate('/billing')}
               />
 
-              {/* Card 2: Orders */}
+              {/* Pillar 2: Customer Orders & Ticket Value */}
               <MetricCard
-                title="Orders"
-                value={snapshot.todayOrders || 0}
+                title="Orders & Ticket Size"
+                value={`${Number(snapshot.todayOrders || 0).toLocaleString('en-IN')} Orders`}
                 change={`${snapshot.todayOrdersGrowth >= 0 ? '+' : ''}${snapshot.todayOrdersGrowth}%`}
                 changeType={snapshot.todayOrdersGrowth >= 0 ? 'increase' : 'decrease'}
                 changePeriod="vs yesterday"
+                subtitle={`Avg Ticket (AOV): ₹${Number(snapshot.todayAov || 0).toLocaleString('en-IN')}`}
                 icon={<Receipt size={20} />}
                 iconBg="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400"
                 onClick={() => navigate('/invoice-history')}
               />
 
-              {/* Card 3: Average Order Value */}
+              {/* Pillar 3: Net Cash Position & Margin */}
               <MetricCard
-                title="Average Order Value"
-                value={`₹${Number(snapshot.todayAov || 0).toLocaleString('en-IN')}`}
-                change={`${snapshot.aovGrowth >= 0 ? '+' : ''}${snapshot.aovGrowth}%`}
-                changeType={snapshot.aovGrowth >= 0 ? 'increase' : 'decrease'}
-                changePeriod="trend"
-                icon={<BarChart2 size={20} />}
-                iconBg="bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400"
-                onClick={() => navigate('/invoice-history')}
-              />
-
-              {/* Card 4: Gross Profit */}
-              <MetricCard
-                title="Gross Profit"
-                value={`₹${Number(snapshot.grossProfit || 0).toLocaleString('en-IN')}`}
-                badge={`${snapshot.profitMarginPercent || 0}% Margin`}
-                badgeVariant="success"
-                subtitle="Today's estimated gross"
-                icon={<DollarSign size={20} />}
-                iconBg="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400"
-                onClick={() => navigate('/pnl')}
-              />
-
-              {/* Card 5: Expenses */}
-              <MetricCard
-                title="Expenses"
-                value={`₹${Number(snapshot.todayExpenses || 0).toLocaleString('en-IN')}`}
-                change={`${snapshot.expenseGrowth >= 0 ? '+' : ''}${snapshot.expenseGrowth}%`}
-                changeType={snapshot.expenseGrowth > 0 ? 'decrease' : 'increase'}
-                changePeriod="vs yesterday"
-                icon={<TrendingDown size={20} />}
-                iconBg="bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400"
-                onClick={() => navigate('/expenses')}
-              />
-
-              {/* Card 6: Net Cash Flow */}
-              <MetricCard
-                title="Net Cash Flow"
+                title="Net Cash Position"
                 value={`${snapshot.netCashFlow >= 0 ? '+' : ''}₹${Number(Math.abs(snapshot.netCashFlow || 0)).toLocaleString('en-IN')}`}
                 badge={snapshot.isCashFlowPositive ? 'Positive' : 'Deficit'}
                 badgeVariant={snapshot.isCashFlowPositive ? 'success' : 'danger'}
-                subtitle="Inflows minus Outflows"
+                subtitle={`Margin: ${snapshot.profitMarginPercent || 25}% • Exp: ₹${Number(snapshot.todayExpenses || 0).toLocaleString('en-IN')}`}
                 icon={<Wallet size={20} />}
-                iconBg={snapshot.isCashFlowPositive ? "bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400" : "bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400"}
+                iconBg={snapshot.isCashFlowPositive ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400" : "bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400"}
                 onClick={() => navigate('/pnl')}
               />
 
-              {/* Card 7: Outstanding Receivables */}
+              {/* Pillar 4: Khata Receivables & Inventory */}
               <MetricCard
-                title="Outstanding Receivables"
+                title="Khata Receivables"
                 value={`₹${Number(snapshot.outstandingReceivables || 0).toLocaleString('en-IN')}`}
-                badge={snapshot.pendingCustomersCount ? `${snapshot.pendingCustomersCount} Customers` : undefined}
+                badge={snapshot.pendingCustomersCount ? `${snapshot.pendingCustomersCount} Khatas` : undefined}
                 badgeVariant="warning"
-                subtitle="Pending khata collections"
+                subtitle={`Stock: ${snapshot.inventoryValueFormatted || '₹0'} (${inventoryHealth.totalProducts || 0} SKUs)`}
                 icon={<Users size={20} />}
                 iconBg="bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400"
                 onClick={() => navigate('/customers')}
               />
-
-              {/* Card 8: Inventory Value */}
-              <MetricCard
-                title="Inventory Value"
-                value={snapshot.inventoryValueFormatted || `₹${Number(inventoryHealth.stockValue || 0).toLocaleString('en-IN')}`}
-                subtitle={`Across ${inventoryHealth.totalProducts || 0} catalog products`}
-                icon={<Package size={20} />}
-                iconBg="bg-cyan-50 text-cyan-600 dark:bg-cyan-950/60 dark:text-cyan-400"
-                onClick={() => navigate('/inventory')}
-              />
             </div>
           </div>
 
-          {/* ========================================================================= */}
-          {/* 🟢 3. BUSINESS HEALTH & AI INSIGHT DUAL COLUMN                           */}
-          {/* ========================================================================= */}
+          {/* --------------------------------------------------------------------- */}
+          {/* 2. SALES PERFORMANCE TREND & BUSINESS HEALTH (PAIRED 7/5 GRID)       */}
+          {/* --------------------------------------------------------------------- */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            {/* Business Health Card (5 cols) */}
-            <div className="lg:col-span-5 flex flex-col">
+            {/* Left: Sales Performance Chart (7 cols) */}
+            <div className="lg:col-span-7 flex flex-col">
               <Card className="p-5 sm:p-6 rounded-panel border border-app-border bg-app-surface shadow-card flex flex-col justify-between h-full">
+                {/* Chart Header & Period Selector */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-app-border/60">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-app-primary-subtle text-app-primary rounded-btn shrink-0">
+                      <TrendingUp size={18} />
+                    </div>
+                    <div>
+                      <h3 className="text-card-heading font-bold text-app-text tracking-tight">
+                        Sales Performance
+                      </h3>
+                      <p className="text-caption text-app-text-secondary mt-0.5">
+                        Gross sales revenue, order volumes & ticket progression
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="inline-flex p-0.5 bg-app-surface-secondary border border-app-border rounded-btn text-micro font-semibold self-start sm:self-center shadow-xs">
+                    {['Today', '7 Days', '30 Days', '12 Months'].map((period) => (
+                      <button
+                        key={period}
+                        type="button"
+                        onClick={() => setSelectedPeriod(period)}
+                        className={`px-2.5 py-1 rounded-control transition-all cursor-pointer ${
+                          selectedPeriod === period 
+                            ? 'bg-app-surface text-app-text font-bold shadow-xs' 
+                            : 'text-app-text-secondary hover:text-app-text'
+                        }`}
+                      >
+                        {period}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Period Metric Summary Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 border-b border-app-border/40 text-center sm:text-left">
+                  <div>
+                    <span className="text-[10px] font-bold text-app-text-muted uppercase tracking-wider block">Period Revenue</span>
+                    <span className="text-sm sm:text-base font-black text-app-text tabular-nums mt-0.5 block">
+                      ₹{Number(activePeriodRevenue).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-app-text-muted uppercase tracking-wider block">Total Orders</span>
+                    <span className="text-sm sm:text-base font-black text-app-text tabular-nums mt-0.5 block">
+                      {Number(activePeriodOrders).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-app-text-muted uppercase tracking-wider block">Period AOV</span>
+                    <span className="text-sm sm:text-base font-black text-app-text tabular-nums mt-0.5 block">
+                      ₹{Number(activePeriodAov).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-app-text-muted uppercase tracking-wider block">Gross Margin Est.</span>
+                    <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 tabular-nums mt-0.5 block">
+                      ₹{Number(Math.round(activePeriodRevenue * 0.25)).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Chart Area */}
+                <div className="pt-4 flex-1 min-h-[220px]">
+                  {activeChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <AreaChart data={activeChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3157D5" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#3157D5" stopOpacity={0.0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(152, 162, 179, 0.2)" />
+                        <XAxis 
+                          dataKey="name" 
+                          tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} 
+                          tickLine={false} 
+                          axisLine={{ stroke: 'rgba(152, 162, 179, 0.3)' }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} 
+                          tickLine={false} 
+                          axisLine={false}
+                          tickFormatter={(val) => val >= 1000 ? `₹${(val / 1000).toFixed(0)}k` : `₹${val}`}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: 'var(--surface-app)',
+                            borderColor: 'var(--border-app)',
+                            borderRadius: '8px',
+                            boxShadow: 'var(--shadow-elevated)',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px'
+                          }}
+                          formatter={(val) => [`₹${Number(val).toLocaleString('en-IN')}`, 'Sales']}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="revenue" 
+                          stroke="#3157D5" 
+                          strokeWidth={2.5} 
+                          fillOpacity={1} 
+                          fill="url(#salesGradient)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[220px] flex items-center justify-center text-small text-app-text-muted font-medium">
+                      No sales recorded for this period.
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            {/* Right: Integrated Business Health & Advisory Brief (5 cols) */}
+            <div className="lg:col-span-5 flex flex-col">
+              <Card className="p-5 sm:p-6 rounded-panel border border-app-border bg-app-surface shadow-card flex flex-col justify-between h-full space-y-4">
                 <div>
+                  {/* Top Bar: Title & Score Badge */}
                   <div className="flex items-center justify-between pb-3 border-b border-app-border/60">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 rounded-control">
@@ -619,412 +822,170 @@ export default function Dashboard() {
                       health.score >= 60 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300' :
                       'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300'
                     }`}>
-                      {health.riskLevel || 'Healthy'}
+                      {health.riskLevel || 'Healthy'} ({health.score || 82}/100)
                     </span>
                   </div>
 
-                  {/* Score Radial Visual */}
-                  <div className="flex items-center gap-5 my-5">
-                    <div className="relative w-24 h-24 shrink-0">
-                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                        <path 
-                          className="text-app-surface-secondary" 
-                          strokeDasharray="100, 100" 
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                          stroke="currentColor" 
-                          strokeWidth="3.5" 
-                          fill="none" 
-                        />
-                        <path 
-                          className={`${
-                            health.score >= 80 ? 'text-emerald-500' : 
-                            health.score >= 60 ? 'text-amber-500' : 'text-rose-500'
-                          }`} 
-                          strokeDasharray={`${health.score || 82}, 100`} 
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                          stroke="currentColor" 
-                          strokeWidth="3.5" 
-                          fill="none" 
-                          strokeLinecap="round" 
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-black text-app-text tracking-tight tabular-nums">
-                          {health.score || 82}
-                        </span>
-                        <span className="text-[9px] font-bold text-app-text-muted uppercase">/ 100</span>
-                      </div>
+                  {/* 4 Health Dimension Progress Indicators */}
+                  <div className="space-y-2.5 my-4">
+                    <div className="flex justify-between items-center text-small">
+                      <span className="flex items-center gap-2 text-app-text-secondary">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        Sales Momentum
+                      </span>
+                      <span className="font-bold text-app-text">Strong</span>
                     </div>
 
-                    {/* Breakdown Indicators */}
-                    <div className="flex-1 space-y-2 text-micro font-medium">
-                      <div className="flex justify-between items-center">
-                        <span className="flex items-center gap-1.5 text-app-text-secondary">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                          Sales Performance
-                        </span>
-                        <span className="font-bold text-app-text">Strong</span>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className="flex items-center gap-1.5 text-app-text-secondary">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                          Cash Flow Health
-                        </span>
-                        <span className="font-bold text-app-text">Good</span>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className="flex items-center gap-1.5 text-app-text-secondary">
-                          <span className={`w-2 h-2 rounded-full ${inventoryHealth.lowStockCount > 5 ? 'bg-amber-500' : 'bg-emerald-500'} shrink-0`} />
-                          Inventory Turnover
-                        </span>
-                        <span className="font-bold text-app-text">
-                          {inventoryHealth.lowStockCount > 5 ? 'Needs Attention' : 'Healthy'}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className="flex items-center gap-1.5 text-app-text-secondary">
-                          <span className={`w-2 h-2 rounded-full ${snapshot.outstandingReceivables > 10000 ? 'bg-amber-500' : 'bg-emerald-500'} shrink-0`} />
-                          Customer Receivables
-                        </span>
-                        <span className="font-bold text-app-text">
-                          {snapshot.outstandingReceivables > 10000 ? 'Needs Attention' : 'Healthy'}
-                        </span>
-                      </div>
+                    <div className="flex justify-between items-center text-small">
+                      <span className="flex items-center gap-2 text-app-text-secondary">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        Cash Flow Solvency
+                      </span>
+                      <span className="font-bold text-app-text">Good</span>
                     </div>
+
+                    <div className="flex justify-between items-center text-small">
+                      <span className="flex items-center gap-2 text-app-text-secondary">
+                        <span className={`w-2 h-2 rounded-full ${inventoryHealth.lowStockCount > 5 ? 'bg-amber-500' : 'bg-emerald-500'} shrink-0`} />
+                        Inventory Turnover
+                      </span>
+                      <span className="font-bold text-app-text">
+                        {inventoryHealth.lowStockCount > 5 ? 'Needs Attention' : 'Healthy'}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-small">
+                      <span className="flex items-center gap-2 text-app-text-secondary">
+                        <span className={`w-2 h-2 rounded-full ${snapshot.outstandingReceivables > 10000 ? 'bg-amber-500' : 'bg-emerald-500'} shrink-0`} />
+                        Khata Collections
+                      </span>
+                      <span className="font-bold text-app-text">
+                        {snapshot.outstandingReceivables > 10000 ? 'Needs Attention' : 'Healthy'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Integrated AI Strategic Briefing */}
+                  <div className="p-3.5 rounded-panel bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-900/50 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-bold text-micro uppercase tracking-wider">
+                      <Sparkles size={13} /> AI Advisory Brief
+                    </div>
+                    <p className="text-caption text-app-text-secondary leading-relaxed">
+                      {businessInsight.summary || "Sales and operational metrics are updated in real time. Maintain consistent billing and customer khata follow-ups."}
+                    </p>
                   </div>
                 </div>
 
-                {/* Footer CTA */}
+                {/* Audit Deep Link CTA */}
                 <button
                   type="button"
                   onClick={() => navigate('/health-score')}
-                  className="w-full mt-2 py-2 px-3 bg-app-surface-secondary hover:bg-app-primary-subtle text-app-text hover:text-app-primary text-xs font-bold rounded-btn transition-colors flex items-center justify-center gap-2 cursor-pointer border border-app-border"
+                  className="w-full py-2 px-3 bg-app-surface-secondary hover:bg-app-primary-subtle text-app-text hover:text-app-primary text-xs font-bold rounded-btn transition-colors flex items-center justify-center gap-2 cursor-pointer border border-app-border shrink-0"
                 >
                   <span>View Full Business Health Audit</span>
                   <ChevronRight size={14} />
                 </button>
               </Card>
             </div>
+          </div>
 
-            {/* AI Advisor / Insight Card (7 cols) */}
+          {/* --------------------------------------------------------------------- */}
+          {/* 3. OPERATIONAL ROW: IMPORTANT ALERTS & QUICK ACTIONS (PAIRED 7/5)     */}
+          {/* --------------------------------------------------------------------- */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            {/* Left: Needs Your Attention (7 cols) */}
             <div className="lg:col-span-7 flex flex-col">
-              <InsightCard
-                title={businessInsight.title}
-                description={businessInsight.summary}
-                badge="AI Business Advisor"
-                actionText={businessInsight.actionText || "Take Action →"}
-                onAction={() => navigate(businessInsight.actionLink || '/billing')}
-                variant="indigo"
-                className="h-full justify-between"
-              />
-            </div>
-          </div>
-
-          {/* ========================================================================= */}
-          {/* 🟢 4. SALES PERFORMANCE (ANALYTICS CARD WITH FILTERS & CHART)             */}
-          {/* ========================================================================= */}
-          <AnalyticsCard
-            title="Sales Performance"
-            subtitle="Gross sales, customer orders, and average ticket value"
-            icon={<TrendingUp size={18} />}
-            periods={['Today', '7 Days', '30 Days', '12 Months']}
-            selectedPeriod={selectedPeriod}
-            onPeriodChange={setSelectedPeriod}
-            metrics={[
-              {
-                label: `${selectedPeriod} Revenue`,
-                value: `₹${Number(activePeriodRevenue).toLocaleString('en-IN')}`,
-                isPositive: true
-              },
-              {
-                label: `${selectedPeriod} Orders`,
-                value: activePeriodOrders,
-                isPositive: true
-              },
-              {
-                label: 'Period AOV',
-                value: `₹${Number(activePeriodAov).toLocaleString('en-IN')}`,
-                isPositive: true
-              },
-              {
-                label: 'Gross Profit Est.',
-                value: `₹${Number(Math.round(activePeriodRevenue * 0.25)).toLocaleString('en-IN')}`,
-                isPositive: true
-              }
-            ]}
-          >
-            <div className="h-64 w-full">
-              {activeChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={activeChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3157D5" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#3157D5" stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(152, 162, 179, 0.2)" />
-                    <XAxis 
-                      dataKey="name" 
-                      tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} 
-                      tickLine={false} 
-                      axisLine={{ stroke: 'rgba(152, 162, 179, 0.3)' }}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} 
-                      tickLine={false} 
-                      axisLine={false}
-                      tickFormatter={(val) => val >= 1000 ? `₹${(val / 1000).toFixed(0)}k` : `₹${val}`}
-                    />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: 'var(--surface-app)',
-                        borderColor: 'var(--border-app)',
-                        borderRadius: '8px',
-                        boxShadow: 'var(--shadow-elevated)',
-                        color: 'var(--text-primary)',
-                        fontSize: '12px'
-                      }}
-                      formatter={(val) => [`₹${Number(val).toLocaleString('en-IN')}`, 'Sales']}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="revenue" 
-                      stroke="#3157D5" 
-                      strokeWidth={2.5} 
-                      fillOpacity={1} 
-                      fill="url(#salesGradient)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-small text-app-text-muted font-medium">
-                  No sales recorded for this period.
-                </div>
-              )}
-            </div>
-          </AnalyticsCard>
-
-          {/* ========================================================================= */}
-          {/* 🟢 5. MONEY FLOW & INVENTORY HEALTH DUAL SECTION                          */}
-          {/* ========================================================================= */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Money Flow (6 cols) */}
-            <div className="lg:col-span-6 flex flex-col">
               <SectionCard
-                title="Money Flow"
-                subtitle="Inflow collections vs. Outflow expenses this month"
-                icon={<Wallet size={18} />}
-                headerAction={
-                  <button
-                    type="button"
-                    onClick={() => navigate('/pnl')}
-                    className="text-micro font-bold text-app-primary hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Full P&L</span>
-                    <ArrowRight size={12} />
-                  </button>
-                }
+                title="Needs Your Attention"
+                subtitle="High-signal operational issues, stockouts & overdue collections"
+                icon={<AlertCircle size={18} />}
+                badge={needsAttention && needsAttention.length > 0 ? `${needsAttention.length} Actionable` : 'Clear'}
+                className="h-full flex flex-col justify-between"
               >
-                <div className="space-y-4">
-                  {/* Top Level Summary Row */}
-                  <div className="grid grid-cols-3 gap-3 p-3.5 bg-app-surface-secondary/50 rounded-panel border border-app-border/60">
-                    <div>
-                      <span className="text-[10px] font-bold text-app-success uppercase tracking-wider block">Money In</span>
-                      <span className="text-base sm:text-lg font-black text-app-text tabular-nums mt-0.5 block">
-                        ₹{Number(moneyFlow.moneyIn || 0).toLocaleString('en-IN')}
-                      </span>
+                {needsAttention && needsAttention.length > 0 ? (
+                  <div className="space-y-3">
+                    {needsAttention.map((alert) => (
+                      <AlertCard
+                        key={alert.id}
+                        title={alert.title}
+                        description={alert.description}
+                        priority={alert.priority}
+                        actionLabel={alert.actionLabel}
+                        onAction={() => navigate(alert.actionLink)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center rounded-panel bg-app-surface-secondary/30 border border-app-border/40 flex flex-col items-center justify-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center justify-center">
+                      <CheckCircle2 size={20} />
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-app-danger uppercase tracking-wider block">Money Out</span>
-                      <span className="text-base sm:text-lg font-black text-app-text tabular-nums mt-0.5 block">
-                        ₹{Number(moneyFlow.moneyOut || 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-app-primary uppercase tracking-wider block">Net Balance</span>
-                      <span className={`text-base sm:text-lg font-black tabular-nums mt-0.5 block ${
-                        moneyFlow.net >= 0 ? 'text-app-success' : 'text-app-danger'
-                      }`}>
-                        {moneyFlow.net >= 0 ? '+' : ''}₹{Number(moneyFlow.net || 0).toLocaleString('en-IN')}
-                      </span>
+                      <h4 className="text-small font-bold text-app-text">All Operational Signals Clear</h4>
+                      <p className="text-caption text-app-text-secondary mt-0.5">
+                        No inventory stockouts or critical billing anomalies detected today.
+                      </p>
                     </div>
                   </div>
-
-                  {/* Breakdown Details */}
-                  <div className="space-y-2.5 pt-1">
-                    <div className="flex justify-between items-center text-small">
-                      <span className="text-app-text-secondary flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" /> Sales Collections
-                      </span>
-                      <span className="font-bold text-app-text tabular-nums">
-                        ₹{Number(moneyFlow.breakdown?.salesCollections || 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center text-small">
-                      <span className="text-app-text-secondary flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-teal-500" /> Customer Khata Payments
-                      </span>
-                      <span className="font-bold text-app-text tabular-nums">
-                        ₹{Number(moneyFlow.breakdown?.customerPayments || 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center text-small">
-                      <span className="text-app-text-secondary flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-rose-500" /> Operational Expenses
-                      </span>
-                      <span className="font-bold text-app-danger tabular-nums">
-                        -₹{Number(moneyFlow.breakdown?.expenses || 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center text-small">
-                      <span className="text-app-text-secondary flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-amber-500" /> Supplier Purchase Orders
-                      </span>
-                      <span className="font-bold text-app-danger tabular-nums">
-                        -₹{Number(moneyFlow.breakdown?.supplierPurchases || 0).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                )}
               </SectionCard>
             </div>
 
-            {/* Inventory Health (6 cols) */}
-            <div className="lg:col-span-6 flex flex-col">
+            {/* Right: Quick Actions Grid (5 cols) */}
+            <div className="lg:col-span-5 flex flex-col">
               <SectionCard
-                title="Inventory Health"
-                subtitle="Stock valuation, low-stock items, and inventory movement"
-                icon={<Package size={18} />}
-                headerAction={
-                  <button
-                    type="button"
-                    onClick={() => navigate('/inventory')}
-                    className="text-micro font-bold text-app-primary hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Review Inventory</span>
-                    <ArrowRight size={12} />
-                  </button>
-                }
+                title="Quick Actions"
+                subtitle="Fast shortcuts for daily operational tasks"
+                icon={<Zap size={18} />}
+                className="h-full flex flex-col justify-between"
               >
-                <div className="space-y-4">
-                  {/* Inventory Numbers */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
-                    <div className="p-2.5 bg-app-surface-secondary/50 rounded-panel border border-app-border/60">
-                      <span className="text-[10px] font-bold text-app-text-muted uppercase block">Total Items</span>
-                      <span className="text-base font-black text-app-text tabular-nums mt-0.5 block">
-                        {inventoryHealth.totalProducts || 0}
-                      </span>
-                    </div>
-                    <div className="p-2.5 bg-app-surface-secondary/50 rounded-panel border border-app-border/60">
-                      <span className="text-[10px] font-bold text-app-text-muted uppercase block">Stock Value</span>
-                      <span className="text-base font-black text-app-text tabular-nums mt-0.5 block">
-                        {snapshot.inventoryValueFormatted || '₹0'}
-                      </span>
-                    </div>
-                    <div className="p-2.5 bg-amber-50/50 dark:bg-amber-950/20 rounded-panel border border-amber-200/60 dark:border-amber-900/40">
-                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase block">Low Stock</span>
-                      <span className="text-base font-black text-amber-700 dark:text-amber-400 tabular-nums mt-0.5 block">
-                        {inventoryHealth.lowStockCount || 0}
-                      </span>
-                    </div>
-                    <div className="p-2.5 bg-rose-50/50 dark:bg-rose-950/20 rounded-panel border border-rose-200/60 dark:border-rose-900/40">
-                      <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase block">Out of Stock</span>
-                      <span className="text-base font-black text-rose-700 dark:text-rose-400 tabular-nums mt-0.5 block">
-                        {inventoryHealth.outOfStockCount || 0}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Low Stock Items Snapshot */}
-                  <div>
-                    <span className="text-micro font-bold uppercase tracking-wider text-app-text-muted block mb-2">
-                      Needs Restocking:
-                    </span>
-                    {inventoryHealth.lowStockItems && inventoryHealth.lowStockItems.length > 0 ? (
-                      <div className="space-y-1.5">
-                        {inventoryHealth.lowStockItems.slice(0, 3).map((item) => (
-                          <div 
-                            key={item.id}
-                            onClick={() => navigate('/inventory')}
-                            className="p-2 rounded-control bg-app-surface border border-app-border flex items-center justify-between text-caption hover:border-app-primary/30 transition-colors cursor-pointer"
-                          >
-                            <span className="font-semibold text-app-text truncate">{item.name}</span>
-                            <span className="font-bold text-rose-600 dark:text-rose-400 shrink-0">
-                              {item.stock} left (Reorder: {item.threshold})
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-app-surface-secondary/30 rounded-panel text-center text-micro text-app-text-secondary">
-                        🎉 All catalog items are adequately stocked!
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </SectionCard>
-            </div>
-          </div>
-
-          {/* ========================================================================= */}
-          {/* 🟢 6. NEEDS YOUR ATTENTION (ACTIONABLE ALERTS)                            */}
-          {/* ========================================================================= */}
-          {needsAttention && needsAttention.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary flex items-center gap-1.5">
-                  <AlertCircle size={14} className="text-rose-500" /> Needs Your Attention
-                </h2>
-                <span className="text-micro text-app-text-muted">
-                  {needsAttention.length} Actionable {needsAttention.length === 1 ? 'Alert' : 'Alerts'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {needsAttention.map((alert) => (
-                  <AlertCard
-                    key={alert.id}
-                    title={alert.title}
-                    description={alert.description}
-                    priority={alert.priority}
-                    actionLabel={alert.actionLabel}
-                    onAction={() => navigate(alert.actionLink)}
+                <div className="grid grid-cols-2 gap-3">
+                  <ActionCard 
+                    label="New Sale" 
+                    description="POS Billing" 
+                    icon={<ShoppingCart size={18} />} 
+                    onClick={() => navigate('/billing')} 
                   />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* 🟢 7. QUICK ACTIONS (COMMAND SHORTCUTS)                                   */}
-          {/* ========================================================================= */}
-          <div className="space-y-3">
-            <h2 className="text-micro font-black uppercase tracking-wider text-app-text-secondary flex items-center gap-1.5">
-              <Zap size={14} className="text-amber-500" /> Quick Actions
-            </h2>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <ActionCard label="New Sale" description="POS Billing" icon={<ShoppingCart size={18} />} onClick={() => navigate('/billing')} />
-              <ActionCard label="Add Product" description="New catalog SKU" icon={<PackagePlus size={18} />} onClick={() => navigate('/inventory')} />
-              <ActionCard label="Add Customer" description="New khata ledger" icon={<UserPlus size={18} />} onClick={() => navigate('/customers')} />
-              <ActionCard label="Record Expense" description="Add voucher" icon={<TrendingDown size={18} />} onClick={() => navigate('/expenses')} />
-              <ActionCard label="Create PO" description="Order from supplier" icon={<Truck size={18} />} onClick={() => navigate('/suppliers')} />
-              <ActionCard label="Receive Payment" description="Customer credit" icon={<DollarSign size={18} />} onClick={() => navigate('/payments')} />
+                  <ActionCard 
+                    label="Add Product" 
+                    description="Catalog SKU" 
+                    icon={<PackagePlus size={18} />} 
+                    onClick={() => navigate('/inventory')} 
+                  />
+                  <ActionCard 
+                    label="Add Customer" 
+                    description="Khata Ledger" 
+                    icon={<UserPlus size={18} />} 
+                    onClick={() => navigate('/customers')} 
+                  />
+                  <ActionCard 
+                    label="Record Expense" 
+                    description="Voucher entry" 
+                    icon={<TrendingDown size={18} />} 
+                    onClick={() => navigate('/expenses')} 
+                  />
+                  <ActionCard 
+                    label="Create PO" 
+                    description="Supplier order" 
+                    icon={<Truck size={18} />} 
+                    onClick={() => navigate('/suppliers')} 
+                  />
+                  <ActionCard 
+                    label="Receive Payment" 
+                    description="Customer credit" 
+                    icon={<DollarSign size={18} />} 
+                    onClick={() => navigate('/customers')} 
+                  />
+                </div>
+              </SectionCard>
             </div>
           </div>
 
-          {/* ========================================================================= */}
-          {/* 🟢 8. RECENT ACTIVITY STREAM & TOP PERFORMERS DUAL SECTION                */}
-          {/* ========================================================================= */}
+          {/* --------------------------------------------------------------------- */}
+          {/* 4. RECENT ACTIVITY & TOP PERFORMERS (PAIRED 7/5 GRID)                 */}
+          {/* --------------------------------------------------------------------- */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Recent Activity (7 cols) */}
+            {/* Left: Recent Business Activity Stream (7 cols) */}
             <div className="lg:col-span-7 space-y-3">
               <SectionCard
                 title="Recent Business Activity"
@@ -1043,7 +1004,7 @@ export default function Dashboard() {
               >
                 {recentActivity && recentActivity.length > 0 ? (
                   <div className="space-y-2.5">
-                    {recentActivity.map((activity) => (
+                    {recentActivity.slice(0, 5).map((activity) => (
                       <ActivityCard
                         key={activity.id}
                         title={activity.title}
@@ -1065,20 +1026,20 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="text-center py-8 text-small text-app-text-muted">
-                    No recent business activity logged today.
+                    No recent business activity logged today. Create a sale to begin.
                   </div>
                 )}
               </SectionCard>
             </div>
 
-            {/* Top Performers (5 cols) */}
+            {/* Right: Top Performers (5 cols) */}
             <div className="lg:col-span-5 space-y-3">
               <SectionCard
                 title="Top Performers"
                 subtitle="Highest revenue contributors & active customer accounts"
                 icon={<BarChart2 size={18} />}
                 headerAction={
-                  <div className="inline-flex p-0.5 bg-app-surface-secondary border border-app-border rounded-btn text-micro font-semibold">
+                  <div className="inline-flex p-0.5 bg-app-surface-secondary border border-app-border rounded-btn text-micro font-semibold shadow-xs">
                     <button
                       type="button"
                       onClick={() => setPerformersTab('products')}
@@ -1104,7 +1065,7 @@ export default function Dashboard() {
                   <div>
                     {inventoryHealth.fastMoving && inventoryHealth.fastMoving.length > 0 ? (
                       <div className="space-y-2.5">
-                        {inventoryHealth.fastMoving.map((p, idx) => (
+                        {inventoryHealth.fastMoving.slice(0, 5).map((p, idx) => (
                           <div 
                             key={p.id || idx}
                             onClick={() => navigate('/inventory')}
@@ -1135,7 +1096,7 @@ export default function Dashboard() {
                   <div>
                     {customerActivity.topCustomers && customerActivity.topCustomers.length > 0 ? (
                       <div className="space-y-2.5">
-                        {customerActivity.topCustomers.map((c, idx) => (
+                        {customerActivity.topCustomers.slice(0, 5).map((c, idx) => (
                           <div 
                             key={c.id || idx}
                             onClick={() => navigate('/customers')}

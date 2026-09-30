@@ -22,32 +22,30 @@ const PaymentSection = ({
 
   const changeDue = Math.max(0, (cashTendered || 0) - total);
 
-  const handleDenominationClick = (denom) => {
-    const nextAmount = (cashTendered || 0) + denom;
-    setCashTendered(nextAmount);
-    onChange("amountReceived", total); // invoice amount paid is full, but customer gave extra cash
-  };
-
   const handleExactCash = () => {
     setCashTendered(total);
     onChange("amountReceived", total);
   };
 
   return (
-    <div className="p-4 space-y-4">
-      {/* 1. Payment Method Pills */}
+    <div className="p-3.5 space-y-3">
+      {/* 1. Payment Method Pills Grid */}
       <div>
-        <label className="text-[10px] font-bold text-app-text-secondary uppercase tracking-wider block mb-2">
-          Payment Method
-        </label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-[10px] font-black text-app-text-secondary uppercase tracking-wider">
+            Payment Mode
+          </label>
+          <span className="text-[9px] text-app-text-muted font-mono">F4: Cash • F5: UPI • F6: Khata</span>
+        </div>
+
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
           {[
             { id: "cash", label: "Cash", icon: <Banknote size={14} />, key: "F4" },
             { id: "upi", label: "UPI QR", icon: <QrCode size={14} />, key: "F5" },
             { id: "card", label: "Card", icon: <CreditCard size={14} /> },
             { id: "netbanking", label: "Net Bank", icon: <Building size={14} /> },
-            { id: "khata", label: "Khata (Udhaar)", icon: <BookOpen size={14} />, key: "F6" },
-            { id: "split", label: "Split Pay", icon: <Layers size={14} /> },
+            { id: "khata", label: "Khata", icon: <BookOpen size={14} />, key: "F6" },
+            { id: "split", label: "Split", icon: <Layers size={14} /> },
           ].map((m) => {
             const isSelected = method === m.id || (m.id === 'khata' && status === 'unpaid');
             return (
@@ -70,12 +68,12 @@ const PaymentSection = ({
                 }}
                 className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-app-primary bg-app-primary/10 text-app-primary font-bold shadow-xs'
-                    : 'border-app-border bg-app-surface text-app-text-secondary hover:border-app-border-hover hover:text-app-text'
+                    ? 'border-app-primary bg-app-primary/10 text-app-primary font-bold shadow-2xs'
+                    : 'border-app-border bg-app-surface-subtle text-app-text-secondary hover:border-app-border-hover hover:text-app-text'
                 }`}
               >
                 <div className="mb-1">{m.icon}</div>
-                <span className="text-[10px] leading-none">{m.label}</span>
+                <span className="text-[10px] font-bold leading-none">{m.label}</span>
                 {m.key && (
                   <span className="text-[8px] font-mono text-app-text-muted mt-0.5 opacity-80">{m.key}</span>
                 )}
@@ -87,17 +85,17 @@ const PaymentSection = ({
 
       {/* 2. CASH CHANGE CALCULATOR (When Cash is selected and Paid) */}
       {method === 'cash' && status === 'paid' && (
-        <div className="p-3 bg-app-surface-subtle border border-app-border rounded-xl space-y-2.5 animate-fadeIn">
+        <div className="p-2.5 bg-app-surface-subtle border border-app-border rounded-xl space-y-2 animate-fadeIn">
           <div className="flex items-center justify-between text-xs font-bold text-app-text">
-            <span>Cash Tendered / Received</span>
-            <span className="font-mono text-sm text-app-primary">₹{cashTendered || 0}</span>
+            <span>Cash Tendered</span>
+            <span className="font-mono text-sm text-app-primary font-black">₹{cashTendered || 0}</span>
           </div>
 
-          <div className="flex gap-1.5 flex-wrap">
+          <div className="flex gap-1.5 flex-wrap items-center">
             <button
               type="button"
               onClick={handleExactCash}
-              className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-app-primary text-white hover:bg-app-primary/90 transition-colors cursor-pointer"
+              className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-app-primary text-white hover:bg-app-primary/90 transition-colors cursor-pointer shadow-2xs"
             >
               Exact (₹{Math.round(total)})
             </button>
@@ -105,13 +103,16 @@ const PaymentSection = ({
               <button
                 key={amt}
                 type="button"
-                onClick={() => setCashTendered(amt)}
-                className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-app-surface border border-app-border hover:border-app-primary/40 text-app-text transition-colors cursor-pointer"
+                onClick={() => {
+                  setCashTendered(amt);
+                  onChange("amountReceived", total);
+                }}
+                className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-app-surface border border-app-border hover:border-app-primary/40 text-app-text transition-colors cursor-pointer shadow-2xs"
               >
                 ₹{amt}
               </button>
             ))}
-            <div className="flex-1 min-w-[80px]">
+            <div className="flex-1 min-w-[70px]">
               <input
                 type="number"
                 min="0"
@@ -121,15 +122,15 @@ const PaymentSection = ({
                   const val = parseFloat(e.target.value) || 0;
                   setCashTendered(val);
                 }}
-                className="w-full text-right font-bold text-xs bg-app-surface border border-app-border rounded-lg px-2 py-1 outline-none focus:border-app-primary text-app-text"
+                className="w-full text-right font-bold text-xs bg-app-surface border border-app-border rounded-lg px-2 py-1 outline-none focus:border-app-primary text-app-text font-mono"
               />
             </div>
           </div>
 
           {/* Change Display */}
-          <div className="flex items-center justify-between pt-2 border-t border-app-border/80">
-            <span className="text-[11px] font-bold text-app-text-secondary">
-              Change to Return to Customer:
+          <div className="flex items-center justify-between pt-1.5 border-t border-app-border/70">
+            <span className="text-[11px] font-semibold text-app-text-secondary">
+              Change Due:
             </span>
             <span className={`text-sm font-black font-mono ${changeDue > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-app-text'}`}>
               ₹{changeDue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -140,45 +141,45 @@ const PaymentSection = ({
 
       {/* 3. SPLIT PAYMENT WORKFLOW */}
       {method === 'split' && (
-        <div className="p-3 bg-app-surface-subtle border border-app-border rounded-xl space-y-2 animate-fadeIn">
-          <span className="text-[10px] font-bold text-app-text-secondary uppercase tracking-wider block">
+        <div className="p-2.5 bg-app-surface-subtle border border-app-border rounded-xl space-y-2 animate-fadeIn">
+          <span className="text-[10px] font-black text-app-text-secondary uppercase tracking-wider block">
             Split Payment Amounts
           </span>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-[10px] text-app-text-muted font-semibold block mb-1">Cash (₹)</label>
+              <label className="text-[10px] text-app-text-muted font-bold block mb-1">Cash (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={splitDetails.cash || ""}
                 onChange={(e) => onSplitChange?.({ ...splitDetails, cash: parseFloat(e.target.value) || 0 })}
-                className="w-full text-xs font-bold bg-app-surface border border-app-border rounded-lg p-1.5 text-app-text focus:border-app-primary outline-none"
+                className="w-full text-xs font-bold font-mono bg-app-surface border border-app-border rounded-lg p-1.5 text-app-text focus:border-app-primary outline-none"
               />
             </div>
             <div>
-              <label className="text-[10px] text-app-text-muted font-semibold block mb-1">UPI (₹)</label>
+              <label className="text-[10px] text-app-text-muted font-bold block mb-1">UPI (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={splitDetails.upi || ""}
                 onChange={(e) => onSplitChange?.({ ...splitDetails, upi: parseFloat(e.target.value) || 0 })}
-                className="w-full text-xs font-bold bg-app-surface border border-app-border rounded-lg p-1.5 text-app-text focus:border-app-primary outline-none"
+                className="w-full text-xs font-bold font-mono bg-app-surface border border-app-border rounded-lg p-1.5 text-app-text focus:border-app-primary outline-none"
               />
             </div>
             <div>
-              <label className="text-[10px] text-app-text-muted font-semibold block mb-1">Card (₹)</label>
+              <label className="text-[10px] text-app-text-muted font-bold block mb-1">Card (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={splitDetails.card || ""}
                 onChange={(e) => onSplitChange?.({ ...splitDetails, card: parseFloat(e.target.value) || 0 })}
-                className="w-full text-xs font-bold bg-app-surface border border-app-border rounded-lg p-1.5 text-app-text focus:border-app-primary outline-none"
+                className="w-full text-xs font-bold font-mono bg-app-surface border border-app-border rounded-lg p-1.5 text-app-text focus:border-app-primary outline-none"
               />
             </div>
           </div>
           <div className="flex justify-between items-center text-[11px] pt-1 text-app-text-secondary font-semibold">
             <span>Allocated: ₹{((splitDetails.cash || 0) + (splitDetails.upi || 0) + (splitDetails.card || 0)).toFixed(2)}</span>
-            <span className={Math.abs(total - ((splitDetails.cash || 0) + (splitDetails.upi || 0) + (splitDetails.card || 0))) < 0.01 ? 'text-emerald-600' : 'text-rose-600'}>
+            <span className={Math.abs(total - ((splitDetails.cash || 0) + (splitDetails.upi || 0) + (splitDetails.card || 0))) < 0.01 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
               Remaining: ₹{Math.max(0, total - ((splitDetails.cash || 0) + (splitDetails.upi || 0) + (splitDetails.card || 0))).toFixed(2)}
             </span>
           </div>
@@ -186,23 +187,23 @@ const PaymentSection = ({
       )}
 
       {/* 4. Payment Status Selector */}
-      <div className="flex items-center justify-between gap-2 pt-1">
-        <label className="text-[10px] font-bold text-app-text-secondary uppercase tracking-wider shrink-0">
+      <div className="flex items-center justify-between gap-2 pt-0.5">
+        <label className="text-[10px] font-black text-app-text-secondary uppercase tracking-wider shrink-0">
           Payment Status
         </label>
-        <div className="inline-flex rounded-lg border border-app-border bg-app-surface p-0.5 text-xs font-bold">
+        <div className="inline-flex rounded-lg border border-app-border bg-app-surface-subtle p-0.5 text-xs font-bold">
           {[
-            { id: "paid", label: "Paid", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" },
-            { id: "partial", label: "Partial", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40" },
-            { id: "unpaid", label: "Khata (Due)", color: "text-rose-600 bg-rose-50 dark:bg-rose-950/40" },
+            { id: "paid", label: "Paid", color: "text-emerald-600 bg-emerald-500/10" },
+            { id: "partial", label: "Partial", color: "text-amber-600 bg-amber-500/10" },
+            { id: "unpaid", label: "Khata (Due)", color: "text-rose-600 bg-rose-500/10" },
           ].map((s) => (
             <button
               key={s.id}
               type="button"
               onClick={() => onChange("status", s.id)}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer text-xs ${
                 status === s.id
-                  ? `${s.color} shadow-xs font-black`
+                  ? `${s.color} shadow-2xs font-black`
                   : 'text-app-text-secondary hover:text-app-text'
               }`}
             >
@@ -214,7 +215,7 @@ const PaymentSection = ({
 
       {/* Partial Payment Amount Input */}
       {status === 'partial' && (
-        <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-xl space-y-2 animate-fadeIn">
+        <div className="p-2.5 bg-amber-500/10 border border-amber-300 dark:border-amber-800 rounded-xl space-y-1.5 animate-fadeIn">
           <label className="text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider block">
             Amount Received Now (₹)
           </label>
@@ -224,11 +225,11 @@ const PaymentSection = ({
             max={total}
             value={amountReceived}
             onChange={(e) => onChange("amountReceived", parseFloat(e.target.value) || 0)}
-            className="w-full bg-app-surface border border-amber-300 dark:border-amber-800 rounded-lg px-3 py-1.5 text-xs font-bold text-app-text outline-none focus:border-amber-500"
+            className="w-full bg-app-surface border border-amber-300 dark:border-amber-800 rounded-lg px-2.5 py-1 text-xs font-bold font-mono text-app-text outline-none focus:border-amber-500"
           />
           <div className="flex justify-between text-[11px] font-bold text-amber-900 dark:text-amber-200">
             <span>Customer Balance (Khata Due):</span>
-            <span className="text-rose-600">₹{Math.max(0, total - (amountReceived || 0)).toFixed(2)}</span>
+            <span className="text-rose-600 font-mono">₹{Math.max(0, total - (amountReceived || 0)).toFixed(2)}</span>
           </div>
         </div>
       )}

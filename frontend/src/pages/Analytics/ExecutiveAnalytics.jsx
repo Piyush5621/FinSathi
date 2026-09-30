@@ -748,11 +748,11 @@ export default function ExecutiveAnalytics() {
             <div className="p-12 text-center bg-app-surface border border-app-border rounded-panel">
               <FileSpreadsheet size={40} className="mx-auto text-app-text-muted mb-2" />
               <h3 className="font-bold text-sm text-app-text">GSTR Audit Engine Ready</h3>
-              <p className="text-xs text-app-text-muted mt-1">Export GSTR-1 and GSTR-3B filings directly from the General Hub.</p>
+              <p className="text-xs text-app-text-muted mt-1">Export GSTR-1 and GSTR-3B filings directly from the GST Compliance Center.</p>
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => navigate('/general?tab=gst')}
+                onClick={() => navigate('/reports/gst')}
                 className="mt-3 text-xs font-bold"
               >
                 Open Full GST Compliance Hub

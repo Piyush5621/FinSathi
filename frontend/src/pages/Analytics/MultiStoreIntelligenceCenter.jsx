@@ -27,15 +27,14 @@ export default function MultiStoreIntelligenceCenter() {
   const { stores, activeStoreId, activeStore, switchStore, refetchStores } = useStore();
 
   // Workspace Tabs
-  const initialTab = searchParams.get('tab') || 'overview';
-  const [activeTab, setActiveTab] = useState(initialTab); // 'overview' | 'comparison' | 'transfers' | 'network' | 'insights'
+  const rawTab = searchParams.get('tab');
+  const initialTab = ['overview', 'comparison', 'transfers', 'insights'].includes(rawTab) ? rawTab : 'overview';
+  const [activeTab, setActiveTab] = useState(initialTab); // 'overview' | 'comparison' | 'transfers' | 'insights'
   const [loading, setLoading] = useState(true);
 
   // Authoritative Datasets
   const [dashboardData, setDashboardData] = useState(null);
   const [inventoryItems, setInventoryItems] = useState([]);
-  const [tradeInbox, setTradeInbox] = useState([]);
-  const [tradeOutbox, setTradeOutbox] = useState([]);
 
   // Inter-Store Transfer Modal State
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -63,17 +62,13 @@ export default function MultiStoreIntelligenceCenter() {
   const fetchEnterpriseData = useCallback(async () => {
     setLoading(true);
     try {
-      const [dashRes, invRes, inRes, outRes] = await Promise.all([
+      const [dashRes, invRes] = await Promise.all([
         API.get('/dashboard').catch(() => ({ data: null })),
-        API.get('/catalog/products?limit=200').catch(() => ({ data: { data: [] } })),
-        API.get('/trade/inbox').catch(() => ({ data: { data: [] } })),
-        API.get('/trade/outbox').catch(() => ({ data: { data: [] } }))
+        API.get('/catalog/products?limit=200').catch(() => ({ data: { data: [] } }))
       ]);
 
       if (dashRes.data) setDashboardData(dashRes.data);
       setInventoryItems(invRes.data?.data || (Array.isArray(invRes.data) ? invRes.data : []));
-      setTradeInbox(inRes.data?.data || []);
-      setTradeOutbox(outRes.data?.data || []);
     } catch (err) {
       console.error("MultiStore fetch error:", err);
       toast.error("Failed to load multi-store enterprise records");
@@ -99,10 +94,9 @@ export default function MultiStoreIntelligenceCenter() {
       totalRevenue: totalEnterpriseRevenue,
       storeCount,
       totalInventoryValue,
-      totalReceivables,
-      activePartners: (tradeInbox.length + tradeOutbox.length) || 8
+      totalReceivables
     };
-  }, [dashboardData, stores, inventoryItems, tradeInbox, tradeOutbox]);
+  }, [dashboardData, stores, inventoryItems]);
 
   // Branch Performance Comparative Matrix
   const branchComparisonMatrix = useMemo(() => {
@@ -148,7 +142,7 @@ export default function MultiStoreIntelligenceCenter() {
   }, [branchComparisonMatrix]);
 
   // Submit Stock Transfer
-  const handleExecuteTransfer = (e) => {
+  const handleExecuteTransfer = async (e) => {
     e.preventDefault();
     if (!transferPayload.productId || !transferPayload.destStoreId) {
       return toast.error("Please select product and destination store");
@@ -158,22 +152,35 @@ export default function MultiStoreIntelligenceCenter() {
     const destStore = stores.find(s => String(s.id) === String(transferPayload.destStoreId));
     const sourceStore = stores.find(s => String(s.id) === String(transferPayload.sourceStoreId)) || activeStore;
 
-    const newTransfer = {
-      id: `TRF-${Date.now().toString().slice(-4)}`,
-      item: selectedProd?.name || 'Selected SKU',
-      qty: Number(transferPayload.quantity),
-      from: sourceStore?.name || 'Main Branch',
-      to: destStore?.name || 'Destination Branch',
-      status: 'COMPLETED',
-      date: 'Just now'
-    };
+    try {
+      await API.post('/inventory/transfer', {
+        source_store_id: sourceStore?.id,
+        destination_store_id: destStore?.id,
+        productId: selectedProd?.id,
+        quantity: Number(transferPayload.quantity),
+        remarks: 'Transferred via Multi-Store Intelligence Center'
+      });
 
-    const updated = [newTransfer, ...transferHistory];
-    setTransferHistory(updated);
-    localStorage.setItem('karobar_store_transfers', JSON.stringify(updated));
+      const newTransfer = {
+        id: `TRF-${Date.now().toString().slice(-4)}`,
+        item: selectedProd?.name || 'Selected SKU',
+        qty: Number(transferPayload.quantity),
+        from: sourceStore?.name || 'Main Branch',
+        to: destStore?.name || 'Destination Branch',
+        status: 'COMPLETED',
+        date: 'Just now'
+      };
 
-    toast.success(`Transferred ${transferPayload.quantity} units to ${destStore?.name || 'Destination Branch'}! 📦`);
-    setShowTransferModal(false);
+      const updated = [newTransfer, ...transferHistory];
+      setTransferHistory(updated);
+      localStorage.setItem('karobar_store_transfers', JSON.stringify(updated));
+
+      toast.success(`Transferred ${transferPayload.quantity} units to ${destStore?.name || 'Destination Branch'}! 📦`);
+      setShowTransferModal(false);
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.response?.data?.error || "Failed to execute stock transfer");
+    }
   };
 
   return (
@@ -187,13 +194,13 @@ export default function MultiStoreIntelligenceCenter() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-black text-app-text tracking-tight">Multi-Store & Business Network Intelligence</h1>
+              <h1 className="text-lg font-black text-app-text tracking-tight">Multi-Store Retail Intelligence</h1>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600">
                 <Store size={10} /> {stores.length} Retail Locations
               </span>
             </div>
             <p className="text-xs text-app-text-secondary mt-0.5">
-              Consolidated enterprise health, cross-store performance rankings, stock balancing, and B2B trade network.
+              Consolidated enterprise health, cross-store performance rankings, and stock balancing across branches.
             </p>
           </div>
         </div>
@@ -259,10 +266,10 @@ export default function MultiStoreIntelligenceCenter() {
         />
 
         <MetricCard
-          title="B2B Trade Network"
-          value={`${enterpriseStats.activePartners} Partners`}
-          subtitle="Active supplier links"
-          icon={<Building2 size={18} />}
+          title="Active Locations"
+          value={`${enterpriseStats.storeCount} Branches`}
+          subtitle="Operating store units"
+          icon={<Store size={18} />}
           iconBg="bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400"
         />
       </div>
@@ -274,7 +281,6 @@ export default function MultiStoreIntelligenceCenter() {
             { id: 'overview', label: 'Consolidated Overview', icon: <Building2 size={14} /> },
             { id: 'comparison', label: 'Store Comparison & Rankings', icon: <BarChart3 size={14} /> },
             { id: 'transfers', label: 'Inter-Store Transfers', icon: <ArrowLeftRight size={14} />, count: transferHistory.length },
-            { id: 'network', label: 'B2B Trade Network', icon: <Users2 size={14} /> },
             { id: 'insights', label: 'Cross-Store Insights', icon: <Sparkles size={14} /> }
           ].map(tab => (
             <button
@@ -519,47 +525,8 @@ export default function MultiStoreIntelligenceCenter() {
             </div>
           </div>
         </div>
-      ) : activeTab === 'network' ? (
-        /* TAB 4: B2B TRADE NETWORK */
-        <div className="p-6 bg-app-surface border border-app-border rounded-panel shadow-xs space-y-6">
-          <div className="border-b border-app-border pb-4 flex justify-between items-center">
-            <div>
-              <h3 className="font-bold text-sm text-app-text">KaroBar B2B Business Network & Partner Trade</h3>
-              <p className="text-xs text-app-text-muted mt-0.5">Connected wholesale suppliers, digital invoices, and verified trade credit</p>
-            </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate('/network')}
-              icon={<ArrowRight size={13} />}
-              className="text-xs font-bold"
-            >
-              Open Full Network Portal
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 bg-app-surface-subtle border border-app-border rounded-xl space-y-1">
-              <span className="text-[10px] font-bold text-app-text-muted uppercase">Trade Inbox Orders</span>
-              <p className="text-2xl font-black font-mono text-emerald-600">{tradeInbox.length || 3} Orders</p>
-              <span className="text-[10px] text-app-text-muted">Digital B2B invoices received</span>
-            </div>
-
-            <div className="p-4 bg-app-surface-subtle border border-app-border rounded-xl space-y-1">
-              <span className="text-[10px] font-bold text-app-text-muted uppercase">Trade Outbox Dispatches</span>
-              <p className="text-2xl font-black font-mono text-indigo-600">{tradeOutbox.length || 5} Orders</p>
-              <span className="text-[10px] text-app-text-muted">Invoices sent to partners</span>
-            </div>
-
-            <div className="p-4 bg-app-surface-subtle border border-app-border rounded-xl space-y-1">
-              <span className="text-[10px] font-bold text-app-text-muted uppercase">Verified Trust Score</span>
-              <p className="text-2xl font-black font-mono text-amber-600">88 / 100</p>
-              <span className="text-[10px] text-app-text-muted">Verified payment compliance</span>
-            </div>
-          </div>
-        </div>
       ) : (
-        /* TAB 5: CROSS-STORE INSIGHTS */
+        /* TAB 4: CROSS-STORE INSIGHTS */
         <div className="space-y-4 max-w-3xl mx-auto">
           <div className="p-5 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-blue-500/10 border border-indigo-500/20 rounded-2xl space-y-3">
             <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-bold text-xs">

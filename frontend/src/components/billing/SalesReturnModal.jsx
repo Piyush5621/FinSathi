@@ -5,7 +5,8 @@ import toast from 'react-hot-toast';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
-export default function SalesReturnModal({ invoice, isOpen, onClose, onReturnSuccess }) {
+export default function SalesReturnModal({ invoice: propInvoice, sale, isOpen, onClose, onReturnSuccess }) {
+  const invoice = propInvoice || sale;
   const [returnItems, setReturnItems] = useState({});
   const [reason, setReason] = useState('Customer Return');
   const [refundMode, setRefundMode] = useState('cash');
@@ -13,8 +14,12 @@ export default function SalesReturnModal({ invoice, isOpen, onClose, onReturnSuc
 
   // Parse items and previous returns
   const saleItems = useMemo(() => {
-    if (!invoice || !Array.isArray(invoice.items)) return [];
-    return invoice.items;
+    if (!invoice) return [];
+    if (Array.isArray(invoice.items)) return invoice.items;
+    if (typeof invoice.items === 'string') {
+      try { return JSON.parse(invoice.items); } catch(e) {}
+    }
+    return invoice.sale_items || [];
   }, [invoice]);
 
   const alreadyReturnedMap = useMemo(() => {

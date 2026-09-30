@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Search, Store, User, LogOut, Settings, Calendar, DollarSign, 
+  Search, Store, User, LogOut, Settings, Calendar, 
   Menu, Sun, Moon, Monitor, ChevronDown, Check, ShieldCheck,
   Command, Building2
 } from 'lucide-react';
@@ -21,12 +21,14 @@ export function Header({
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const userRole = currentUser.role || 'Owner';
-  const isOwner = userRole === 'Owner' || userRole === 'Admin' || !currentUser.staff_id;
+  const isStaff = !!(currentUser.staff_id);
+  const isOwner = !isStaff;
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('loggedIn');
+    localStorage.removeItem('activeStoreId');
     navigate('/login');
   };
 
@@ -218,20 +220,12 @@ export function Header({
           </DropdownItem>
 
           {!isOwner && (
-            <>
-              <DropdownItem
-                icon={<Calendar size={15} />}
-                onClick={() => navigate('/staff?tab=attendance')}
-              >
-                My Attendance
-              </DropdownItem>
-              <DropdownItem
-                icon={<DollarSign size={15} />}
-                onClick={() => navigate('/staff?tab=payroll')}
-              >
-                My Payslips
-              </DropdownItem>
-            </>
+            <DropdownItem
+              icon={<Calendar size={15} />}
+              onClick={() => navigate('/staff?tab=attendance')}
+            >
+              My Attendance
+            </DropdownItem>
           )}
 
           {isOwner && (

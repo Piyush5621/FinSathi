@@ -6,11 +6,22 @@ const API = axios.create({
   withCredentials: true // Ensure HttpOnly cookies (including refreshToken) are sent automatically
 });
 
+let memoryAccessToken = null;
+
+export const setAccessToken = (token) => {
+  memoryAccessToken = token;
+};
+
+export const getAccessToken = () => memoryAccessToken;
+
 // Request Interceptor: attach Bearer token if available and normalize url
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token && !config.headers.Authorization) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (memoryAccessToken && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${memoryAccessToken}`;
+  }
+  const activeStoreId = localStorage.getItem("activeStoreId");
+  if (activeStoreId && !config.headers['x-store-id']) {
+    config.headers['x-store-id'] = activeStoreId;
   }
   if (config.url && config.url.startsWith("/api/")) {
     config.url = config.url.replace(/^\/api/, "");
@@ -96,8 +107,8 @@ API.interceptors.response.use(
           throw new Error("No access token received from refresh endpoint.");
         }
 
-        // Store new access token in localStorage (refresh token is handled exclusively via HttpOnly cookie)
-        localStorage.setItem("token", newAccessToken);
+        // Store new access token in memory (refresh token is handled exclusively via HttpOnly cookie)
+        setAccessToken(newAccessToken);
 
         // Update default header for subsequent requests
         API.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;

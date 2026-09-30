@@ -1,223 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  LayoutDashboard, ShoppingCart, FileText, Wallet, Package, 
-  Users, Truck, MessageSquare, TrendingDown, TrendingUp, 
-  HeartPulse, Bot, Globe, ArrowLeftRight, ShieldCheck, 
-  Settings, LayoutGrid, Calendar, Lock, ChevronLeft, ChevronRight,
-  ChevronDown, ShieldAlert, Database, Sparkles, BarChart2, DollarSign,
-  HelpCircle, Wifi, WifiOff, X, Bell, Compass, Zap, Building2
+  ChevronLeft, ChevronRight, ChevronDown, 
+  X, Sparkles
 } from 'lucide-react';
 import Logo from './Logo';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import Tooltip from './ui/Tooltip';
+import { Badge } from './ui/Badge';
+import { getNavigationSections } from '../constants/navigation';
 
-export const getRoleNavigation = (user) => {
-  const role = user?.role || 'Owner';
-  const isOwner = role === 'Owner' || role === 'Admin' || !user?.staff_id;
-  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  const hasWildcard = permissions.includes('*') || isOwner;
-  const hasPerm = (perm) => hasWildcard || permissions.includes(perm);
-
-  const b2bTypes = ['distributor', 'manufacturer', 'wholesaler', 'b2b'];
-  const isB2B = b2bTypes.includes(user?.business_type?.toLowerCase());
-  const hasMultiStore = user?.multi_store_enabled === true;
-
-  const sections = [
-    {
-      type: 'single',
-      path: '/dashboard',
-      label: 'Overview',
-      icon: LayoutDashboard,
-    }
-  ];
-
-  // 1. OPERATIONS SECTION
-  const operationItems = [];
-  
-  // Sales Sub-group or items
-  if (hasPerm('create_sales') || hasPerm('view_billing') || role === 'Cashier' || role === 'Manager') {
-    operationItems.push({
-      path: '/billing',
-      label: 'POS Billing',
-      icon: ShoppingCart,
-    });
-    operationItems.push({
-      path: '/invoice-history',
-      label: 'Invoice Ledger',
-      icon: FileText,
-    });
-  }
-
-  // Inventory
-  if (hasPerm('view_catalog') || hasPerm('edit_catalog') || hasPerm('run_counts') || role === 'Warehouse Staff' || role === 'Manager') {
-    operationItems.push({
-      path: '/inventory',
-      label: 'Stock & Inventory',
-      icon: Package,
-    });
-  }
-
-  // Purchases / Suppliers
-  if (hasPerm('approve_po') || hasPerm('post_invoices') || role === 'Warehouse Staff' || role === 'Manager' || role === 'Accountant') {
-    operationItems.push({
-      path: '/suppliers',
-      label: 'Purchases & Receiving',
-      icon: Truck,
-    });
-  }
-
-  // Customers Khata
-  if (hasPerm('view_billing') || hasPerm('create_sales') || role === 'Cashier' || role === 'Manager' || role === 'Accountant') {
-    operationItems.push({
-      path: '/customers',
-      label: 'Customer Registry',
-      icon: Users,
-    });
-  }
-
-  // CRM
-  if (isOwner || (isB2B && role === 'Manager')) {
-    operationItems.push({
-      path: '/crm',
-      label: 'CRM & Pipeline',
-      icon: MessageSquare,
-    });
-  }
-
-  if (operationItems.length > 0) {
-    sections.push({
-      type: 'group',
-      label: 'OPERATIONS',
-      items: operationItems,
-    });
-  }
-
-  // 2. FINANCE SECTION
-  const financeItems = [];
-
-  if (hasPerm('view_billing') || role === 'Cashier' || role === 'Manager' || role === 'Accountant') {
-    financeItems.push({
-      path: '/payments',
-      label: 'Payments Inflow',
-      icon: Wallet,
-    });
-  }
-
-  if (isOwner || role === 'Accountant' || role === 'Manager') {
-    financeItems.push({
-      path: '/expenses',
-      label: 'Expenses Outflow',
-      icon: TrendingDown,
-    });
-  }
-
-  if (isOwner || hasPerm('adjust_costs')) {
-    financeItems.push({
-      path: '/pnl',
-      label: 'P&L Financials',
-      icon: TrendingUp,
-    });
-  }
-
-  if (isOwner || role === 'Accountant' || role === 'Manager') {
-    financeItems.push({
-      path: '/reports/gst',
-      label: 'GST & Tax Reports',
-      icon: FileText,
-    });
-  }
-
-  if (isOwner || role === 'Manager') {
-    financeItems.push({
-      path: '/health-score',
-      label: 'Business Health',
-      icon: HeartPulse,
-    });
-  }
-
-  if (isOwner) {
-    financeItems.push({
-      path: '/executive-analytics',
-      label: 'Executive Analytics',
-      icon: BarChart2,
-    });
-  }
-
-  if (financeItems.length > 0) {
-    sections.push({
-      type: 'group',
-      label: 'FINANCE',
-      items: financeItems,
-    });
-  }
-
-  // 3. BUSINESS NETWORK SECTION
-  if (isOwner || role === 'Manager' || role === 'Accountant') {
-    sections.push({
-      type: 'group',
-      label: 'NETWORK',
-      items: [
-        { path: '/network', label: 'Business Network', icon: Globe },
-        { path: '/network/exchange', label: 'Business Exchange', icon: ArrowLeftRight },
-      ],
-    });
-  }
-
-  // 4. PEOPLE / WORKFORCE SECTION
-  if (isOwner || hasPerm('admin_setup') || role === 'Manager') {
-    sections.push({
-      type: 'group',
-      label: 'PEOPLE',
-      items: [
-        { path: '/staff', label: 'Staff Hub', icon: Users },
-        { path: '/staff?tab=payroll', label: 'Payroll & Salary', icon: Wallet },
-      ],
-    });
-  } else {
-    sections.push({
-      type: 'group',
-      label: 'MY RECORDS',
-      items: [
-        { path: '/staff?tab=attendance', label: 'My Attendance', icon: Calendar },
-        { path: '/staff?tab=payroll', label: 'My Payslips', icon: DollarSign },
-      ],
-    });
-  }
-
-  // 5. INTELLIGENCE SECTION
-  if (isOwner || role === 'Manager') {
-    sections.push({
-      type: 'group',
-      label: 'INTELLIGENCE',
-      items: [
-        { path: '/ai-advisor', label: 'AI Copilot (KaroBar AI)', icon: Bot },
-        { path: '/alerts', label: 'Smart Alerts & Automation', icon: Bell },
-        { path: '/forecasting', label: 'Predictive Forecasting', icon: Compass },
-        { path: '/workflows', label: 'Workflow Autopilot', icon: Zap },
-        { path: '/multi-store', label: 'Multi-Store Intelligence', icon: Building2 },
-        ...(isOwner ? [{ path: '/founder-dashboard', label: 'Founder Console', icon: Sparkles }] : []),
-      ],
-    });
-  }
-
-  // 6. SYSTEM SECTION
-  if (isOwner || hasPerm('admin_setup')) {
-    sections.push({
-      type: 'group',
-      label: 'SYSTEM',
-      items: [
-        { path: '/settings', label: 'Business Settings', icon: Settings },
-        ...(hasMultiStore ? [{ path: '/stores', label: 'Store Branches', icon: LayoutGrid }] : []),
-        { path: '/subscription/plans', label: 'Subscription Plans', icon: ShieldCheck },
-        { path: '/audit-center', label: 'Audit Center', icon: ShieldAlert },
-        { path: '/backup-wizard', label: 'Backup Wizard', icon: Database },
-      ],
-    });
-  }
-
-  return sections;
-};
+// Exported alias for backward compatibility
+export const getRoleNavigation = getNavigationSections;
 
 export function Sidebar({ 
   isCollapsed = false, 
@@ -227,9 +21,10 @@ export function Sidebar({
 }) {
   const location = useLocation();
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const navSections = getRoleNavigation(currentUser);
-  const { subscription, usage, planDetails } = useSubscription();
+  const navSections = getNavigationSections(currentUser);
+  const { subscription, usage } = useSubscription();
 
+  // Active path checking helper
   const isCurrentPath = (path) => {
     if (!path) return false;
     const current = location.pathname + location.search;
@@ -238,8 +33,34 @@ export function Sidebar({
     return location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path));
   };
 
+  // Track expanded state for domain sections
+  const [expandedSections, setExpandedSections] = useState(() => {
+    const initial = {};
+    navSections.forEach(s => {
+      initial[s.id] = s.defaultExpanded ?? true;
+    });
+    return initial;
+  });
+
+  // Auto-expand section containing the currently active route
+  useEffect(() => {
+    navSections.forEach(section => {
+      const hasActiveItem = section.items.some(item => isCurrentPath(item.path));
+      if (hasActiveItem) {
+        setExpandedSections(prev => ({ ...prev, [section.id]: true }));
+      }
+    });
+  }, [location.pathname, location.search]);
+
+  const toggleSection = (sectionId) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
   const content = (
-    <div className="h-full flex flex-col justify-between bg-app-surface text-app-text border-r border-app-border">
+    <div className="h-full flex flex-col justify-between bg-app-surface text-app-text border-r border-app-border select-none">
       {/* 1. Header / Logo Area */}
       <div className="p-4 flex items-center justify-between border-b border-app-border h-16 shrink-0">
         <Link to="/dashboard" className="flex items-center gap-2.5 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-app-primary rounded-btn">
@@ -249,8 +70,9 @@ export function Sidebar({
         {/* Mobile close button */}
         {onMobileClose && (
           <button
+            type="button"
             onClick={onMobileClose}
-            className="md:hidden p-1.5 text-app-text-muted hover:text-app-text rounded-btn transition-colors"
+            className="md:hidden p-1.5 text-app-text-muted hover:text-app-text rounded-btn transition-colors cursor-pointer"
             aria-label="Close sidebar"
           >
             <X size={18} />
@@ -259,91 +81,100 @@ export function Sidebar({
       </div>
 
       {/* 2. Scrollable Navigation */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-5 custom-scrollbar">
-        {navSections.map((sec, idx) => {
-          if (sec.type === 'single') {
-            const active = isCurrentPath(sec.path);
-            const Icon = sec.icon;
-            return (
-              <div key={sec.path || idx}>
-                {isCollapsed ? (
-                  <Tooltip content={sec.label} position="right">
-                    <Link
-                      to={sec.path}
-                      onClick={onMobileClose}
-                      className={`flex items-center justify-center w-10 h-10 mx-auto rounded-btn transition-colors duration-150 ${
-                        active
-                          ? 'bg-app-primary text-white font-semibold'
-                          : 'text-app-text-secondary hover:bg-app-surface-secondary hover:text-app-text'
-                      }`}
-                    >
-                      <Icon size={18} />
-                    </Link>
-                  </Tooltip>
-                ) : (
-                  <Link
-                    to={sec.path}
-                    onClick={onMobileClose}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-btn text-small transition-all duration-150 relative ${
-                      active
-                        ? 'bg-app-primary text-white font-semibold shadow-sm'
-                        : 'text-app-text-secondary hover:bg-app-surface-secondary hover:text-app-text'
-                    }`}
-                  >
-                    <Icon size={17} className={active ? 'text-white' : 'text-app-text-muted'} />
-                    <span className="truncate">{sec.label}</span>
-                  </Link>
-                )}
-              </div>
-            );
-          }
+      <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+        {navSections.map((section) => {
+          const isExpanded = expandedSections[section.id] ?? false;
+          const hasActiveChild = section.items.some(item => isCurrentPath(item.path));
 
-          // Section Group
           return (
-            <div key={sec.label || idx} className="space-y-1">
+            <div key={section.id} className="space-y-1">
+              {/* Domain Header (Visible in expanded desktop and mobile drawer) */}
               {!isCollapsed && (
-                <div className="px-3 py-1 text-micro font-semibold uppercase tracking-wider text-app-text-muted select-none">
-                  {sec.label}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 text-micro font-bold uppercase tracking-wider rounded-btn transition-colors cursor-pointer text-left group ${
+                    hasActiveChild ? 'text-app-primary font-black' : 'text-app-text-muted hover:text-app-text hover:bg-app-surface-secondary/60'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    {section.label}
+                    {hasActiveChild && !isExpanded && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-app-primary animate-pulse" />
+                    )}
+                  </span>
+                  <ChevronDown 
+                    size={13} 
+                    className={`transition-transform duration-200 text-app-text-muted group-hover:text-app-text ${
+                      isExpanded ? 'rotate-0' : '-rotate-90'
+                    }`} 
+                  />
+                </button>
               )}
-              {sec.items.map((item) => {
-                const active = isCurrentPath(item.path);
-                const Icon = item.icon;
 
-                if (isCollapsed) {
-                  return (
-                    <Tooltip key={item.path} content={item.label} position="right">
+              {/* Collapsed view divider */}
+              {isCollapsed && (
+                <div className="w-6 h-px mx-auto my-2 bg-app-border/60" />
+              )}
+
+              {/* Items List (Collapsible on expanded view, always rendered as icon column on collapsed view) */}
+              {(isCollapsed || isExpanded) && (
+                <div className="space-y-0.5">
+                  {section.items.map((item) => {
+                    const active = isCurrentPath(item.path);
+                    const Icon = item.icon;
+
+                    if (isCollapsed) {
+                      return (
+                        <Tooltip key={item.id} content={item.label} position="right">
+                          <Link
+                            to={item.path}
+                            onClick={onMobileClose}
+                            className={`flex items-center justify-center w-10 h-10 mx-auto rounded-btn transition-colors duration-150 ${
+                              active
+                                ? 'bg-app-primary text-white font-semibold shadow-xs'
+                                : 'text-app-text-secondary hover:bg-app-surface-secondary hover:text-app-text'
+                            }`}
+                          >
+                            <Icon size={18} />
+                          </Link>
+                        </Tooltip>
+                      );
+                    }
+
+                    return (
                       <Link
+                        key={item.id}
                         to={item.path}
                         onClick={onMobileClose}
-                        className={`flex items-center justify-center w-10 h-10 mx-auto rounded-btn transition-colors duration-150 ${
+                        className={`flex items-center justify-between px-3 py-2 rounded-btn text-small transition-all duration-150 relative group ${
                           active
-                            ? 'bg-app-primary text-white font-semibold'
+                            ? 'bg-app-primary text-white font-semibold shadow-xs'
                             : 'text-app-text-secondary hover:bg-app-surface-secondary hover:text-app-text'
                         }`}
                       >
-                        <Icon size={18} />
-                      </Link>
-                    </Tooltip>
-                  );
-                }
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Icon 
+                            size={16} 
+                            className={`shrink-0 transition-colors ${
+                              active ? 'text-white' : 'text-app-text-muted group-hover:text-app-text'
+                            }`} 
+                          />
+                          <span className="truncate">{item.label}</span>
+                        </div>
 
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={onMobileClose}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-btn text-small transition-all duration-150 relative ${
-                      active
-                        ? 'bg-app-primary text-white font-semibold shadow-sm'
-                        : 'text-app-text-secondary hover:bg-app-surface-secondary hover:text-app-text'
-                    }`}
-                  >
-                    <Icon size={17} className={active ? 'text-white' : 'text-app-text-muted'} />
-                    <span className="truncate">{item.label}</span>
-                  </Link>
-                );
-              })}
+                        {item.badge && (
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wider ${
+                            active ? 'bg-white/20 text-white' : 'bg-app-primary-subtle text-app-primary'
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
@@ -381,6 +212,7 @@ export function Sidebar({
         {/* Collapse Toggle Button (Desktop only) */}
         {onToggleCollapse && (
           <button
+            type="button"
             onClick={onToggleCollapse}
             className="hidden md:flex items-center justify-center w-full py-1.5 text-app-text-muted hover:text-app-text hover:bg-app-surface rounded-btn transition-colors text-caption gap-2 cursor-pointer border border-transparent hover:border-app-border"
             title={isCollapsed ? "Expand Sidebar ([)" : "Collapse Sidebar ([)"}

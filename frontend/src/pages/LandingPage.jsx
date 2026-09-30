@@ -89,7 +89,7 @@ const LandingPage = () => {
         }
     ];
 
-    // FinVoice Chat Suggestions
+    // KaroBar AI Chat Suggestions
     const chatSuggestions = [
         { label: "Check profit margins", query: "Check today's profit margin" },
         { label: "Low stock items", query: "Show low stock items" },
@@ -578,7 +578,7 @@ const LandingPage = () => {
                                     </motion.div>
                                 )}
 
-                                {/* 🔵 TAB CONTENT: FINVOICE AI */}
+                                {/* 🔵 TAB CONTENT: KAROBAR AI */}
                                 {activeTab === 'ai' && (
                                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 flex flex-col h-[400px] justify-between">
                                         

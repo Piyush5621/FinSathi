@@ -39,6 +39,14 @@ const Register = () => {
       return true;
   };
 
+  const validateStep2 = () => {
+      if(!form.businessName || form.businessName.trim().length < 2) {
+          toast.error("Please enter your business name", { style: { background: '#333', color: '#fff' }});
+          return false;
+      }
+      return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if(step === 1) {
@@ -46,6 +54,7 @@ const Register = () => {
         return;
     }
 
+    if (!validateStep2()) return;
     if (!form.termsAccepted) return toast.error("Please accept the terms.", { style: { background: '#333', color: '#fff' }});
     
     setLoading(true);
@@ -55,7 +64,7 @@ const Register = () => {
       localStorage.setItem("token", accessToken);
       localStorage.setItem("user", JSON.stringify(res.data.user || res.data.data?.session));
       localStorage.setItem("loggedIn", "true");
-      toast.success("Workspace Initiated! Welcome 🎉", { style: { background: '#333', color: '#fff' }});
+      toast.success("Account created! Welcome 🎉", { style: { background: '#333', color: '#fff' }});
       setTimeout(() => navigate("/dashboard"), 500);
     } catch (err) {
       toast.error(err.response?.data?.message || "Registration failed", { style: { background: '#333', color: '#fff' }});
@@ -90,10 +99,10 @@ const Register = () => {
                      <div className={`h-1 flex-1 rounded-full ${step >= 2 ? 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.6)]' : 'bg-white/20'}`}></div>
                  </div>
                  <h1 className="text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
-                     {step === 1 ? 'Create Admin Identity' : 'Business Profile'}
+                     {step === 1 ? 'Create Your Account' : 'Business Profile'}
                  </h1>
                  <p className="text-gray-400 text-sm font-medium">
-                     {step === 1 ? 'Set up the primary administrator account.' : 'Configure your company parameters.'}
+                     {step === 1 ? 'Enter your personal details.' : 'Tell us about your business.'}
                  </p>
              </div>
 
@@ -168,7 +177,7 @@ const Register = () => {
                        disabled={loading}
                        className="flex-1 bg-white text-black font-black py-4 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_40px_rgba(255,255,255,0.4)] flex items-center justify-center gap-2 transition-all disabled:opacity-70"
                     >
-                       {loading ? <ClipLoader size={22} color="#000" /> : (step === 1 ? 'Continue Setup' : 'Launch Workspace')}
+                       {loading ? <ClipLoader size={22} color="#000" /> : (step === 1 ? 'Continue' : 'Create Account')}
                        {!loading && <ArrowRight size={18} />}
                     </motion.button>
                 </div>
@@ -176,7 +185,7 @@ const Register = () => {
 
              <div className="mt-10 pt-8 border-t border-white/10 text-center">
                 <p className="text-gray-400 text-sm font-medium">
-                   Already have a workspace? <Link to="/login" className="text-white font-bold hover:text-blue-400 transition-colors inline-flex items-center gap-1">Sign in <ArrowRight size={14}/></Link>
+                   Already have an account? <Link to="/login" className="text-white font-bold hover:text-blue-400 transition-colors inline-flex items-center gap-1">Sign in <ArrowRight size={14}/></Link>
                 </p>
              </div>
           </div>
@@ -203,8 +212,8 @@ const Register = () => {
               
               <div className="space-y-4">
                   {[
-                      { title: "Real-time Profit Analytics", desc: "View identical P&L reports within milliseconds." },
-                      { title: "Staff & Attendance Sync", desc: "Automated salary processing via attendance scanning." },
+                      { title: "Real-time Profit Analytics", desc: "View P&L reports, expenses, and business health at a glance." },
+                      { title: "Staff & Attendance Sync", desc: "Track attendance and manage staff access from one place." },
                       { title: "Encrypted Ledgers", desc: "Impenetrable enterprise-grade database structures." }
                   ].map((f, i) => (
                       <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/5 flex gap-4">

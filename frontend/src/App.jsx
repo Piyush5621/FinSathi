@@ -15,45 +15,24 @@ const SuspendedPage = lazyWithRetry(() => import("./pages/Auth/SuspendedPage"));
 const LandingPage = lazyWithRetry(() => import("./pages/LandingPage"));
 const CatalogPage = lazyWithRetry(() => import("./pages/Public/CatalogPage"));
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard/Dashboard"));
-const FounderDashboard = lazyWithRetry(() => import("./pages/Dashboard/FounderDashboard"));
 const Profile = lazyWithRetry(() => import("./pages/Profile/Profile"));
 const CustomersPage = lazyWithRetry(() => import("./pages/CustomersPage"));
 const InventoryPage = lazyWithRetry(() => import("./pages/InventoryPage"));
 const Billing = lazyWithRetry(() => import("./pages/Billing/Billing"));
 const InvoiceHistory = lazyWithRetry(() => import("./pages/InvoiceHistory/InvoiceHistory"));
 const CustomerInvoicesPage = lazyWithRetry(() => import("./pages/CustomerInvoicesPage"));
-const PaymentsPage = lazyWithRetry(() => import("./pages/PaymentsPage"));
 const ExpensePage = lazyWithRetry(() => import("./pages/ExpensePage"));
 const PnlPage = lazyWithRetry(() => import("./pages/PnlPage"));
-const BusinessHealthPage = lazyWithRetry(() => import("./pages/BusinessHealthPage"));
-const AiAdvisorPage = lazyWithRetry(() => import("./pages/AiAdvisorPage"));
-const ToolsPage = lazyWithRetry(() => import("./pages/ToolsPage"));
+const GstReportsPage = lazyWithRetry(() => import("./pages/GstReportsPage"));
 const AttendanceScanPage = lazyWithRetry(() => import("./pages/AttendanceTerminal"));
-const GeneralPage = lazyWithRetry(() => import("./pages/GeneralPage"));
 const StoreManagement = lazyWithRetry(() => import("./pages/StoreManagement"));
 const SupplierHub = lazyWithRetry(() => import("./pages/SupplierHub"));
-const CrmPage = lazyWithRetry(() => import("./pages/CrmPage"));
 
 // Workforce & Access Management
 const StaffHub = lazyWithRetry(() => import("./pages/Workforce/StaffHub"));
 const AuditCenter = lazyWithRetry(() => import("./pages/Audit/AuditCenter"));
 const BackupWizard = lazyWithRetry(() => import("./pages/Backup/BackupWizard"));
 const ExecutiveAnalytics = lazyWithRetry(() => import("./pages/Analytics/ExecutiveAnalytics"));
-
-const Settings = lazyWithRetry(() => import("./pages/Profile/Profile"));
-const Plans = lazyWithRetry(() => import("./pages/Subscription/Plans"));
-const AlertsAutomationCenter = lazyWithRetry(() => import("./pages/Alerts/AlertsAutomationCenter"));
-const PredictiveForecastingCenter = lazyWithRetry(() => import("./pages/Analytics/PredictiveForecastingCenter"));
-const WorkflowAutomationCenter = lazyWithRetry(() => import("./pages/Automation/WorkflowAutomationCenter"));
-const MultiStoreIntelligenceCenter = lazyWithRetry(() => import("./pages/Analytics/MultiStoreIntelligenceCenter"));
-
-// Business Network Module
-const NetworkHome = lazyWithRetry(() => import('./pages/Network/v2/NetworkHome'));
-const BusinessDirectory = lazyWithRetry(() => import('./pages/Network/v2/BusinessDirectory'));
-const BusinessExchange = lazyWithRetry(() => import('./pages/Network/v2/BusinessExchange'));
-const PartnersHub = lazyWithRetry(() => import('./pages/Network/v2/PartnersHub'));
-const TradeWorkspace = lazyWithRetry(() => import('./pages/Network/v2/TradeWorkspace'));
-const GrowthCenter = lazyWithRetry(() => import('./pages/Network/v2/GrowthCenter'));
 
 // Admin Interface
 const AdminLogin = lazyWithRetry(() => import("./pages/Admin/AdminLogin"));
@@ -75,6 +54,7 @@ function App() {
               {/* 🟢 Public Routes */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot" element={<Navigate to="/login" replace />} />
               <Route path="/register" element={<Register />} />
               <Route path="/attend" element={<AttendanceScanPage />} />
               <Route path="/suspended" element={<SuspendedPage />} />
@@ -88,23 +68,20 @@ function App() {
               {/* 🔐 Protected Routes (layout with persistent Sidebar) */}
               <Route element={<AppLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/founder-dashboard" element={<FounderDashboard />} />
+                <Route path="/founder-dashboard" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/invoice-history" element={<InvoiceHistory />} />
-                <Route path="/payments" element={<PaymentsPage />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Profile />} />
                 <Route path="/stores" element={<StoreManagement />} />
                 <Route path="/suppliers" element={<SupplierHub />} />
-                <Route path="/crm" element={<CrmPage />} />
                 
                 {/* Staff & Access Management — 4-Pillar Architecture */}
                 <Route path="/staff" element={<StaffHub />} />
                 <Route path="/rbac" element={<Navigate to="/staff?tab=roles" replace />} />
                 <Route path="/workforce/employees" element={<Navigate to="/staff?tab=team" replace />} />
-                <Route path="/workforce/payroll" element={<Navigate to="/staff?tab=payroll" replace />} />
                 <Route path="/workforce/attendance" element={<Navigate to="/staff?tab=attendance" replace />} />
                 <Route path="/workforce/roles" element={<Navigate to="/staff?tab=roles" replace />} />
                 <Route path="/workforce/matrix" element={<Navigate to="/staff?tab=roles" replace />} />
@@ -116,47 +93,24 @@ function App() {
                 <Route path="/executive-analytics" element={<ExecutiveAnalytics />} />
                 <Route path="/reports" element={<ExecutiveAnalytics />} />
                 <Route path="/analytics" element={<ExecutiveAnalytics />} />
-                <Route path="/subscription/plans" element={<Plans />} />
                 <Route path="/expenses" element={<ExpensePage />} />
                 <Route path="/pnl" element={<PnlPage />} />
-                <Route path="/health-score" element={<BusinessHealthPage />} />
-                <Route path="/ai-advisor" element={<AiAdvisorPage />} />
-                <Route path="/intelligence" element={<AiAdvisorPage />} />
-                <Route path="/decision-center" element={<AiAdvisorPage />} />
-                <Route path="/alerts" element={<AlertsAutomationCenter />} />
-                <Route path="/automation" element={<AlertsAutomationCenter />} />
-                <Route path="/forecasting" element={<PredictiveForecastingCenter />} />
-                <Route path="/predictions" element={<PredictiveForecastingCenter />} />
-                <Route path="/workflows" element={<WorkflowAutomationCenter />} />
-                <Route path="/autopilot" element={<WorkflowAutomationCenter />} />
-                <Route path="/multi-store" element={<MultiStoreIntelligenceCenter />} />
-                <Route path="/enterprise-intelligence" element={<MultiStoreIntelligenceCenter />} />
-                <Route path="/growth" element={<Navigate to="/general?tab=growth" replace />} />
-                <Route path="/marketplace" element={<Navigate to="/general?tab=marketplace" replace />} />
-                <Route path="/reminders" element={<Navigate to="/general?tab=reminders" replace />} />
-                <Route path="/reports/gst" element={<Navigate to="/general?tab=gst" replace />} />
-                <Route path="/general" element={<GeneralPage />} />
+                
+                {/* Clean redirects for removed features */}
+                <Route path="/health-score" element={<Navigate to="/executive-analytics" replace />} />
+                <Route path="/ai-advisor" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/intelligence" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/decision-center" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/alerts" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/automation" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/forecasting" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/predictions" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/multi-store" element={<Navigate to="/stores" replace />} />
+                <Route path="/enterprise-intelligence" element={<Navigate to="/stores" replace />} />
+                <Route path="/subscription/plans" element={<Navigate to="/settings" replace />} />
+                <Route path="/reminders" element={<Navigate to="/settings?tab=integrations" replace />} />
+                <Route path="/reports/gst" element={<GstReportsPage />} />
                 <Route path="/customer-invoices/:id" element={<CustomerInvoicesPage />} />
-
-                {/* 🌐 Business Network Routes — 5-Pillar Architecture */}
-                <Route path="/network" element={<NetworkHome />} />
-                <Route path="/network/exchange" element={<BusinessExchange />} />
-                <Route path="/network/growth" element={<GrowthCenter />} />
-
-                {/* Legacy redirects — map seamlessly into 5-Pillar /network tabs */}
-                <Route path="/network/overview" element={<Navigate to="/network?tab=partners" replace />} />
-                <Route path="/network/partners" element={<Navigate to="/network?tab=partners" replace />} />
-                <Route path="/network/connections" element={<Navigate to="/network?tab=partners" replace />} />
-                <Route path="/network/directory" element={<Navigate to="/network?tab=partners" replace />} />
-                <Route path="/network/inbox" element={<Navigate to="/network?tab=inbox" replace />} />
-                <Route path="/network/outbox" element={<Navigate to="/network?tab=outbox" replace />} />
-                <Route path="/network/workspace" element={<Navigate to="/network?tab=inbox" replace />} />
-                <Route path="/network/trade-credit" element={<Navigate to="/network?tab=credits" replace />} />
-                <Route path="/network/trade-returns" element={<Navigate to="/network?tab=inbox" replace />} />
-                <Route path="/network/shared-catalogs" element={<Navigate to="/network?tab=partners" replace />} />
-                <Route path="/network/trade-history" element={<Navigate to="/network?tab=inbox" replace />} />
-                <Route path="/network/analytics" element={<Navigate to="/network?tab=trust" replace />} />
-                <Route path="/network/reputation" element={<Navigate to="/network?tab=trust" replace />} />
               </Route>
 
               {/* ⚙️ Catch-all redirect (Optional) */}

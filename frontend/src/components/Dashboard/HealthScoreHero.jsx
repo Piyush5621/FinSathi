@@ -99,7 +99,7 @@ export default function HealthScoreHero({ data }) {
   }
 
   return (
-    <Card className="p-6 bg-white border border-slate-100/90 shadow-sm rounded-[24px] overflow-hidden relative">
+    <Card className="p-6 bg-white border border-slate-200/80 shadow-2xs rounded-2xl overflow-hidden relative">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         
         {/* Left: Overall Ring & Grade (4 cols) */}

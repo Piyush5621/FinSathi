@@ -12,9 +12,14 @@ export default function NotificationDropdown() {
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
-      const res = await API.get('/notifications');
-      return Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      try {
+        const res = await API.get('/notifications');
+        return Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      } catch (e) {
+        return [];
+      }
     },
+
     enabled: !!loggedIn,
     refetchInterval: 30000, // Poll every 30s
   });

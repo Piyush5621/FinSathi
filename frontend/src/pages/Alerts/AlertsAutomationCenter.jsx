@@ -3,28 +3,33 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import API from '../../services/apiClient';
 import { useStore } from '../../contexts/StoreContext';
-import { Card, MetricCard, SectionCard } from '../../components/ui';
+import { Card, MetricCard } from '../../components/ui';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import Skeleton from '../../components/ui/Skeleton';
 import { 
   Bell, AlertTriangle, ShieldAlert, CheckCircle2, 
   MessageSquare, Zap, Clock, Store, RefreshCw, 
   ArrowRight, Users, Package, DollarSign, Send, 
   SlidersHorizontal, ShieldCheck, Eye, Trash2, 
-  X, Check, History, Sparkles, Filter, ChevronRight
+  X, Check, History, Sparkles, Filter, ChevronRight,
+  RotateCcw, Sliders
 } from 'lucide-react';
 
 export default function AlertsAutomationCenter() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { activeStore } = useStore();
 
-  // Workspace Tabs
+  // Workspace Tabs: 'feed' | 'autopilot' | 'history'
   const initialTab = searchParams.get('tab') || 'feed';
-  const [activeTab, setActiveTab] = useState(initialTab); // 'feed' | 'autopilot' | 'rules' | 'history'
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [selectedSeverity, setSelectedSeverity] = useState('all'); // 'all' | 'critical' | 'warning' | 'info'
   const [loading, setLoading] = useState(true);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   // Live Datasets
   const [dashboardData, setDashboardData] = useState(null);
@@ -38,7 +43,7 @@ export default function AlertsAutomationCenter() {
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
-  // Local State for Dismissed / Snoozed Alerts
+  // Local State for Snoozed & Dismissed Alerts
   const [snoozedAlerts, setSnoozedAlerts] = useState(() => {
     try {
       const saved = localStorage.getItem('karobar_snoozed_alerts');
@@ -100,8 +105,9 @@ export default function AlertsAutomationCenter() {
         id: 'alert-inventory-low',
         category: 'Inventory',
         severity: lowStockCount > 10 ? 'critical' : 'warning',
-        title: `${lowStockCount} Products Below Minimum Stock Threshold`,
-        description: 'Fast-selling items risk immediate stockout and checkout disruptions. Replenish catalog batches soon.',
+        title: `${lowStockCount} Products Below Reorder Level`,
+        description: 'Fast-selling items risk immediate stockout and checkout delays. Replenish catalog batches soon.',
+        whyItMatters: 'Directly impacts daily revenue and customer checkout satisfaction.',
         evidence: `Low Stock Count: ${lowStockCount} SKUs`,
         actionLabel: 'Restock Products',
         actionPath: '/inventory',
@@ -116,7 +122,8 @@ export default function AlertsAutomationCenter() {
         category: 'Customer Khata',
         severity: pendingKhata > 25000 ? 'critical' : 'warning',
         title: `₹${pendingKhata.toLocaleString('en-IN')} Uncollected Customer Receivables`,
-        description: 'Outstanding customer dues exceed safety targets. Follow up via WhatsApp to accelerate liquid cash inflow.',
+        description: 'Outstanding customer dues exceed safety liquidity threshold. Follow up with debtors to accelerate cash inflows.',
+        whyItMatters: 'Uncollected credit starves cash drawer of liquidity needed for supplier purchasing.',
         evidence: `Uncollected Debt: ₹${pendingKhata.toLocaleString('en-IN')}`,
         actionLabel: 'Follow Up Dues',
         actionPath: '/customers',
@@ -130,8 +137,9 @@ export default function AlertsAutomationCenter() {
         id: 'alert-expense-spike',
         category: 'Cost Control',
         severity: 'warning',
-        title: `Operating Outflow Pressure (₹${monthlyExpenses.toLocaleString('en-IN')})`,
-        description: 'Monthly operational expenses have reached elevated levels. Review recurring cost centers.',
+        title: `Operating Expense Outflow Spike (₹${monthlyExpenses.toLocaleString('en-IN')})`,
+        description: 'Monthly operational expenses have reached elevated levels relative to current sales throughput.',
+        whyItMatters: 'Elevated OpEx eats directly into net profit margins.',
         evidence: `Monthly Expenses: ₹${monthlyExpenses.toLocaleString('en-IN')}`,
         actionLabel: 'Review Expenses',
         actionPath: '/expenses',
@@ -139,7 +147,7 @@ export default function AlertsAutomationCenter() {
       });
     }
 
-    // 4. DATABASE ANOMALIES (Duplicate invoices, large discounts, off-hours billing)
+    // 4. DATABASE ANOMALIES
     anomalyFlags.forEach(flag => {
       alerts.push({
         id: `anomaly-${flag.id || flag.type}`,
@@ -147,6 +155,7 @@ export default function AlertsAutomationCenter() {
         severity: flag.severity === 'critical' ? 'critical' : flag.severity === 'warning' ? 'warning' : 'info',
         title: flag.type?.replace(/_/g, ' ') || 'Invoice Billing Anomaly Detected',
         description: flag.message || 'Irregular billing pattern detected by automated rule engine.',
+        whyItMatters: 'Prevents staff errors, unauthorized discounts, or duplicate invoice charges.',
         evidence: `Type: ${flag.type} • Flag ID: #${flag.id || 'LIVE'}`,
         actionLabel: 'Inspect Invoice History',
         actionPath: '/invoice-history',
@@ -154,510 +163,419 @@ export default function AlertsAutomationCenter() {
       });
     });
 
-    // 5. RECURRING BILLS REMINDER (Informational)
-    alerts.push({
-      id: 'alert-recurring-bills',
-      category: 'Obligations',
-      severity: 'info',
-      title: 'Upcoming Monthly Rent & Utility Obligations',
-      description: 'Scheduled store rent and utilities are due around the 1st of the month. Ensure adequate drawer balance.',
-      evidence: 'Estimated Outflow: ₹35,000 Rent + Utilities',
-      actionLabel: 'View Commitments',
-      actionPath: '/expenses',
-      createdAt: new Date().toISOString()
-    });
-
     return alerts;
   }, [dashboardData, anomalyFlags]);
 
-  // Filter Active vs Snoozed / Dismissed
-  const dismissedSet = useMemo(() => new Set(dismissedAlerts.map(a => a.id)), [dismissedAlerts]);
-  const snoozedSet = useMemo(() => {
-    const now = Date.now();
-    return new Set(snoozedAlerts.filter(a => a.snoozeUntil > now).map(a => a.id));
-  }, [snoozedAlerts]);
-
+  // Filter Active Alerts
   const activeAlerts = useMemo(() => {
-    return allGeneratedAlerts.filter(a => !dismissedSet.has(a.id) && !snoozedSet.has(a.id));
-  }, [allGeneratedAlerts, dismissedSet, snoozedSet]);
-
-  const filteredFeed = useMemo(() => {
-    if (selectedSeverity === 'all') return activeAlerts;
-    return activeAlerts.filter(a => a.severity === selectedSeverity);
-  }, [activeAlerts, selectedSeverity]);
-
-  // Summary Metrics
-  const stats = useMemo(() => {
-    const criticalCount = activeAlerts.filter(a => a.severity === 'critical').length;
-    const warningCount = activeAlerts.filter(a => a.severity === 'warning').length;
-    const infoCount = activeAlerts.filter(a => a.severity === 'info').length;
-
-    return {
-      totalActive: activeAlerts.length,
-      criticalCount,
-      warningCount,
-      infoCount,
-      pendingReminders: reminderSettings.enabled ? 3 : 0
-    };
-  }, [activeAlerts, reminderSettings]);
+    return allGeneratedAlerts.filter(alert => {
+      if (dismissedAlerts.includes(alert.id)) return false;
+      if (snoozedAlerts.includes(alert.id)) return false;
+      if (selectedSeverity !== 'all' && alert.severity !== selectedSeverity) return false;
+      return true;
+    });
+  }, [allGeneratedAlerts, dismissedAlerts, snoozedAlerts, selectedSeverity]);
 
   // Actions
-  const handleSnooze = (alert) => {
-    const snoozeUntil = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-    const updated = [...snoozedAlerts.filter(a => a.id !== alert.id), { ...alert, snoozeUntil }];
-    setSnoozedAlerts(updated);
-    localStorage.setItem('karobar_snoozed_alerts', JSON.stringify(updated));
-    toast.success("Alert snoozed for 24 hours ⏰");
-  };
-
-  const handleDismiss = (alert) => {
-    const updated = [...dismissedAlerts.filter(a => a.id !== alert.id), { ...alert, dismissedAt: new Date().toISOString() }];
+  const handleDismiss = async (alertId) => {
+    const updated = [...dismissedAlerts, alertId];
     setDismissedAlerts(updated);
     localStorage.setItem('karobar_dismissed_alerts', JSON.stringify(updated));
-    toast.success("Alert resolved and moved to history ✅");
+
+    if (alertId.startsWith('anomaly-')) {
+      const realId = alertId.replace('anomaly-', '');
+      await API.patch(`/intelligence/anomalies/${realId}/dismiss`).catch(() => {});
+    }
+    toast.success("Alert resolved and archived");
+  };
+
+  const handleSnooze = (alertId) => {
+    const updated = [...snoozedAlerts, alertId];
+    setSnoozedAlerts(updated);
+    localStorage.setItem('karobar_snoozed_alerts', JSON.stringify(updated));
+    toast.success("Alert snoozed for 24 hours");
+  };
+
+  const handleRestore = (alertId) => {
+    const newDismissed = dismissedAlerts.filter(id => id !== alertId);
+    const newSnoozed = snoozedAlerts.filter(id => id !== alertId);
+    setDismissedAlerts(newDismissed);
+    setSnoozedAlerts(newSnoozed);
+    localStorage.setItem('karobar_dismissed_alerts', JSON.stringify(newDismissed));
+    localStorage.setItem('karobar_snoozed_alerts', JSON.stringify(newSnoozed));
+    toast.success("Alert restored to active feed");
+  };
+
+  const handleTriggerAnomalyScan = async () => {
+    toast.loading("Scanning business transactions for anomalies...", { id: 'scan-anomalies' });
+    try {
+      await API.post('/intelligence/anomalies/scan');
+      toast.success("Anomaly scan complete", { id: 'scan-anomalies' });
+      fetchAlertsData();
+    } catch {
+      toast.error("Could not run scan", { id: 'scan-anomalies' });
+    }
   };
 
   const handleSaveReminderSettings = async (e) => {
     e.preventDefault();
     setSavingSettings(true);
     try {
-      await API.put("/reminders/settings", reminderSettings);
-      toast.success("WhatsApp due reminder automation saved! 📱");
-    } catch {
-      toast.error("Failed to save reminder settings");
+      await API.post('/reminders/settings', reminderSettings);
+      toast.success("WhatsApp autopilot settings updated");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save settings");
     } finally {
       setSavingSettings(false);
     }
   };
 
-  const handleTriggerTestWhatsApp = () => {
-    const sampleMsg = reminderSettings.template
-      .replace('{customer_name}', 'Ramesh Sharma')
-      .replace('{amount}', '2,450')
-      .replace('{invoice_no}', 'INV-1042')
-      .replace('{shop_name}', activeStore?.name || 'KaroBar Store');
-
-    const encoded = encodeURIComponent(sampleMsg);
-    window.open(`https://wa.me/?text=${encoded}`, '_blank');
-    toast.success("Test reminder opened in WhatsApp Web!");
-  };
+  const criticalCount = allGeneratedAlerts.filter(a => a.severity === 'critical').length;
+  const warningCount = allGeneratedAlerts.filter(a => a.severity === 'warning').length;
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-24 max-w-[1600px] mx-auto">
-      
-      {/* 1. OPERATIONAL ALERT HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-app-surface border border-app-border rounded-panel shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-app-primary text-white flex items-center justify-center font-black shadow-md shadow-app-primary/20 shrink-0">
-            <Bell size={20} />
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+      {/* 🟢 Header Console */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200/80 p-6 rounded-2xl shadow-2xs">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Smart Alerts & Autopilot
+            </h1>
+            {activeStore?.name && (
+              <Badge variant="secondary" className="text-xs font-bold py-0.5 px-2.5 bg-slate-100 text-slate-700 border-slate-200">
+                <Store size={12} className="inline mr-1 text-emerald-600" />
+                {activeStore.name}
+              </Badge>
+            )}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-black text-app-text tracking-tight">Smart Alerts & Business Automation Center</h1>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-app-primary/10 text-app-primary">
-                <Store size={10} /> {activeStore?.name || "Main Branch"}
-              </span>
-            </div>
-            <p className="text-xs text-app-text-secondary mt-0.5">
-              Detect business disruptions early, prevent stockouts, and automate customer payment reminders.
-            </p>
-          </div>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium">
+            Prioritized business alerts, hazard notifications, and WhatsApp payment collection autopilot.
+          </p>
         </div>
 
-        {/* Header Actions */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
             onClick={fetchAlertsData}
-            icon={<RefreshCw size={14} className={loading ? "animate-spin" : ""} />}
-            className="text-xs"
+            disabled={loading}
+            className="px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
           >
-            Scan Signals
+            <RefreshCw size={14} className={`mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
 
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setActiveTab('autopilot')}
-            icon={<MessageSquare size={14} />}
-            className="text-xs font-bold shadow-md shadow-app-primary/20"
+          <Button 
+            onClick={handleTriggerAnomalyScan}
+            className="px-4 py-2.5 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
           >
-            WhatsApp Autopilot
+            <ShieldAlert size={14} className="mr-1.5" />
+            Scan Anomalies
           </Button>
         </div>
       </div>
 
-      {/* 2. REAL-TIME ALERT KPI CARDS (KaroBar Global Card System) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard
-          title="Active Alerts"
-          value={stats.totalActive}
-          subtitle="Real-time operational signals"
-          icon={<Bell size={18} />}
-          iconBg="bg-app-surface-subtle text-app-text-secondary"
-        />
+      {/* 🟢 4-Pillar Metric Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active Alerts</span>
+            <Bell size={18} className="text-slate-400" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-black text-slate-900">{activeAlerts.length}</p>
+          <p className="text-[11px] font-semibold text-slate-400 mt-1">Pending business signals</p>
+        </div>
 
-        <MetricCard
-          title="Critical Hazards"
-          value={stats.criticalCount}
-          badge={stats.criticalCount > 0 ? "Immediate Action" : "All Clear"}
-          badgeVariant={stats.criticalCount > 0 ? "danger" : "success"}
-          subtitle="Stockouts & large debts"
-          icon={<ShieldAlert size={18} />}
-          iconBg="bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400"
-        />
+        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-rose-600 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Critical Priority</span>
+            <AlertTriangle size={18} className="text-rose-500" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-black text-rose-600">{criticalCount}</p>
+          <p className="text-[11px] font-semibold text-slate-400 mt-1">Immediate action required</p>
+        </div>
 
-        <MetricCard
-          title="Warning Notices"
-          value={stats.warningCount}
-          subtitle="Potential margin risks"
-          icon={<AlertTriangle size={18} />}
-          iconBg="bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400"
-        />
+        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-amber-600 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600">Needs Attention</span>
+            <Clock size={18} className="text-amber-500" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-black text-amber-600">{warningCount}</p>
+          <p className="text-[11px] font-semibold text-slate-400 mt-1">Operational warnings</p>
+        </div>
 
-        <MetricCard
-          title="Reminder Autopilot"
-          value={reminderSettings.enabled ? "Active" : "Paused"}
-          badge={reminderSettings.enabled ? "Auto 09:00 AM" : "Manual"}
-          badgeVariant={reminderSettings.enabled ? "success" : "neutral"}
-          subtitle="Due collection cron"
-          icon={<Zap size={18} />}
-          iconBg="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400"
-        />
+        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-emerald-600 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Autopilot Status</span>
+            <Zap size={18} className="text-emerald-500" />
+          </div>
+          <p className="text-2xl sm:text-3xl font-black text-emerald-600">
+            {reminderSettings.enabled ? 'Active' : 'Paused'}
+          </p>
+          <p className="text-[11px] font-semibold text-slate-400 mt-1">WhatsApp due reminders</p>
+        </div>
       </div>
 
-      {/* 3. WORKSPACE TABS */}
-      <div className="p-4 bg-app-surface border border-app-border rounded-panel shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-app-border/60 pb-3">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      {/* 🟢 Modern Segmented Tab Navigation Bar */}
+      <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-100/90 border border-slate-200 rounded-2xl w-full sm:w-fit">
+        {[
+          { id: 'feed', label: 'Live Alert Feed', icon: Bell, badge: activeAlerts.length || null },
+          { id: 'autopilot', label: 'WhatsApp Collection Autopilot', icon: MessageSquare },
+          { id: 'history', label: 'Archived & Snoozed', icon: History, badge: (dismissedAlerts.length + snoozedAlerts.length) || null }
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                isActive 
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              <Icon size={15} className={isActive ? 'text-indigo-600' : 'text-slate-400'} />
+              <span>{tab.label}</span>
+              {tab.badge && (
+                <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-slate-200 text-slate-700">
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ==================================================== */}
+      {/* TAB 1: LIVE ALERT FEED                               */}
+      {/* ==================================================== */}
+      {activeTab === 'feed' && (
+        <div className="space-y-4">
+          {/* Filter Pill Strip */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Severity:</span>
             {[
-              { id: 'feed', label: 'Live Alert Feed', icon: <Bell size={14} />, count: activeAlerts.length },
-              { id: 'autopilot', label: 'WhatsApp Due Autopilot', icon: <MessageSquare size={14} /> },
-              { id: 'rules', label: 'Automation Rules & Triggers', icon: <SlidersHorizontal size={14} /> },
-              { id: 'history', label: 'Audit & History', icon: <History size={14} />, count: dismissedAlerts.length + snoozedAlerts.length }
-            ].map(tab => (
+              { id: 'all', label: 'All Signals' },
+              { id: 'critical', label: 'Critical Only' },
+              { id: 'warning', label: 'Warnings' },
+              { id: 'info', label: 'Informational' }
+            ].map(f => (
               <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-app-primary text-white shadow-xs'
-                    : 'bg-app-surface-subtle text-app-text-secondary hover:text-app-text'
+                key={f.id}
+                onClick={() => setSelectedSeverity(f.id)}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  selectedSeverity === f.id
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                {tab.icon}
-                <span>{tab.label}</span>
-                {tab.count !== undefined && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-app-border text-app-text-muted'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
+                {f.label}
               </button>
             ))}
           </div>
 
-          {/* Severity filter for Feed tab */}
-          {activeTab === 'feed' && (
-            <div className="flex items-center gap-1 text-xs">
-              <span className="text-app-text-muted text-[11px] font-semibold">Severity:</span>
-              <select
-                value={selectedSeverity}
-                onChange={(e) => setSelectedSeverity(e.target.value)}
-                className="bg-app-surface-subtle border border-app-border rounded-xl px-2.5 py-1 text-xs font-bold text-app-text outline-none"
-              >
-                <option value="all">All Severities</option>
-                <option value="critical">Critical Only</option>
-                <option value="warning">Warnings Only</option>
-                <option value="info">Info Notices</option>
-              </select>
-            </div>
-          )}
-        </div>
-      </div>
+          {/* Alert Cards */}
+          {activeAlerts.length > 0 ? (
+            <div className="space-y-3">
+              {activeAlerts.map(alert => {
+                const isCritical = alert.severity === 'critical';
+                const isWarning = alert.severity === 'warning';
 
-      {/* 4. ACTIVE WORKSPACE CONTENT */}
-      {loading ? (
-        <div className="p-12 text-center bg-app-surface border border-app-border rounded-panel space-y-3">
-          <RefreshCw className="animate-spin text-app-primary mx-auto" size={28} />
-          <p className="text-xs font-bold text-app-text">Scanning live business alert channels...</p>
-        </div>
-      ) : activeTab === 'feed' ? (
-        /* TAB 1: LIVE ALERT FEED */
-        <div className="space-y-4">
-          {filteredFeed.length === 0 ? (
-            <div className="p-12 text-center bg-app-surface border border-app-border rounded-panel">
-              <CheckCircle2 size={40} className="mx-auto text-emerald-500 mb-2" />
-              <h3 className="font-bold text-sm text-app-text">No active alerts</h3>
-              <p className="text-xs text-app-text-muted mt-1">All business health indicators and operational thresholds are normal.</p>
+                return (
+                  <div 
+                    key={alert.id}
+                    className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={isCritical ? 'danger' : isWarning ? 'warning' : 'secondary'}
+                          className="text-[10px] font-black uppercase tracking-wider"
+                        >
+                          {alert.severity}
+                        </Badge>
+                        <span className="text-xs font-bold text-slate-400">{alert.category}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-start sm:self-auto">
+                        <button
+                          onClick={() => handleSnooze(alert.id)}
+                          className="text-xs text-slate-400 hover:text-slate-700 font-semibold cursor-pointer"
+                        >
+                          Snooze (24h)
+                        </button>
+                        <span className="text-slate-300">•</span>
+                        <button
+                          onClick={() => handleDismiss(alert.id)}
+                          className="text-xs text-slate-400 hover:text-rose-600 font-semibold cursor-pointer"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-base text-slate-900">{alert.title}</h3>
+                      <p className="text-xs text-slate-600 leading-relaxed">{alert.description}</p>
+                      {alert.whyItMatters && (
+                        <p className="text-xs text-slate-500 font-medium">
+                          <strong>Why it matters:</strong> {alert.whyItMatters}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-slate-100">
+                      <span className="text-xs font-mono font-bold text-slate-500">{alert.evidence}</span>
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(alert.actionPath)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs"
+                      >
+                        {alert.actionLabel}
+                        <ArrowRight size={13} className="ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredFeed.map(alert => (
-                <div 
-                  key={alert.id} 
-                  className={`p-5 bg-app-surface border rounded-panel shadow-xs space-y-3 transition-all ${
-                    alert.severity === 'critical' ? 'border-rose-500/30 bg-rose-500/5' :
-                    alert.severity === 'warning' ? 'border-amber-500/30 bg-amber-500/5' :
-                    'border-app-border'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                        alert.severity === 'critical' ? 'bg-rose-500/10 text-rose-600' :
-                        alert.severity === 'warning' ? 'bg-amber-500/10 text-amber-600' :
-                        'bg-blue-500/10 text-blue-600'
-                      }`}>
-                        {alert.severity} • {alert.category}
-                      </span>
-                      <span className="text-[10px] text-app-text-muted font-mono">
-                        {new Date(alert.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleSnooze(alert)}
-                        className="text-xs text-app-text-muted hover:text-app-text font-bold px-2 py-1 rounded hover:bg-app-surface-subtle transition-colors cursor-pointer"
-                        title="Snooze for 24 hours"
-                      >
-                        Snooze 24h
-                      </button>
-                      <button
-                        onClick={() => handleDismiss(alert)}
-                        className="text-xs text-app-text-muted hover:text-emerald-600 font-bold px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
-                        title="Mark as resolved"
-                      >
-                        Mark Resolved
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-bold text-sm text-app-text">{alert.title}</h4>
-                    <p className="text-xs text-app-text-secondary mt-0.5">{alert.description}</p>
-                  </div>
-
-                  <div className="p-2.5 bg-app-surface-subtle border border-app-border rounded-xl text-xs font-mono flex justify-between items-center">
-                    <span className="text-app-text-muted text-[11px]">Evidence Trail: <strong className="text-app-text">{alert.evidence}</strong></span>
-                    <span className="text-[10px] font-bold text-app-primary">Verified Ledger Signal</span>
-                  </div>
-
-                  <div className="flex justify-end pt-1">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => navigate(alert.actionPath)}
-                      icon={<ArrowRight size={14} />}
-                      className="text-xs font-bold"
-                    >
-                      {alert.actionLabel}
-                    </Button>
-                  </div>
-                </div>
-              ))}
+            <div className="p-12 bg-white border border-slate-200/80 rounded-2xl text-center space-y-2">
+              <CheckCircle2 size={36} className="text-emerald-500 mx-auto" />
+              <h3 className="font-bold text-sm text-slate-800">Zero Active Alert Signals</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                No critical hazards or operational warnings detected for {activeStore?.name || "your store"}.
+              </p>
             </div>
           )}
         </div>
-      ) : activeTab === 'autopilot' ? (
-        /* TAB 2: WHATSAPP REMINDER AUTOPILOT */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Autopilot Settings Form (7 cols) */}
-          <div className="lg:col-span-7 p-6 bg-app-surface border border-app-border rounded-panel shadow-xs space-y-6">
-            <div className="flex justify-between items-start border-b border-app-border pb-4">
-              <div>
-                <h3 className="font-bold text-sm text-app-text flex items-center gap-2">
-                  <MessageSquare size={16} className="text-emerald-500" /> WhatsApp Due Reminder Engine
-                </h3>
-                <p className="text-xs text-app-text-muted mt-0.5">Configure automated debt collection reminders via WhatsApp Web / API</p>
-              </div>
+      )}
 
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-black uppercase ${reminderSettings.enabled ? 'text-emerald-600' : 'text-app-text-muted'}`}>
-                  {reminderSettings.enabled ? 'Active' : 'Disabled'}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={reminderSettings.enabled}
-                  onChange={e => setReminderSettings(p => ({ ...p, enabled: e.target.checked }))}
-                  className="w-4 h-4 accent-emerald-500"
-                />
-              </div>
+      {/* ==================================================== */}
+      {/* TAB 2: WHATSAPP COLLECTION AUTOPILOT                 */}
+      {/* ==================================================== */}
+      {activeTab === 'autopilot' && (
+        <Card className="p-6 border border-slate-200/80 shadow-2xs rounded-2xl bg-white space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+            <div>
+              <h2 className="text-base font-black text-slate-900">WhatsApp Overdue Payment Autopilot</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Automatically queue customer payment reminders when unpaid khata exceeds safety targets.
+              </p>
             </div>
-
-            <form onSubmit={handleSaveReminderSettings} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-bold text-app-text-muted uppercase block mb-1">Due Amount Threshold (₹)</label>
-                  <input
-                    type="number"
-                    min="100"
-                    value={reminderSettings.threshold}
-                    onChange={e => setReminderSettings(p => ({ ...p, threshold: e.target.value }))}
-                    className="w-full bg-app-surface-subtle border border-app-border rounded-xl px-3 py-2 text-xs font-bold text-app-text outline-none focus:border-app-primary"
-                  />
-                  <span className="text-[10px] text-app-text-muted mt-1 block">Only alert if customer khata is above ₹{reminderSettings.threshold}</span>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-app-text-muted uppercase block mb-1">Days Past Due Trigger</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={reminderSettings.days_past_due}
-                    onChange={e => setReminderSettings(p => ({ ...p, days_past_due: e.target.value }))}
-                    className="w-full bg-app-surface-subtle border border-app-border rounded-xl px-3 py-2 text-xs font-bold text-app-text outline-none focus:border-app-primary"
-                  />
-                  <span className="text-[10px] text-app-text-muted mt-1 block">Trigger reminder {reminderSettings.days_past_due} days after credit sale</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-app-text-muted uppercase block mb-1">WhatsApp Message Template</label>
-                <textarea
-                  rows={4}
-                  value={reminderSettings.template}
-                  onChange={e => setReminderSettings(p => ({ ...p, template: e.target.value }))}
-                  className="w-full bg-app-surface-subtle border border-app-border rounded-xl p-3 text-xs font-medium text-app-text outline-none focus:border-app-primary"
-                />
-                <div className="flex gap-2 flex-wrap text-[10px] text-app-text-muted mt-1">
-                  <span>Variables:</span>
-                  <span className="font-mono bg-app-surface-subtle px-1.5 py-0.5 rounded">{"{customer_name}"}</span>
-                  <span className="font-mono bg-app-surface-subtle px-1.5 py-0.5 rounded">{"{amount}"}</span>
-                  <span className="font-mono bg-app-surface-subtle px-1.5 py-0.5 rounded">{"{invoice_no}"}</span>
-                  <span className="font-mono bg-app-surface-subtle px-1.5 py-0.5 rounded">{"{shop_name}"}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-app-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={handleTriggerTestWhatsApp}
-                  icon={<Send size={13} />}
-                  className="text-xs"
-                >
-                  Test Sample Message
-                </Button>
-
-                <Button
-                  variant="primary"
-                  size="sm"
-                  type="submit"
-                  disabled={savingSettings}
-                  className="font-bold text-xs"
-                >
-                  {savingSettings ? "Saving..." : "Save Autopilot Settings"}
-                </Button>
-              </div>
-            </form>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700">Autopilot Active</span>
+              <input
+                type="checkbox"
+                checked={reminderSettings.enabled}
+                onChange={e => setReminderSettings(s => ({ ...s, enabled: e.target.checked }))}
+                className="w-5 h-5 accent-indigo-600 rounded cursor-pointer"
+              />
+            </div>
           </div>
 
-          {/* Safety & Schedule Info (5 cols) */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="p-5 bg-app-surface border border-app-border rounded-panel shadow-xs space-y-3">
-              <h4 className="font-bold text-xs text-app-text flex items-center gap-2">
-                <ShieldCheck className="text-emerald-500" size={16} /> Safe Automation Rule
-              </h4>
-              <p className="text-xs text-app-text-secondary leading-relaxed">
-                KaroBar automated jobs scan your records daily at <strong>09:00 AM IST</strong>. Reminders are generated for your review, guaranteeing you maintain complete control over customer interactions.
+          <form onSubmit={handleSaveReminderSettings} className="space-y-4 max-w-2xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Minimum Overdue Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  value={reminderSettings.threshold}
+                  onChange={e => setReminderSettings(s => ({ ...s, threshold: Number(e.target.value) }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Days Past Due Date
+                </label>
+                <input
+                  type="number"
+                  value={reminderSettings.days_past_due}
+                  onChange={e => setReminderSettings(s => ({ ...s, days_past_due: Number(e.target.value) }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Reminder Message Template
+              </label>
+              <textarea
+                rows={4}
+                value={reminderSettings.template}
+                onChange={e => setReminderSettings(s => ({ ...s, template: e.target.value }))}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium text-slate-900 outline-none focus:border-indigo-500"
+              />
+              <p className="text-[11px] text-slate-400 font-medium">
+                Variables: &#123;customer_name&#125;, &#123;amount&#125;, &#123;invoice_no&#125;, &#123;shop_name&#125;
               </p>
             </div>
 
-            <div className="p-5 bg-indigo-500/10 border border-indigo-500/20 rounded-panel space-y-3">
-              <h4 className="font-bold text-xs text-indigo-900 dark:text-indigo-200">
-                Direct WhatsApp Quick Dispatch
-              </h4>
-              <p className="text-xs text-indigo-800/80 dark:text-indigo-300">
-                You can also generate and send individual payment reminders directly from any customer's Khata drawer.
-              </p>
+            <div className="pt-2">
               <Button
-                variant="outline"
-                size="sm"
-                fullWidth
-                onClick={() => navigate('/customers')}
-                className="text-xs font-bold"
+                type="submit"
+                disabled={savingSettings}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs"
               >
-                Open Customer Khata Hub →
+                {savingSettings ? "Saving Settings..." : "Save Autopilot Configuration"}
               </Button>
             </div>
-          </div>
-        </div>
-      ) : activeTab === 'rules' ? (
-        /* TAB 3: AUTOMATION RULES */
-        <div className="p-6 bg-app-surface border border-app-border rounded-panel shadow-xs max-w-3xl mx-auto space-y-6">
-          <div className="border-b border-app-border pb-3">
-            <h3 className="font-bold text-sm text-app-text">Configured Business Automation Rules</h3>
-            <p className="text-xs text-app-text-muted mt-0.5">Threshold parameters monitored continuously by the signal engine</p>
+          </form>
+        </Card>
+      )}
+
+      {/* ==================================================== */}
+      {/* TAB 3: ARCHIVED & SNOOZED                            */}
+      {/* ==================================================== */}
+      {activeTab === 'history' && (
+        <Card noPadding className="border border-slate-200/80 shadow-2xs rounded-2xl bg-white overflow-hidden">
+          <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">
+              Dismissed & Snoozed Alerts Log
+            </h3>
+            <span className="text-xs text-slate-400 font-semibold">
+              {dismissedAlerts.length + snoozedAlerts.length} archived
+            </span>
           </div>
 
-          <div className="space-y-4 text-xs">
-            {[
-              { rule: "Low Stock Alert Trigger", threshold: "< 10 units in stock", action: "Flag critical restock alert and suggest supplier PO", status: "Active" },
-              { rule: "Khata Aging Hazard", threshold: "> 30 days overdue", action: "Queue for daily automated WhatsApp collection", status: "Active" },
-              { rule: "Large Discount Audit", threshold: "> 30% discount on POS invoice", action: "Flag security audit notice in Audit Center", status: "Active" },
-              { rule: "Duplicate Invoice Scan", threshold: "Same total & customer within 24h", action: "Flag duplicate invoice warning", status: "Active" },
-              { rule: "Off-Hours Billing Detection", threshold: "Invoices created before 06:00 or after 23:00", action: "Log security anomaly signal", status: "Active" }
-            ].map((r, idx) => (
-              <div key={idx} className="p-4 bg-app-surface-subtle border border-app-border rounded-xl flex justify-between items-center">
-                <div className="space-y-1">
-                  <h4 className="font-bold text-sm text-app-text">{r.rule}</h4>
-                  <span className="text-[11px] font-mono text-app-text-muted block">Threshold: {r.threshold}</span>
-                  <p className="text-xs text-app-text-secondary">Action: {r.action}</p>
+          <div className="divide-y divide-slate-100">
+            {allGeneratedAlerts
+              .filter(a => dismissedAlerts.includes(a.id) || snoozedAlerts.includes(a.id))
+              .map(alert => (
+                <div key={alert.id} className="p-4 sm:px-6 flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-sm text-slate-800">{alert.title}</p>
+                    <p className="text-xs text-slate-400 font-medium">
+                      {dismissedAlerts.includes(alert.id) ? "Resolved / Dismissed" : "Snoozed"} • {alert.category}
+                    </p>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRestore(alert.id)}
+                    className="text-xs font-bold px-3 py-1.5 rounded-xl"
+                  >
+                    <RotateCcw size={13} className="mr-1" />
+                    Restore
+                  </Button>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 shrink-0">
-                  {r.status}
-                </span>
+              ))}
+
+            {dismissedAlerts.length === 0 && snoozedAlerts.length === 0 && (
+              <div className="p-10 text-center text-xs text-slate-400 font-semibold">
+                No archived or snoozed alert signals found.
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      ) : (
-        /* TAB 4: ALERT AUDIT & HISTORY */
-        <div className="border border-app-border rounded-panel bg-app-surface overflow-hidden shadow-xs">
-          <div className="p-4 bg-app-surface-subtle border-b border-app-border flex justify-between items-center">
-            <h3 className="font-bold text-xs text-app-text">Resolved & Snoozed Alert History</h3>
-            <span className="text-[11px] font-mono text-app-text-muted">{dismissedAlerts.length + snoozedAlerts.length} Historical Signals</span>
-          </div>
-
-          {dismissedAlerts.length === 0 && snoozedAlerts.length === 0 ? (
-            <div className="p-12 text-center">
-              <History size={40} className="mx-auto text-app-text-muted mb-2" />
-              <h4 className="font-bold text-sm text-app-text">No alert history</h4>
-              <p className="text-xs text-app-text-muted mt-1">Resolved and snoozed alerts will appear here for historical tracking.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-app-border max-h-[500px] overflow-y-auto text-xs">
-              {snoozedAlerts.map(alert => (
-                <div key={alert.id} className="p-4 flex justify-between items-center hover:bg-app-surface-subtle/50 transition-colors">
-                  <div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-600">Snoozed 24h</span>
-                    <h5 className="font-bold text-app-text mt-1">{alert.title}</h5>
-                    <span className="text-[10px] font-mono text-app-text-muted">Evidence: {alert.evidence}</span>
-                  </div>
-                  <span className="text-[10px] text-app-text-muted font-mono">Until {new Date(alert.snoozeUntil).toLocaleTimeString('en-IN')}</span>
-                </div>
-              ))}
-
-              {dismissedAlerts.map(alert => (
-                <div key={alert.id} className="p-4 flex justify-between items-center hover:bg-app-surface-subtle/50 transition-colors">
-                  <div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600">Resolved</span>
-                    <h5 className="font-bold text-app-text mt-1">{alert.title}</h5>
-                    <span className="text-[10px] font-mono text-app-text-muted">Evidence: {alert.evidence}</span>
-                  </div>
-                  <span className="text-[10px] text-app-text-muted font-mono">{new Date(alert.dismissedAt).toLocaleDateString('en-IN')}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        </Card>
       )}
     </div>
   );

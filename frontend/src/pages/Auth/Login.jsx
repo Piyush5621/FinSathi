@@ -3,11 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import ClipLoader from "react-spinners/ClipLoader";
 import toast from "react-hot-toast";
-import API from "../../services/apiClient";
+import API, { setAccessToken } from "../../services/apiClient";
 import logo from "../../assets/logo.png";
 import { 
   LogIn, ArrowRight, Lock, Mail, ShieldCheck, 
-  Sparkles, KeyRound, Store, Users, Receipt, Package, Truck, Check
+  Sparkles, KeyRound, Store, Users, Receipt, Package, Check, X, HelpCircle
 } from 'lucide-react';
 
 const DEMO_ACCOUNTS = [
@@ -50,14 +50,6 @@ const DEMO_ACCOUNTS = [
     desc: "Catalog, batches, stock receiving",
     icon: Package,
     badge: "Inventory"
-  },
-  {
-    role: "Wholesale Supplier",
-    email: "demo.wholesale@karobar.test",
-    password: "Karobar@12345",
-    desc: "Verma Wholesale Traders",
-    icon: Truck,
-    badge: "Supplier Hub"
   }
 ];
 
@@ -66,6 +58,7 @@ const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [selectedDemo, setSelectedDemo] = useState(null);
+  const [showForgotModal, setShowForgotModal] = useState(false);
 
   useEffect(() => {
     const loggedIn = localStorage.getItem("loggedIn");
@@ -79,9 +72,37 @@ const Login = () => {
     try {
       const res = await API.post("/auth/login", credentials);
       const accessToken = res.data.token || res.data.data?.accessToken;
-      localStorage.setItem("token", accessToken);
-      localStorage.setItem("user", JSON.stringify(res.data.user || res.data.data?.session));
+      // Get session data — prefer structured session, fallback to legacy user
+      const sessionRaw = res.data.user || res.data.data?.session || {};
+      
+      // Normalize the user object stored in localStorage for nav/RBAC use
+      const userToStore = {
+        id: sessionRaw.userId || sessionRaw.id || sessionRaw.user_id || null,
+        user_id: sessionRaw.userId || sessionRaw.id || sessionRaw.user_id || null,
+        staff_id: sessionRaw.staffId || sessionRaw.staff_id || null,
+        role: sessionRaw.role || ((!sessionRaw.staffId && !sessionRaw.staff_id) ? 'Owner' : null),
+        role_id: sessionRaw.roleId || sessionRaw.role_id || null,
+        permissions: sessionRaw.permissions || ((!sessionRaw.staffId && !sessionRaw.staff_id) ? ['*'] : []),
+        name: sessionRaw.name || '',
+        email: sessionRaw.email || credentials.email || '',
+        phone: sessionRaw.phone || '',
+        organization_id: sessionRaw.organizationId || sessionRaw.organization_id || null,
+        tenant_id: sessionRaw.organizationId || sessionRaw.organization_id || null,
+        // Preserve legacy fields if present
+        business_name: sessionRaw.business_name || sessionRaw.businessName || '',
+        business_type: sessionRaw.business_type || sessionRaw.businessType || '',
+        is_active: sessionRaw.is_active !== false,
+      };
+      
+      setAccessToken(accessToken);
+      localStorage.setItem("user", JSON.stringify(userToStore));
       localStorage.setItem("loggedIn", "true");
+      
+      // If staff login, also store active store context if provided
+      if (sessionRaw.storeId || sessionRaw.store_id) {
+        localStorage.setItem("activeStoreId", sessionRaw.storeId || sessionRaw.store_id);
+      }
+      
       toast.success("Welcome back! 🎉", { style: { background: '#333', color: '#fff' }});
       setTimeout(() => navigate("/dashboard"), 400);
     } catch (err) {
@@ -151,10 +172,16 @@ const Login = () => {
                 </div>
 
                 <div className="space-y-1.5 group">
-                   <div className="flex justify-between items-center pl-1">
-                     <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest group-focus-within:text-blue-400 transition-colors">Password</label>
-                     <Link to="/forgot" className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors pr-1">Forgot?</Link>
-                   </div>
+                    <div className="flex justify-between items-center pl-1">
+                      <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest group-focus-within:text-blue-400 transition-colors">Password</label>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowForgotModal(true)} 
+                        className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors pr-1 cursor-pointer bg-transparent border-0"
+                      >
+                        Forgot?
+                      </button>
+                    </div>
                    <div className="relative">
                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4 group-focus-within:text-blue-400 transition-colors" />
                        <input 
@@ -259,6 +286,51 @@ const Login = () => {
               </div>
           </div>
       </div>
+
+      {/* Forgot Password Recovery Guidance Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-[#161922] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="text-blue-400 w-5 h-5" />
+                <h3 className="font-bold text-base text-white">Account Password Recovery</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowForgotModal(false)}
+                className="text-gray-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-gray-300 leading-relaxed">
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                <p className="font-semibold text-blue-300 mb-1">Are you an Employee or Cashier?</p>
+                <p>Please contact your <strong>Store Owner or Store Manager</strong>. They can reset your password or assign a new login PIN instantly in the <strong>Staff Hub</strong>.</p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <p className="font-semibold text-emerald-300 mb-1">Are you the Store Owner?</p>
+                <p>For primary account recovery and verified phone reset, contact KaroBar Support:</p>
+                <p className="mt-1 font-mono text-emerald-200">📧 support@karobar.in</p>
+                <p className="font-mono text-emerald-200">📞 +91 98765 43210 (Mon-Sat, 9AM - 8PM)</p>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(false)}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Understood, Return to Login
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

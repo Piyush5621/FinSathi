@@ -1,14 +1,31 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Package, Users, Menu } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Users, Calendar, User, Menu } from 'lucide-react';
 
 export function BottomNav({ onOpenMenu }) {
-  const navItems = [
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = currentUser?.role || 'Owner';
+  const isOwner = role === 'Owner' || role === 'Admin' || !currentUser?.staff_id;
+  const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
+  const hasWildcard = permissions.includes('*') || isOwner;
+  const hasPerm = (perm) => hasWildcard || permissions.includes(perm);
+
+  // Role-tailored mobile bottom shortcuts
+  let navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/billing', label: 'POS Billing', icon: ShoppingCart },
-    { path: '/inventory', label: 'Inventory', icon: Package },
+    { path: '/billing', label: 'Billing', icon: ShoppingCart },
+    { path: '/inventory', label: 'Stock', icon: Package },
     { path: '/customers', label: 'Customers', icon: Users },
   ];
+
+  // For non-owner staff without sales or catalog permission (e.g. general staff or delivery)
+  if (!isOwner && !hasPerm('create_sales') && !hasPerm('view_catalog')) {
+    navItems = [
+      { path: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+      { path: '/staff?tab=attendance', label: 'Attendance', icon: Calendar },
+      { path: '/profile', label: 'Profile', icon: User },
+    ];
+  }
 
   return (
     <nav 
@@ -35,7 +52,7 @@ export function BottomNav({ onOpenMenu }) {
         );
       })}
 
-      {/* Menu / More Button */}
+      {/* Menu / More Button (Opens full domain-grouped drawer) */}
       <button
         type="button"
         onClick={onOpenMenu}

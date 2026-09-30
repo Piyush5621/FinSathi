@@ -1,6 +1,6 @@
 import React from 'react';
 import CreatableSelect from "react-select/creatable";
-import { User, Phone, Mail, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { User, Phone, Mail, AlertTriangle, CheckCircle2, UserCheck } from 'lucide-react';
 
 const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer }) => {
   const customerOptions = customers.filter(Boolean).map((customer) => ({
@@ -17,7 +17,7 @@ const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer })
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {/* Customer Quick Selector & Walk-in shortcut */}
       <div className="flex items-center gap-2">
         <div className="flex-1 min-w-0">
@@ -28,25 +28,27 @@ const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer })
             onCreateOption={typeof onCustomerSelect === 'function' ? (inputValue) => onCustomerSelect(null, inputValue) : undefined}
             value={customerInfo ? { value: customerInfo.value, label: customerInfo.label } : null}
             formatCreateLabel={(inputValue) => `+ Quick Add "${inputValue}"`}
-            placeholder="Search customer (F2) or type phone to quick add..."
+            placeholder="Search customer (F2) or type name / phone..."
             isClearable
             className="text-xs"
             styles={{
               control: (base, state) => ({
                 ...base,
                 borderRadius: "0.75rem",
-                backgroundColor: "var(--app-surface, #FFFFFF)",
+                backgroundColor: "var(--app-surface-subtle, #F8FAFC)",
                 borderColor: state.isFocused ? "var(--app-primary, #3B82F6)" : "var(--app-border, #E2E8F0)",
                 color: "var(--app-text, #0F172A)",
                 boxShadow: "none",
-                minHeight: "38px",
+                minHeight: "36px",
                 fontSize: "12px",
+                transition: "all 0.15s ease",
                 "&:hover": {
                   borderColor: "var(--app-primary, #3B82F6)",
                 }
               }),
               singleValue: (base) => ({ ...base, color: "inherit", fontWeight: 600 }),
               input: (base) => ({ ...base, color: "inherit" }),
+              placeholder: (base) => ({ ...base, color: "var(--app-text-muted, #94A3B8)" }),
               menu: (base) => ({
                 ...base,
                 backgroundColor: "var(--app-surface, #FFFFFF)",
@@ -72,25 +74,25 @@ const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer })
         </div>
         
         {/* Walk-in Shortcut Button */}
-        {!selectedCustomer && (
+        {selectedCustomer && (
           <button
             type="button"
             onClick={() => onCustomerSelect(null)}
-            className="px-3 py-2 text-[11px] font-bold rounded-xl border border-app-border bg-app-surface-subtle text-app-text-secondary hover:text-app-primary hover:border-app-primary/40 transition-colors whitespace-nowrap"
-            title="Walk-in Cash Customer"
+            className="px-2.5 py-1.5 text-[11px] font-bold rounded-xl border border-app-border bg-app-surface text-app-text-secondary hover:text-app-text hover:border-app-border-hover transition-colors whitespace-nowrap cursor-pointer shadow-2xs"
+            title="Reset to Walk-in Cash Customer"
           >
-            Walk-in (नकद)
+            Walk-in
           </button>
         )}
       </div>
 
       {/* Selected Customer Info Pill / Alert */}
       {customerInfo ? (
-        <div className="p-3 bg-app-surface-subtle border border-app-border rounded-xl transition-all animate-fadeIn">
+        <div className="p-2.5 bg-app-surface-subtle border border-app-border rounded-xl transition-all animate-fadeIn">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-lg bg-app-primary/10 text-app-primary flex items-center justify-center font-bold text-xs shrink-0">
-                {customerInfo.name ? customerInfo.name.charAt(0).toUpperCase() : <User size={14} />}
+              <div className="w-7 h-7 rounded-lg bg-app-primary/10 text-app-primary flex items-center justify-center font-black text-xs shrink-0">
+                {customerInfo.name ? customerInfo.name.charAt(0).toUpperCase() : <User size={13} />}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -104,7 +106,7 @@ const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer })
                     </span>
                   )}
                   {customerInfo.email && (
-                    <span className="flex items-center gap-0.5 truncate">
+                    <span className="flex items-center gap-0.5 truncate max-w-[120px]">
                       <Mail size={10} /> {customerInfo.email}
                     </span>
                   )}
@@ -113,20 +115,31 @@ const CustomerSection = ({ customers = [], onCustomerSelect, selectedCustomer })
             </div>
 
             {/* Outstanding Khata Due Alert */}
-            {Number(customerInfo.balance) > 0 && (
+            {Number(customerInfo.balance) > 0 ? (
               <div className="text-right shrink-0">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-rose-500 flex items-center justify-end gap-1">
-                  <AlertTriangle size={10} className="animate-pulse" /> Outstanding Due
+                <span className="text-[9px] font-black uppercase tracking-wider text-rose-500 flex items-center justify-end gap-0.5">
+                  <AlertTriangle size={10} className="animate-pulse" /> Khata Due
                 </span>
-                <p className="text-xs font-black text-rose-600">₹{Number(customerInfo.balance).toLocaleString('en-IN')}</p>
+                <p className="text-xs font-black text-rose-600 font-mono">
+                  ₹{Number(customerInfo.balance).toLocaleString('en-IN')}
+                </p>
               </div>
+            ) : (
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full shrink-0">
+                No Dues
+              </span>
             )}
           </div>
         </div>
       ) : (
         <div className="flex items-center justify-between text-[11px] px-1 text-app-text-muted">
-          <span>Standard Walk-in Customer (नकद ग्राहक)</span>
-          <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-md font-mono">F2 to Search</span>
+          <span className="flex items-center gap-1.5">
+            <UserCheck size={12} className="text-app-text-secondary" />
+            Walk-in Customer (नकद ग्राहक)
+          </span>
+          <span className="text-[10px] font-mono bg-app-surface-subtle border border-app-border text-app-text-secondary px-1.5 py-0.2 rounded">
+            F2: Search
+          </span>
         </div>
       )}
     </div>
