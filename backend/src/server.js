@@ -13,7 +13,7 @@ import { activityLogger } from "./middleware/activityLogger.js";
 import { auditMiddleware } from "./middleware/auditMiddleware.js";
 import { responseTime } from "./middleware/responseTime.js";
 import { performanceMonitor } from "./middleware/sentryMock.js";
-import { authLimiter, aiLimiter, generalLimiter } from "./middleware/rateLimiter.js";
+import { authLimiter, generalLimiter } from "./middleware/rateLimiter.js";
 import { logger } from "./infrastructure/logging/logger.js";
 
 // Override global console in production to enforce structured logging
@@ -38,7 +38,6 @@ import catalogRouter from "./modules/catalog/index.js";
 import inventoryRouter from "./modules/inventory/index.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
-import summaryRoutes from "./routes/summaryRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
@@ -49,7 +48,6 @@ import cashbookRoutes from "./routes/cashbookRoutes.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import kioskRoutes from "./routes/kioskRoutes.js";
 import reminderRoutes from "./routes/reminderRoutes.js";
-import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import storeRoutes from "./routes/storeRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
@@ -136,9 +134,6 @@ app.use("/api/webhooks", webhookRoutes);
 // Kiosk (Public employee terminal)
 app.use("/api/kiosk", kioskRoutes);
 
-// Subscriptions have their own internal auth / webhook
-app.use("/api/subscriptions", subscriptionRoutes);
-
 // 🔓 Public / Private Identity Module Routes (Unified Auth & RBAC)
 app.use("/api/v1", identityRouter);
 app.use("/api", identityRouter); // Backward compatibility
@@ -171,16 +166,9 @@ app.use(enforceOwnership);
 app.use(activityLogger);
 app.use(auditMiddleware);
 
-import aiRoutes from "./routes/aiRoutes.js";
-app.use("/api/ai", aiLimiter, aiRoutes);
-
-import intelligenceRoutes from "./routes/intelligenceRoutes.js";
-app.use("/api/intelligence", intelligenceRoutes);
-
 app.use("/api/sales", salesRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/summary", summaryRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/inventory", inventoryRoutes);
