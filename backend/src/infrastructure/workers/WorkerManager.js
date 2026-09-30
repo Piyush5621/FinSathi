@@ -1,13 +1,9 @@
-import { ReputationWorker } from './ReputationWorker.js';
-import { GrowthWorker } from './GrowthWorker.js';
 import { logger } from '../logging/logger.js';
 
 const workers = [];
 
 export const startWorkers = () => {
-  workers.push(new ReputationWorker());
-  workers.push(new GrowthWorker());
-  logger.info('[WorkerManager] Started background workers');
+  logger.info('[WorkerManager] Background worker pool initialized');
 };
 
 export const stopWorkers = async () => {
@@ -17,3 +13,4 @@ export const stopWorkers = async () => {
   }
   logger.info('[WorkerManager] All workers shut down.');
 };
+

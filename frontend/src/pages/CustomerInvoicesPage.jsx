@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { supabase } from "../lib/supabaseClient";
 import API from "../services/apiClient";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit3, Printer, Trash2, Mail, Phone, MapPin, CreditCard, DollarSign, Receipt, Plus } from 'lucide-react';
+import { 
+  ArrowLeft, Edit3, Printer, Trash2, Mail, Phone, MapPin, 
+  CreditCard, DollarSign, Receipt, Plus, Search, CheckCircle2, 
+  Clock, AlertCircle, Sparkles, Building2, User, Info, ExternalLink
+} from 'lucide-react';
 import toast from "react-hot-toast";
 import InvoicePreviewModal from "../components/billing/InvoicePreviewModal";
 import InvoiceEditorModal from "../pages/Billing/InvoiceEditorModal";
@@ -42,23 +46,24 @@ export default function CustomerInvoicesPage() {
       setCustomer(custData);
 
       const { data: invData } = await API.get(`/sales?customer_id=${id}`);
-      setInvoices(invData || []);
+      const salesList = Array.isArray(invData) ? invData : (invData?.sales || []);
+      setInvoices(salesList);
 
       const { data: payData } = await API.get(`/payments/${id}`);
       setPayments(payData || []);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load data");
+      toast.error("Failed to load customer records");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteCustomer = async () => {
-    if (!window.confirm("Delete this customer? This cannot be undone.")) return;
+    if (!window.confirm("Delete this customer? This will remove the profile record.")) return;
     try {
       await API.delete(`/customers/${id}`);
-      toast.success("Customer deleted successfully");
+      toast.success("Customer removed successfully");
       navigate("/customers");
     } catch (err) {
       toast.error("Failed to delete customer");
@@ -75,216 +80,374 @@ export default function CustomerInvoicesPage() {
   };
 
   const handleDeleteInvoice = async (invoiceId) => {
-    if (!window.confirm("Are you sure you want to delete this invoice? This action will restore product stock.")) return;
+    const reason = window.prompt("Cancel/Void this invoice? Product stock will be restored and customer balance reversed. Enter cancellation reason:", "Voided from customer ledger");
+    if (reason === null) return;
     try {
-      await API.delete(`/sales/${invoiceId}`);
-      toast.success("Invoice deleted successfully");
+      await API.post(`/sales/${invoiceId}/cancel`, { reason: reason || "Voided from customer ledger" });
+      toast.success("Invoice cancelled and inventory restored");
       fetchCustomerData();
     } catch (err) {
-      toast.error("Failed to delete invoice");
+      toast.error(err.response?.data?.error || "Failed to cancel invoice");
     }
   };
 
-  const totalBilled = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-  const pendingAmount = invoices.reduce((sum, inv) => {
-    if (inv.payment_status === 'paid') return sum;
-    const due = (inv.total || 0) - (inv.amount_paid || 0);
-    return sum + (due > 0 ? due : 0);
-  }, 0);
-  const totalPaidInvoices = totalBilled - pendingAmount;
+  const totalBilled = invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+  const duesBalance = Number(customer?.outstanding_balance || 0);
+  const paidAtCounter = invoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
+  const khataRepayments = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const totalReceived = paidAtCounter + khataRepayments;
 
   const filteredInvoices = invoices.filter((inv) => {
-    const mSearch = inv.id.toString().includes(search) || (inv.total && inv.total.toString().includes(search));
-    const mFilter = filterStatus === 'all' || (filterStatus === 'paid' && inv.payment_status === 'paid') || (filterStatus === 'unpaid' && (inv.payment_status === 'unpaid' || inv.payment_status === 'partial'));
+    const q = search.trim().toLowerCase();
+    const mSearch = !q || 
+      (inv.invoice_no && inv.invoice_no.toLowerCase().includes(q)) ||
+      (inv.id && inv.id.toString().toLowerCase().includes(q)) || 
+      (inv.total != null && inv.total.toString().includes(q));
+    const mFilter = filterStatus === 'all' || 
+      (filterStatus === 'paid' && inv.payment_status === 'paid') || 
+      (filterStatus === 'unpaid' && (inv.payment_status === 'unpaid' || inv.payment_status === 'partial'));
     return mSearch && mFilter;
   });
 
   if (loading && !customer) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin h-8 w-8 border-b-2 border-[#3B82F6] rounded-full"></div>
+      <div className="flex flex-col justify-center items-center min-h-[400px] gap-3">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+        <p className="text-xs font-medium text-app-muted">Loading customer records & ledger...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-[32px] animate-fade-in-up pb-[40px]">
+    <div className="space-y-6 animate-fade-in-up pb-12">
       {/* Back link */}
-      <button 
-        onClick={() => navigate("/customers")} 
-        className="flex items-center gap-[8px] text-slate-500 hover:text-slate-900 font-semibold text-xs transition-colors bg-white hover:bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl shadow-sm"
-      >
-        <ArrowLeft size={14} /> Back to Customer Directory
-      </button>
+      <div>
+        <button 
+          onClick={() => navigate("/customers")} 
+          className="inline-flex items-center gap-2 text-app-muted hover:text-app-text font-semibold text-xs transition-colors bg-app-surface hover:bg-app-hover border border-app-border px-3.5 py-2 rounded-xl shadow-2xs cursor-pointer"
+        >
+          <ArrowLeft size={14} /> Back to Customer Ledger
+        </button>
+      </div>
 
-      {/* Customer Profile Summary */}
+      {/* Customer Profile Header Card */}
       {customer && (
-        <Card className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-[24px] border border-slate-150 relative overflow-hidden">
-          <div className="flex items-center gap-[20px]">
-            <div className="w-[64px] h-[64px] rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-[24px] font-black text-slate-700 uppercase shrink-0">
+        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-2xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xl font-black text-primary uppercase shrink-0">
               {customer.name.substring(0, 2)}
             </div>
             <div>
-              <h1 className="text-[20px] font-bold text-[#0F172A] tracking-tight">{customer.name}</h1>
-              <div className="flex flex-wrap gap-[12px] text-xs text-[#64748B] mt-1.5 font-medium">
-                {customer.email && <span className="flex items-center gap-[4px]"><Mail size={12} className="text-slate-400" />{customer.email}</span>}
-                {customer.phone && <span className="flex items-center gap-[4px]"><Phone size={12} className="text-slate-400" />{customer.phone}</span>}
-                {customer.city && <span className="flex items-center gap-[4px]"><MapPin size={12} className="text-slate-400" />{customer.city}</span>}
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-app-text tracking-tight">{customer.name}</h1>
+                <Badge variant="gray" className="font-mono text-[10px]">ID #{customer.id}</Badge>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-app-muted mt-1.5 font-medium">
+                {customer.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone size={12} className="text-app-muted" />{customer.phone}
+                  </span>
+                )}
+                {customer.email && (
+                  <span className="flex items-center gap-1">
+                    <Mail size={12} className="text-app-muted" />{customer.email}
+                  </span>
+                )}
+                {customer.city && (
+                  <span className="flex items-center gap-1">
+                    <MapPin size={12} className="text-app-muted" />{customer.city}
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-[16px] w-full lg:w-auto border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100">
-             <div className="flex flex-col items-start lg:items-end">
-                <span className="text-[9px] font-bold text-[#64748B] uppercase tracking-wider block">Total Billed</span>
-                <span className="text-[18px] font-extrabold text-slate-900 mt-1 block">₹{totalBilled.toLocaleString('en-IN')}</span>
-             </div>
-             <div className="flex flex-col items-start lg:items-end">
-                <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider block">Total Paid</span>
-                <span className="text-[18px] font-extrabold text-emerald-600 mt-1 block">₹{totalPaidInvoices.toLocaleString('en-IN')}</span>
-             </div>
-             <div className="flex flex-col items-start lg:items-end">
-                <span className="text-[9px] font-bold text-red-600 uppercase tracking-wider block">Outstanding</span>
-                <span className="text-[18px] font-extrabold text-red-600 mt-1 block">₹{pendingAmount.toLocaleString('en-IN')}</span>
-             </div>
+          {/* Ledger Financial Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 w-full lg:w-auto border-t lg:border-t-0 pt-4 lg:pt-0 border-app-border">
+            <div className="flex flex-col items-start lg:items-end p-2 bg-app-surface-subtle border border-app-border rounded-xl">
+              <span className="text-[10px] font-bold text-app-muted uppercase tracking-wider block">Total Billed</span>
+              <span className="text-sm font-extrabold font-mono text-app-text mt-0.5 block">₹{totalBilled.toLocaleString('en-IN')}</span>
+              <span className="text-[9px] text-app-muted">All Sales Value</span>
+            </div>
+            <div className="flex flex-col items-start lg:items-end p-2 bg-app-surface-subtle border border-app-border rounded-xl">
+              <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Paid at Counter</span>
+              <span className="text-sm font-extrabold font-mono text-blue-600 dark:text-blue-400 mt-0.5 block">₹{paidAtCounter.toLocaleString('en-IN')}</span>
+              <span className="text-[9px] text-app-muted">POS Upfront</span>
+            </div>
+            <div className="flex flex-col items-start lg:items-end p-2 bg-app-surface-subtle border border-app-border rounded-xl">
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Khata Repaid</span>
+              <span className="text-sm font-extrabold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 block">₹{khataRepayments.toLocaleString('en-IN')}</span>
+              <span className="text-[9px] text-app-muted">Debt Cleared</span>
+            </div>
+            <div className="flex flex-col items-start lg:items-end p-2 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block">Total Received</span>
+              <span className="text-sm font-extrabold font-mono text-emerald-700 dark:text-emerald-300 mt-0.5 block">₹{totalReceived.toLocaleString('en-IN')}</span>
+              <span className="text-[9px] text-emerald-600/80">Counter + Repaid</span>
+            </div>
+            <div className="flex flex-col items-start lg:items-end p-2 bg-rose-500/10 border border-rose-500/20 rounded-xl col-span-2 sm:col-span-4 lg:col-span-1">
+              <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">Outstanding Due</span>
+              <span className={`text-base font-extrabold font-mono mt-0.5 block ${duesBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-app-muted'}`}>
+                ₹{duesBalance.toLocaleString('en-IN')}
+              </span>
+              <span className="text-[9px] text-rose-500 font-medium">Pending Debt</span>
+            </div>
           </div>
 
-          <div className="flex flex-row lg:flex-col gap-[8px] w-full lg:w-auto shrink-0 border-t lg:border-t-0 pt-4 lg:pt-0 border-slate-100">
-             <Button onClick={() => setShowPaymentModal(true)} icon={<Plus size={16} />} className="flex-1 lg:flex-none bg-indigo-600 hover:bg-indigo-700">Record Payment</Button>
-             <div className="flex gap-[8px] flex-1 lg:flex-none">
-               <Button variant="outline" className="flex-1 py-1.5" onClick={() => setShowEditProfile(true)}><Edit3 size={14} /></Button>
-               <Button variant="danger" className="flex-1 py-1.5" onClick={handleDeleteCustomer}><Trash2 size={14} /></Button>
-             </div>
+          {/* Actions */}
+          <div className="flex flex-row lg:flex-col gap-2 w-full lg:w-auto shrink-0 border-t lg:border-t-0 pt-4 lg:pt-0 border-app-border">
+            <Button 
+              onClick={() => setShowPaymentModal(true)} 
+              icon={<Plus size={15} />} 
+              className="flex-1 lg:flex-none shadow-2xs font-semibold"
+            >
+              Record Payment
+            </Button>
+            <div className="flex gap-2 flex-1 lg:flex-none">
+              <Button 
+                variant="outline" 
+                className="flex-1 py-1.5 text-xs font-medium" 
+                onClick={() => setShowEditProfile(true)}
+              >
+                <Edit3 size={13} className="mr-1" /> Edit Profile
+              </Button>
+              <Button 
+                variant="danger" 
+                className="py-1.5 px-3 text-xs" 
+                onClick={handleDeleteCustomer}
+                title="Delete customer profile"
+              >
+                <Trash2 size={13} />
+              </Button>
+            </div>
           </div>
-        </Card>
+        </div>
       )}
 
+      {/* Financial Understanding & Reconciliation Guide Banner */}
+      <div className="p-3.5 bg-app-surface border border-app-border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs shadow-2xs">
+        <div className="flex items-start gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+            <Info size={16} />
+          </div>
+          <div>
+            <p className="font-bold text-app-text flex items-center gap-2">
+              <span>Financial Ledger Reconciliation (पारदर्शी हिसाब-किताब)</span>
+              <Badge variant="blue" className="text-[10px] font-normal">Customer Khata</Badge>
+            </p>
+            <p className="text-app-muted text-xs mt-0.5">
+              <strong className="text-app-text">Total Billed</strong> (₹{totalBilled.toLocaleString('en-IN')}) − <strong className="text-emerald-600 dark:text-emerald-400">Total Received</strong> (₹{totalReceived.toLocaleString('en-IN')} [₹{paidAtCounter.toLocaleString('en-IN')} upfront at counter + ₹{khataRepayments.toLocaleString('en-IN')} repaid]) = <strong className="text-rose-600 dark:text-rose-400">₹{duesBalance.toLocaleString('en-IN')} Net Outstanding Due</strong>.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => navigate('/invoices')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-surface hover:bg-app-hover border border-app-border text-xs font-semibold text-app-text transition-colors cursor-pointer"
+            title="Browse all bills in Invoices History"
+          >
+            <Receipt size={13} className="text-primary" />
+            <span>Invoices History</span>
+            <ExternalLink size={12} className="text-app-muted" />
+          </button>
+        </div>
+      </div>
+
       {/* Tabs */}
-      <div className="flex gap-[24px] border-b border-[#E2E8F0] pb-px">
+      <div className="flex gap-6 border-b border-app-border pb-px">
         <button 
           onClick={() => setActiveTab("invoices")} 
-          className={`pb-[12px] text-sm font-bold border-b-2 transition-all flex items-center gap-[8px] ${activeTab === "invoices" ? "border-[#3B82F6] text-[#3B82F6]" : "border-transparent text-[#64748B] hover:text-[#0F172A]"}`}
+          className={`pb-3 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "invoices" 
+              ? "border-primary text-primary" 
+              : "border-transparent text-app-muted hover:text-app-text"
+          }`}
         >
-          <CreditCard size={16} /> Invoices & Transactions
+          <CreditCard size={15} /> Invoices & Orders ({invoices.length})
         </button>
         <button 
           onClick={() => setActiveTab("payments")} 
-          className={`pb-[12px] text-sm font-bold border-b-2 transition-all flex items-center gap-[8px] ${activeTab === "payments" ? "border-[#3B82F6] text-[#3B82F6]" : "border-transparent text-[#64748B] hover:text-[#0F172A]"}`}
+          className={`pb-3 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "payments" 
+              ? "border-primary text-primary" 
+              : "border-transparent text-app-muted hover:text-app-text"
+          }`}
         >
-          <DollarSign size={16} /> Incoming Payments Ledger
+          <DollarSign size={15} /> Payment History ({payments.length})
         </button>
       </div>
 
-      <Card noPadding className="border border-slate-150 overflow-hidden">
+      {/* Tab Contents */}
+      <div className="bg-app-surface border border-app-border rounded-2xl overflow-hidden shadow-2xs">
         {activeTab === "invoices" && (
           <div>
-            <div className="p-[20px] border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-[16px] bg-slate-50/50">
-               <h3 className="font-bold text-[#0F172A] text-sm flex items-center gap-[8px]"><Receipt size={16} className="text-[#3B82F6]" /> Client Invoices</h3>
-               <div className="flex items-center gap-[12px] w-full sm:w-auto shrink-0">
-                  <select 
-                     value={filterStatus} 
-                     onChange={(e) => setFilterStatus(e.target.value)} 
-                     className="bg-white border border-slate-200 rounded-lg px-[12px] py-[8px] text-[13px] font-semibold text-slate-700 outline-none focus:border-slate-350 transition-colors shadow-sm"
-                  >
-                     <option value="all">All Status</option>
-                     <option value="paid">Paid Only</option>
-                     <option value="unpaid">Unpaid / Partial</option>
-                  </select>
-                  <div className="relative flex-1 sm:w-48">
-                    <Search className="absolute left-[12px] top-[10px] h-[14px] w-[14px] text-slate-400" />
-                    <Input 
-                      placeholder="Search invoice ID..." 
-                      value={search} 
-                      onChange={e => setSearch(e.target.value)} 
-                      className="pl-[32px] w-full py-1.5 text-xs" 
-                    />
-                  </div>
-               </div>
+            <div className="p-4 border-b border-app-border flex flex-col sm:flex-row justify-between items-center gap-3 bg-app-subtle/30">
+              <div className="flex items-center gap-2">
+                <Receipt size={16} className="text-primary" />
+                <h3 className="font-bold text-app-text text-sm">Issued Sales Invoices</h3>
+                <span className="text-xs text-app-muted font-mono">({filteredInvoices.length})</span>
+              </div>
+              <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
+                <select 
+                  value={filterStatus} 
+                  onChange={(e) => setFilterStatus(e.target.value)} 
+                  className="bg-app-surface border border-app-border rounded-xl px-3 py-1.5 text-xs font-semibold text-app-text outline-none focus:border-primary/50 transition-colors shadow-2xs"
+                >
+                  <option value="all">All Invoices</option>
+                  <option value="paid">Settled / Paid</option>
+                  <option value="unpaid">Pending / Partial</option>
+                </select>
+                <div className="relative flex-1 sm:w-52">
+                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-app-muted" />
+                  <input 
+                    placeholder="Search invoice # or total..." 
+                    value={search} 
+                    onChange={e => setSearch(e.target.value)} 
+                    className="w-full pl-8 pr-3 py-1.5 bg-app-surface border border-app-border rounded-xl text-xs text-app-text outline-none focus:border-primary/50 shadow-2xs" 
+                  />
+                </div>
+              </div>
             </div>
-            <Table>
-              <Thead>
-                <tr>
-                  <Th>Invoice ID</Th>
-                  <Th>Issue Date</Th>
-                  <Th className="text-right">Billed Amount</Th>
-                  <Th className="text-right">Paid Amount</Th>
-                  <Th className="text-right">Outstanding Balance</Th>
-                  <Th className="text-center">Status</Th>
-                  <Th className="text-right">Actions</Th>
-                </tr>
-              </Thead>
-              <Tbody>
-                {filteredInvoices.length === 0 ? (
-                  <Tr><Td colSpan="7" className="text-center py-10 text-slate-400">No invoices match your filters.</Td></Tr>
-                ) : filteredInvoices.map(inv => {
-                  const paid = inv.amount_paid || 0;
-                  const balance = (inv.total || 0) - paid;
-                  return (
-                    <Tr key={inv.id} className="border-b border-slate-100 hover:bg-slate-50/30">
-                       <Td className="font-mono text-[#3B82F6] font-bold text-xs">FS-{inv.id}</Td>
-                       <Td className="text-slate-600 font-medium">{new Date(inv.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Td>
-                       <Td className="text-right font-bold text-slate-900">₹{inv.total?.toLocaleString('en-IN')}</Td>
-                       <Td className="text-right font-semibold text-emerald-600">₹{paid.toLocaleString('en-IN')}</Td>
-                       <Td className="text-right font-bold text-red-600">{balance > 0 ? `₹${balance.toLocaleString('en-IN')}` : '—'}</Td>
-                       <Td className="text-center">
-                         <Badge variant={inv.payment_status === "paid" ? "success" : inv.payment_status === "partial" ? "warning" : "danger"}>
-                           {inv.payment_status?.toUpperCase() || "UNPAID"}
-                         </Badge>
-                       </Td>
-                       <Td className="text-right">
-                          <div className="flex justify-end gap-[6px]">
-                            <button onClick={() => handleModifyInvoice(inv.id)} className="p-[6px] text-slate-400 hover:text-[#3B82F6] transition-colors hover:bg-slate-100 rounded-lg" title="Edit invoice"><Edit3 size={14} /></button>
-                            <button onClick={() => setPreviewInvoice(inv)} className="p-[6px] text-slate-400 hover:text-[#3B82F6] transition-colors hover:bg-slate-100 rounded-lg" title="Preview & Print"><Printer size={14} /></button>
-                            <button onClick={() => handleDeleteInvoice(inv.id)} className="p-[6px] text-slate-400 hover:text-red-600 transition-colors hover:bg-slate-100 rounded-lg" title="Delete transaction"><Trash2 size={14} /></button>
-                          </div>
-                       </Td>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <Thead>
+                  <tr>
+                    <Th>Invoice #</Th>
+                    <Th>Issue Date</Th>
+                    <Th className="text-right">Billed Total</Th>
+                    <Th className="text-right">Paid Amount</Th>
+                    <Th className="text-right">Balance Due</Th>
+                    <Th className="text-center">Status</Th>
+                    <Th className="text-right">Actions</Th>
+                  </tr>
+                </Thead>
+                <Tbody>
+                  {filteredInvoices.length === 0 ? (
+                    <Tr>
+                      <Td colSpan="7" className="text-center py-12 text-app-muted text-xs">
+                        No invoices found matching the current search criteria.
+                      </Td>
                     </Tr>
-                  )
-                })}
-              </Tbody>
-            </Table>
+                  ) : filteredInvoices.map(inv => {
+                    const paid = inv.amount_paid || 0;
+                    const balance = (inv.total || 0) - paid;
+                    return (
+                      <Tr key={inv.id} className="border-b border-app-border/40 hover:bg-app-hover/50 transition-colors">
+                        <Td className="font-mono text-primary font-bold text-xs">{inv.invoice_no || `INV-${String(inv.id).slice(0, 8).toUpperCase()}`}</Td>
+                        <Td className="text-app-muted text-xs font-medium">
+                          {new Date(inv.date || inv.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </Td>
+                        <Td className="text-right font-mono font-bold text-app-text text-xs">₹{inv.total?.toLocaleString('en-IN')}</Td>
+                        <Td className="text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400 text-xs">₹{paid.toLocaleString('en-IN')}</Td>
+                        <Td className="text-right font-mono font-bold text-xs">
+                          {balance > 0 ? (
+                            <span className="text-rose-600 dark:text-rose-400">₹{balance.toLocaleString('en-IN')}</span>
+                          ) : (
+                            <span className="text-app-muted">—</span>
+                          )}
+                        </Td>
+                        <Td className="text-center">
+                          <Badge variant={inv.payment_status === "paid" ? "success" : inv.payment_status === "partial" ? "warning" : "danger"}>
+                            {inv.payment_status?.toUpperCase() || "UNPAID"}
+                          </Badge>
+                        </Td>
+                        <Td className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <button 
+                              onClick={() => handleModifyInvoice(inv.id)} 
+                              className="p-1.5 text-app-muted hover:text-primary transition-colors hover:bg-app-hover rounded-lg cursor-pointer" 
+                              title="Edit invoice"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            <button 
+                              onClick={() => setPreviewInvoice(inv)} 
+                              className="p-1.5 text-app-muted hover:text-primary transition-colors hover:bg-app-hover rounded-lg cursor-pointer" 
+                              title="Preview & Print"
+                            >
+                              <Printer size={14} />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteInvoice(inv.id)} 
+                              className="p-1.5 text-app-muted hover:text-rose-600 transition-colors hover:bg-rose-500/10 rounded-lg cursor-pointer" 
+                              title="Delete transaction and restore inventory"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </Tbody>
+              </Table>
+            </div>
           </div>
         )}
 
         {activeTab === "payments" && (
           <div>
-            <div className="p-[20px] border-b border-slate-100 bg-slate-50/50">
-               <h3 className="font-bold text-[#0F172A] text-sm flex items-center gap-[8px]"><DollarSign size={16} className="text-[#3B82F6]" /> Incoming Payments History</h3>
+            <div className="p-4 border-b border-app-border bg-app-subtle/30 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DollarSign size={16} className="text-emerald-500" />
+                <h3 className="font-bold text-app-text text-sm">Customer Payment Receipts</h3>
+                <span className="text-xs text-app-muted font-mono">({payments.length})</span>
+              </div>
             </div>
-            <Table>
-               <Thead>
-                 <tr>
-                   <Th>Payment Date</Th>
-                   <Th>Reference ID</Th>
-                   <Th>Payment Mode</Th>
-                   <Th className="text-right">Received Amount</Th>
-                 </tr>
-               </Thead>
-               <Tbody>
-                 {payments.length === 0 ? (
-                   <Tr><Td colSpan="4" className="text-center py-10 text-slate-400">No payment receipts found.</Td></Tr>
-                 ) : payments.map(pay => (
-                   <Tr key={pay.id} className="border-b border-slate-100 hover:bg-slate-50/30">
-                     <Td className="text-slate-900 font-semibold">{new Date(pay.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Td>
-                     <Td className="text-slate-500 font-mono text-xs">{pay.reference || '—'}</Td>
-                     <Td>
-                       <Badge variant="gray" className="font-bold uppercase tracking-wider text-[10px]">
-                         {pay.payment_mode || "CASH"}
-                       </Badge>
-                     </Td>
-                     <Td className="text-right font-extrabold text-emerald-600">₹{pay.amount?.toLocaleString('en-IN')}</Td>
-                   </Tr>
-                 ))}
-               </Tbody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <Thead>
+                  <tr>
+                    <Th>Payment Date</Th>
+                    <Th>Reference ID</Th>
+                    <Th>Payment Mode</Th>
+                    <Th className="text-right">Amount Received</Th>
+                  </tr>
+                </Thead>
+                <Tbody>
+                  {payments.length === 0 ? (
+                    <Tr>
+                      <Td colSpan="4" className="text-center py-12 text-app-muted text-xs">
+                        No payment receipts logged for this customer yet.
+                      </Td>
+                    </Tr>
+                  ) : payments.map(pay => (
+                    <Tr key={pay.id} className="border-b border-app-border/40 hover:bg-app-hover/50 transition-colors">
+                      <Td className="text-app-text font-medium text-xs">
+                        {new Date(pay.date || pay.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </Td>
+                      <Td className="text-app-muted font-mono text-xs">{pay.reference || '—'}</Td>
+                      <Td>
+                        <Badge variant="gray" className="font-mono uppercase tracking-wider text-[10px]">
+                          {pay.payment_mode || "CASH"}
+                        </Badge>
+                      </Td>
+                      <Td className="text-right font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-xs">
+                        ₹{pay.amount?.toLocaleString('en-IN')}
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </div>
           </div>
         )}
-      </Card>
+      </div>
 
+      {/* Modals & Dialogs */}
       {previewInvoice && <InvoicePreviewModal invoice={previewInvoice} onClose={() => setPreviewInvoice(null)} />}
       {editingInvoice && <InvoiceEditorModal invoice={editingInvoice} onClose={() => setEditingInvoice(null)} onSaved={fetchCustomerData} />}
       {showEditProfile && customer && <CustomerEditModal customer={customer} onClose={() => setShowEditProfile(false)} onSaved={() => { fetchCustomerData(); setShowEditProfile(false); }} />}
-      {showPaymentModal && <AddPaymentModal customerId={id} onClose={() => setShowPaymentModal(false)} onPaymentAdded={fetchCustomerData} />}
+      {showPaymentModal && (
+        <AddPaymentModal 
+          customerId={id} 
+          customerName={customer?.name}
+          customerPhone={customer?.phone}
+          outstandingDue={duesBalance}
+          onClose={() => setShowPaymentModal(false)} 
+          onPaymentAdded={fetchCustomerData} 
+        />
+      )}
     </div>
   );
 }

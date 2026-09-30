@@ -11,9 +11,3 @@ cron.schedule("0 0 * * *", async () => {
     console.error("[Background Job] Failed to refresh Materialized View:", error);
   }
 });
-
-// Run every 6 hours for Health Score Precomputation
-cron.schedule("0 */6 * * *", async () => {
-  console.log("[Background Job] Precomputing Business Health Scores...");
-  // Logic to calculate AI health scores and store in business_health_metrics table
-});

@@ -126,7 +126,7 @@ export default function AuditCenter() {
           <ShieldAlert className="w-12 h-12 text-slate-350 mb-3" />
           <h3 className="text-sm font-bold text-slate-700">No Audit Logs Found</h3>
           <p className="text-xs text-slate-400 mt-1 max-w-xs leading-normal">
-            Logs will automatically record here whenever invoices, products, or CRM contacts are added, modified, or deleted.
+            Logs will automatically record here whenever invoices, products, or customer contacts are added, modified, or deleted.
           </p>
         </Card>
       ) : (

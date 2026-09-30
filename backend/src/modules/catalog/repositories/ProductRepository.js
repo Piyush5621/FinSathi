@@ -16,35 +16,75 @@ export class ProductRepository extends BaseRepository {
   }
 
   static async findByBarcode(barcode, organizationId) {
-    // Check product_barcodes table first
+    const cleanCode = String(barcode).trim();
+    // 1. Check product_barcodes table first
     const { data: barcodeRecord, error: barcodeErr } = await adminSupabase
       .from("product_barcodes")
       .select("*")
-      .eq("barcode_value", barcode)
+      .eq("barcode_value", cleanCode)
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
       .maybeSingle();
 
     if (barcodeErr) throw barcodeErr;
-    if (!barcodeRecord) return null;
+    if (barcodeRecord) {
+      const { data: product, error: prodErr } = await adminSupabase
+        .from("inventory")
+        .select("*")
+        .eq("id", barcodeRecord.product_id)
+        .eq("organization_id", organizationId)
+        .is("deleted_at", null)
+        .maybeSingle();
 
-    // Get the product details
-    const { data: product, error: prodErr } = await adminSupabase
-      .from("inventory")
+      if (prodErr) throw prodErr;
+      if (product) {
+        return { product, variantId: barcodeRecord.variant_id };
+      }
+    }
+
+    // 2. Fallback: Check product_variants by SKU
+    const { data: variantRecord } = await adminSupabase
+      .from("product_variants")
       .select("*")
-      .eq("id", barcodeRecord.product_id)
+      .eq("sku", cleanCode)
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
       .maybeSingle();
 
-    if (prodErr) throw prodErr;
-    return { product, variantId: barcodeRecord.variant_id };
+    if (variantRecord) {
+      const { data: product } = await adminSupabase
+        .from("inventory")
+        .select("*")
+        .eq("id", variantRecord.product_id)
+        .eq("organization_id", organizationId)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (product) {
+        return { product, variantId: variantRecord.id, variant: variantRecord };
+      }
+    }
+
+    // 3. Fallback: Check inventory by SKU
+    const { data: skuProduct } = await adminSupabase
+      .from("inventory")
+      .select("*")
+      .eq("sku", cleanCode)
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (skuProduct) {
+      return { product: skuProduct, variantId: null };
+    }
+
+    return null;
   }
 
   static async findBundleComponents(parentProductId, organizationId) {
     const { data, error } = await adminSupabase
       .from("product_bundles")
-      .select("*, component:inventory(*)")
+      .select("*, component:inventory!product_bundles_component_product_id_fkey(*)")
       .eq("parent_product_id", parentProductId)
       .eq("organization_id", organizationId);
 

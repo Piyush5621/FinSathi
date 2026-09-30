@@ -21,13 +21,10 @@ connection.on('error', (err) => {
 });
 
 export const QUEUES = {
-  REPUTATION: 'network.reputation',
-  GROWTH: 'network.growth',
-  NOTIFICATION: 'network.notification',
-  MARKETPLACE: 'network.marketplace',
-  AI: 'network.ai',
-  CACHE: 'network.cache',
-  ANALYTICS: 'network.analytics'
+  NOTIFICATION: 'system.notification',
+  AI: 'system.ai',
+  CACHE: 'system.cache',
+  ANALYTICS: 'system.analytics'
 };
 
 const queueInstances = {};

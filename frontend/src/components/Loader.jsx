@@ -1,11 +1,12 @@
+import React from "react";
 import ClipLoader from "react-spinners/ClipLoader";
 
-const Loader = () => {
+export const Loader = ({ size = 40, className = '' }) => {
   return (
-    <div className="flex items-center justify-center w-full h-full">
-      <ClipLoader color="#3b82f6" size={50} />
+    <div className={`flex items-center justify-center p-6 w-full ${className}`}>
+      <ClipLoader color="#3157D5" size={size} />
     </div>
-  )
-}
+  );
+};
 
 export default Loader;

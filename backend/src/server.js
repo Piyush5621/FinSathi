@@ -13,7 +13,7 @@ import { activityLogger } from "./middleware/activityLogger.js";
 import { auditMiddleware } from "./middleware/auditMiddleware.js";
 import { responseTime } from "./middleware/responseTime.js";
 import { performanceMonitor } from "./middleware/sentryMock.js";
-import { authLimiter, aiLimiter, generalLimiter } from "./middleware/rateLimiter.js";
+import { authLimiter, generalLimiter } from "./middleware/rateLimiter.js";
 import { logger } from "./infrastructure/logging/logger.js";
 
 // Override global console in production to enforce structured logging
@@ -38,51 +38,29 @@ import catalogRouter from "./modules/catalog/index.js";
 import inventoryRouter from "./modules/inventory/index.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
-import summaryRoutes from "./routes/summaryRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
-import invoiceRoutes from "./routes/invoiceRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import expenseRoutes from "./routes/expenseRoutes.js";
+import cashbookRoutes from "./routes/cashbookRoutes.js";
 import staffRoutes from "./routes/staffRoutes.js";
-// import logisticsRoutes from "./routes/logisticsRoutes.js";
 import kioskRoutes from "./routes/kioskRoutes.js";
 import reminderRoutes from "./routes/reminderRoutes.js";
-import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import storeRoutes from "./routes/storeRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
-import taskRoutes from "./routes/taskRoutes.js";
-import crmRoutes from "./routes/crmRoutes.js";
-// RBAC routes removed in favor of identity module
+import purchaseRequestRoutes from "./routes/purchaseRequestRoutes.js";
 import backupRoutes from "./routes/backupRoutes.js";
 import auditRoutes from "./routes/auditRoutes.js";
-import profileRoutes from "./routes/network/profileRoutes.js";
-import partnerRoutes from "./routes/network/partnerRoutes.js";
-import marketplaceRoutes from "./routes/network/marketplaceRoutes.js";
-import networkTradeRoutes from "./routes/network/networkTradeRoutes.js";
-import reputationRoutes from "./routes/network/reputationRoutes.js";
-import growthRoutes from "./routes/network/growthRoutes.js";
-import networkAiRoutes from "./routes/network/aiRoutes.js";
 import { ReminderService } from "./services/ReminderService.js";
-// Business Network Module
-import networkRoutes from "./routes/networkRoutes.js";
-import tradeRoutes from "./routes/tradeRoutes.js";
-import importRoutes from "./routes/importRoutes.js";
-import catalogNetworkRoutes from "./routes/catalogNetworkRoutes.js";
-import preferredSupplierRoutes from "./routes/preferredSupplierRoutes.js";
-import tradeCreditRoutes from "./routes/tradeCreditRoutes.js";
-import tradeReturnRoutes from "./routes/tradeReturnRoutes.js";
 
 const app = express();
 
 // Initialize Automation & Events
 ReminderService.init();
 const publisher = initEventPublisher();
-import TradeService from "./services/network/TradeService.js";
-TradeService.setEventPublisher(publisher);
 
 import "./utils/cronJobs.js";
 
@@ -156,9 +134,6 @@ app.use("/api/webhooks", webhookRoutes);
 // Kiosk (Public employee terminal)
 app.use("/api/kiosk", kioskRoutes);
 
-// Subscriptions have their own internal auth / webhook
-app.use("/api/subscriptions", subscriptionRoutes);
-
 // 🔓 Public / Private Identity Module Routes (Unified Auth & RBAC)
 app.use("/api/v1", identityRouter);
 app.use("/api", identityRouter); // Backward compatibility
@@ -173,18 +148,17 @@ app.use("/admin/auth", adminAuthRoutes);
 app.use("/admin/users", adminAuth, auditLog, adminUsersRoutes);
 
 // Modular Subsystems
-app.use("/api/catalog", catalogRouter);
 app.use("/api/v1/catalog", catalogRouter);
+app.use("/api/catalog", catalogRouter);
+
+app.use("/api/v1/inventory", inventoryRouter);
+
 app.use("/api/v1", mastersRouter);
-app.use("/api", mastersRouter);
-app.use("/api/v1", catalogRouter);
-app.use("/api", catalogRouter);
-app.use("/api/v1", inventoryRouter);
-app.use("/api", inventoryRouter);
+app.use(["/api/uom", "/api/uoms", "/api/categories", "/api/warehouses", "/api/companies", "/api/brands", "/api/settings"], mastersRouter);
 
 import catalogRoutes from "./routes/catalogRoutes.js";
-app.use("/api/catalog", catalogRoutes);
 app.use("/api/public-catalog", catalogRoutes);
+
 
 // 🔐 Protected Routes (FORCED ISOLATION)
 app.use(authenticateToken);
@@ -192,61 +166,56 @@ app.use(enforceOwnership);
 app.use(activityLogger);
 app.use(auditMiddleware);
 
-import schemeRoutes from "./routes/schemeRoutes.js";
-app.use("/api/schemes", schemeRoutes);
-
-import aiRoutes from "./routes/aiRoutes.js";
-app.use("/api/ai", aiLimiter, aiRoutes);
-
-import intelligenceRoutes from "./routes/intelligenceRoutes.js";
-app.use("/api/intelligence", intelligenceRoutes);
-
 app.use("/api/sales", salesRoutes);
 app.use("/api/analytics", analyticsRoutes);
-app.use("/api/invoices", invoiceRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/summary", summaryRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/expenses", expenseRoutes);
+app.use("/api/cashbook", cashbookRoutes);
 app.use("/api/staff", staffRoutes);
-// app.use("/api/logistics", logisticsRoutes);
 app.use("/api/reminders", reminderRoutes);
 app.use("/api/stores", storeRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
-app.use("/api/tasks", taskRoutes);
-app.use("/api/crm", crmRoutes);
-// Legacy RBAC route mount removed (handled by identityRouter under /api/rbac)
+app.use("/api/purchase-requests", purchaseRequestRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/audit", auditRoutes);
 
 import reportRoutes from "./routes/reportRoutes.js";
 app.use("/api/reports", reportRoutes);
 
-// 🌐 Business Network Module Routes
-app.use("/api/network/profile", profileRoutes);
-app.use("/api/network/partners", partnerRoutes);
-app.use("/api/network/marketplace", marketplaceRoutes);
-app.use("/api/network/trade", networkTradeRoutes);
-app.use("/api/network/reputation", reputationRoutes);
-app.use("/api/network/growth", growthRoutes);
-app.use("/api/network/ai", networkAiRoutes);
-app.use("/api/network", networkRoutes);
-app.use("/api/trade", tradeRoutes);
-app.use("/api/imports", importRoutes);
-app.use("/api/network-catalogs", catalogNetworkRoutes);
-app.use("/api/network", preferredSupplierRoutes);
-app.use("/api/trade-credit", tradeCreditRoutes);
-app.use("/api/network/trade/credit", tradeCreditRoutes);
-app.use("/api/network/trade-credit", tradeCreditRoutes);
-app.use("/api/trade-returns", tradeReturnRoutes);
-
 // Global Error Handler must be the last middleware
 import { errorHandler } from "./middleware/errorHandler.js";
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT}`);
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    logger.error(
+      `Port ${PORT} is already in use by another process. Please stop the existing process or specify a different PORT in your .env file.`
+    );
+    process.exit(1);
+  } else {
+    logger.error(`Server error: ${err.message}`);
+    process.exit(1);
+  }
+});
+
+const gracefulShutdown = () => {
+  logger.info("Received termination signal, closing HTTP server...");
+  server.close(() => {
+    logger.info("HTTP server closed.");
+    process.exit(0);
+  });
+};
+
+process.on("SIGINT", gracefulShutdown);
+process.on("SIGTERM", gracefulShutdown);
+

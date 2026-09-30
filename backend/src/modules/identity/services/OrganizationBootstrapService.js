@@ -2,7 +2,7 @@ import { AuthRepository } from "../repositories/AuthRepository.js";
 import { RbacRepository } from "../repositories/RbacRepository.js";
 import { AuditRepository } from "../repositories/AuditRepository.js";
 import { PasswordService } from "./PasswordService.js";
-import { supabase } from "../../../config/db.js";
+import { adminSupabase } from "../../../admin/adminSupabase.js";
 import { ValidationError } from "../errors/appErrors.js";
 
 const DEFAULT_ROLES = [
@@ -141,7 +141,7 @@ export class OrganizationBootstrapService {
     });
 
     // 5. Create Default Store
-    const { data: store, error: storeErr } = await supabase
+    const { data: store, error: storeErr } = await adminSupabase
       .from("stores")
       .insert([{
         user_id: owner.id,
@@ -157,7 +157,7 @@ export class OrganizationBootstrapService {
     if (storeErr) throw storeErr;
 
     // 6. Create Default Warehouse
-    const { data: warehouse, error: whErr } = await supabase
+    const { data: warehouse, error: whErr } = await adminSupabase
       .from("warehouses")
       .insert([{
         user_id: owner.id,
@@ -171,7 +171,7 @@ export class OrganizationBootstrapService {
     if (whErr) throw whErr;
 
     // 7. Create User Store Preference
-    const { error: prefErr } = await supabase
+    const { error: prefErr } = await adminSupabase
       .from("user_store_preferences")
       .insert([{
         user_id: owner.id,

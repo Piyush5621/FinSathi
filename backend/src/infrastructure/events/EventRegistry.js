@@ -1,24 +1,16 @@
 export const EventRegistry = {
-  // Trade Domain
-  TRADE_CREATED: 'TradeCreated',
-  TRADE_ACCEPTED: 'TradeAccepted',
-  TRADE_REJECTED: 'TradeRejected',
-  TRADE_COMPLETED: 'TradeCompleted',
-  
-  // Profile Domain
-  BUSINESS_CONNECTED: 'BusinessConnected',
-  PROFILE_VERIFIED: 'ProfileVerified',
-  MILESTONE_REACHED: 'MilestoneReached',
-  
-  // Marketplace Domain
-  LISTING_CREATED: 'ListingCreated',
-  LISTING_EXPIRED: 'ListingExpired',
+  // Sales & Billing Domain
+  SALE_CREATED: 'SaleCreated',
+  SALE_RETURNED: 'SaleReturned',
+  INVOICE_GENERATED: 'InvoiceGenerated',
 
-  // Reputation Domain
-  TRUST_SCORE_UPDATED: 'TrustScoreUpdated',
-  PAYMENT_DELAYED: 'PaymentDelayed',
+  // Inventory Domain
+  STOCK_ADJUSTED: 'StockAdjusted',
+  LOW_STOCK_DETECTED: 'LowStockDetected',
 
-  // Growth Domain
-  RECOMMENDATION_GENERATED: 'RecommendationGenerated',
-  SCHEME_MATCHED: 'SchemeMatched'
+  // Customers & Khata Domain
+  PAYMENT_RECEIVED: 'PaymentReceived',
+
+  // Security & Compliance Domain
+  AUDIT_LOG_RECORDED: 'AuditLogRecorded'
 };

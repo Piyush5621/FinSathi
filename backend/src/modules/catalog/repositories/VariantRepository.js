@@ -24,6 +24,19 @@ export class VariantRepository extends BaseRepository {
       .is("deleted_at", null);
 
     if (error) throw error;
-    return data;
+    return data || [];
+  }
+
+  static async findVariantsForProducts(productIds, organizationId) {
+    if (!productIds || productIds.length === 0) return [];
+    const { data, error } = await adminSupabase
+      .from("product_variants")
+      .select("*")
+      .in("product_id", productIds)
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null);
+
+    if (error) throw error;
+    return data || [];
   }
 }

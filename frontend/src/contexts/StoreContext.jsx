@@ -24,6 +24,14 @@ export const StoreProvider = ({ children }) => {
   const activeStoreId = data?.activeStoreId || null;
   const activeStore = stores.find(s => s.id === activeStoreId) || null;
 
+  useEffect(() => {
+    if (activeStoreId) {
+      localStorage.setItem('activeStoreId', activeStoreId);
+    } else {
+      localStorage.removeItem('activeStoreId');
+    }
+  }, [activeStoreId]);
+
   // Mutation to switch active store preference
   const switchStoreMutation = useMutation({
     mutationFn: async (storeId) => {

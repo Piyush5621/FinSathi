@@ -3,56 +3,88 @@ import { supabase } from '../config/db.js';
 import { planGuard } from '../middleware/planGuard.js';
 import { validateRequest } from '../middleware/validateRequest.js';
 import { inventorySchema } from '../utils/schemas.js';
+import { StockService } from '../modules/inventory/services/StockService.js';
+import { StockController } from '../modules/inventory/controllers/StockController.js';
 
 const router = express.Router();
 
+// Canonical Sub-Routes mounted on /api/inventory
+router.post('/restock', StockController.postRestock);
+router.post('/adjust', StockController.postAdjustment);
+router.post('/transfer', StockController.postTransfer);
+router.get('/movements', StockController.getMovements);
+router.get('/balance', StockController.getStoreBalance);
+
+// List inventory items with optional search & pagination
 router.get('/', async (req, res) => {
   try {
-    console.log('[Inventory] Fetching for User ID:', req.user?.id);
-    
     if (!req.user?.id) {
-      console.error('[Inventory] Critical: req.user.id is missing!');
       return res.status(401).json({ error: 'AUTHENTICATION_ERROR', message: 'User ID missing in request' });
     }
 
     const limit = parseInt(req.query.limit) || 1000;
     const offset = parseInt(req.query.offset) || 0;
+    const search = req.query.search || req.query.q || '';
+    const storeId = req.headers['x-store-id'] || req.query.store_id || null;
 
-    const { data: products, error: prodError } = await supabase
+    let query = supabase
       .from('inventory')
       .select('*, inventory_batches(*)')
       .eq('user_id', req.user.id)
-      .order('name')
-      .range(offset, offset + limit - 1);
+      .is('deleted_at', null);
 
-    if (prodError) {
-      console.error('[Inventory] Database Query Error:', prodError);
-      throw prodError;
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
     }
 
-    console.log(`[Inventory] Successfully fetched ${products?.length || 0} items.`);
+    query = query.order('name').range(offset, offset + limit - 1);
+
+    const { data: products, error: prodError } = await query;
+    if (prodError) throw prodError;
+
+    // Attach store-scoped stock if storeId is supplied
+    if (storeId && products && products.length > 0) {
+      const productIds = products.map(p => p.id);
+      const { data: storeStockRows } = await supabase
+        .from('store_inventory')
+        .select('*')
+        .in('product_id', productIds)
+        .eq('store_id', storeId);
+
+      if (storeStockRows && storeStockRows.length > 0) {
+        const storeMap = new Map();
+        for (const sr of storeStockRows) {
+          if (!sr.variant_id) storeMap.set(sr.product_id, Number(sr.stock || 0));
+        }
+        for (const prod of products) {
+          if (storeMap.has(prod.id)) {
+            prod.stock = storeMap.get(prod.id);
+          }
+        }
+      }
+    }
+
     res.json(products);
   } catch (err) {
     console.error('Inventory Fetch Error [500]:', err);
     res.status(500).json({ 
       error: 'INVENTORY_FETCH_FAILED', 
-      message: err.message,
-      hint: 'Check your terminal for the Database Query Error log.'
+      message: err.message
     });
   }
 });
 
-// Fast server-side search (Critical for Billing Dropdown)
+// Fast server-side search
 router.get('/search', async (req, res) => {
   try {
-    const q = req.query.q || '';
+    const q = req.query.q || req.query.search || '';
     if (!q) return res.json([]);
     
-    // Fuzzy search on name or sku
     const { data, error } = await supabase
       .from('inventory')
       .select('*, inventory_batches(*)')
       .eq('user_id', req.user.id)
+      .is('deleted_at', null)
       .or(`name.ilike.%${q}%,sku.ilike.%${q}%`)
       .limit(20);
 
@@ -64,118 +96,117 @@ router.get('/search', async (req, res) => {
 });
 
 // Add new inventory item (Master + Initial Batch)
-router.post('/', planGuard('products'), validateRequest(inventorySchema), async (req, res) => {
+router.post('/', validateRequest(inventorySchema), async (req, res) => {
+
   const {
     name, description, company, sku,
     price, cost_price, wholesale_price, stock, gst_percent, units, unit
   } = req.body;
 
   try {
-    console.log('[Inventory] Adding new item for User:', req.user.id);
-    console.log('[Inventory] Payload:', req.body);
+    const finalSellingPrice = Number(price || 0);
+    const finalCostPrice = Number(cost_price || 0);
+    const finalStock = Number(stock || 0);
+    const finalUnits = units || unit || 'pcs';
+    const storeId = req.headers['x-store-id'] || null;
+
+    // Resolve user's organization_id
+    let orgId = req.tenantId;
+    if (!orgId) {
+      const { data: u } = await supabase.from('users').select('organization_id').eq('id', req.user.id).maybeSingle();
+      orgId = u?.organization_id || req.user.id;
+    }
 
     const { data: master, error: masterError } = await supabase
       .from('inventory')
       .insert([{
         user_id: req.user.id,
+        organization_id: orgId,
+        store_id: storeId,
         name,
         description,
         company,
         sku,
         gst_percent: Number(gst_percent || 0),
-        price: Number(price || 0),
-        cost_price: Number(cost_price || 0),
+        price: finalSellingPrice,
+        selling_price: finalSellingPrice,
+        cost_price: finalCostPrice,
         wholesale_price: Number(wholesale_price || 0),
-        stock: Number(stock || 0),
-        units: units || unit || 'pcs'
+        stock: finalStock,
+        units: finalUnits,
+        status: 'active'
       }])
       .select('*')
       .single();
 
-    if (masterError) {
-      console.error('[Inventory] Master Create Error Details:', masterError);
-      return res.status(500).json({ 
-         error: 'MASTER_CREATE_FAILED', 
-         message: masterError.message,
-         details: masterError.details
-      });
-    }
+    if (masterError) throw masterError;
 
-    if (!master) {
-      throw new Error("No data returned from master creation");
-    }
-
-    // Create Initial Batch if pricing/stock provided
-    if (stock > 0 || price > 0) {
-      console.log('[Inventory] Creating initial batch for Master ID:', master.id);
-      const { error: batchError } = await supabase
-        .from('inventory_batches')
-        .insert([{
-          inventory_id: master.id,
-          batch_name: 'Initial Stock',
-          sku_variant: sku,
-          cost_price: Number(cost_price || 0),
-          selling_price: Number(price || 0),
-          wholesale_price: Number(wholesale_price || 0),
-          stock: Number(stock || 0)
-        }]);
-
-      if (batchError) {
-        console.error('[Inventory] Batch Creation Warning:', batchError);
+    // Create Initial Batch and Store Stock if stock > 0
+    if (finalStock > 0) {
+      if (storeId) {
+        await supabase.from('store_inventory').insert([{
+          organization_id: orgId,
+          store_id: storeId,
+          product_id: master.id,
+          stock: finalStock
+        }]).select();
       }
+
+      await supabase.from('inventory_batches').insert([{
+        inventory_id: master.id,
+        store_id: storeId,
+        batch_name: 'Initial Stock',
+        sku_variant: sku,
+        cost_price: finalCostPrice,
+        selling_price: finalSellingPrice,
+        wholesale_price: Number(wholesale_price || 0),
+        stock: finalStock
+      }]);
     }
 
-    console.log('[Inventory] Successfully added item:', master.id);
     res.status(201).json(master);
   } catch (err) {
     console.error('Error adding inventory item [500]:', err);
-    res.status(500).json({ 
-      error: 'ADD_INVENTORY_FAILED', 
-      message: err.message,
-      hint: 'Check your backend terminal for "Master Create Error"'
-    });
+    res.status(500).json({ error: 'ADD_INVENTORY_FAILED', message: err.message });
   }
 });
 
-// Add a new batch to a product
+// Restock / Add batch to a product (Canonicalized)
 router.post('/:id/batches', async (req, res) => {
   const { id } = req.params;
-  const { batch_name, sku_variant, cost_price, selling_price, wholesale_price, stock } = req.body;
+  const { batch_name, cost_price, selling_price, wholesale_price, stock } = req.body;
 
   try {
-    // First, verify the user owns the parent product
-    const { data: product, error: pError } = await supabase
-      .from('inventory')
-      .select('id')
-      .eq('id', id)
-      .eq('user_id', req.user.id)
-      .single();
-
-    if (pError || !product) {
-      return res.status(403).json({ error: "Access denied or product not found" });
+    let orgId = req.tenantId;
+    if (!orgId) {
+      const { data: u } = await supabase.from('users').select('organization_id').eq('id', req.user.id).maybeSingle();
+      orgId = u?.organization_id || req.user.id;
     }
 
-    const { data: batch, error } = await supabase
-      .from('inventory_batches')
-      .insert([{
-        inventory_id: id,
-        batch_name: batch_name || 'Restock',
-        sku_variant,
-        cost_price,
-        selling_price,
-        wholesale_price,
-        stock
-      }])
-      .select()
-      .single();
+    const result = await StockService.restockItem({
+      organizationId: orgId,
+      storeId: req.headers['x-store-id'] || null,
+      productId: id,
+      quantity: Number(stock),
+      costPrice: Number(cost_price || 0),
+      sellingPrice: Number(selling_price || 0),
+      wholesalePrice: Number(wholesale_price || 0),
+      batchName: batch_name,
+      userId: req.user.id
+    });
 
-    if (error) throw error;
-    res.status(201).json(batch);
+    res.status(201).json(result.batch || result);
   } catch (err) {
-    console.error('Error creating batch:', err);
-    res.status(500).json({ error: 'Failed to create batch' });
+    console.error('Error restocking batch:', err);
+    res.status(500).json({ error: err.message || 'Failed to restock batch' });
   }
 });
+
+// Adjust product stock (item-level endpoint delegating to canonical StockController)
+router.post('/:id/adjust', StockController.postAdjustment);
+
+// Transfer product stock between stores (item-level endpoint delegating to canonical StockController)
+router.post('/:id/transfer', StockController.postTransfer);
 
 // Update a batch (stock, prices)
 router.put('/batches/:id', async (req, res) => {
@@ -183,7 +214,6 @@ router.put('/batches/:id', async (req, res) => {
   const { cost_price, selling_price, wholesale_price, stock, batch_name } = req.body;
 
   try {
-    // Verify the batch belongs to a product owned by the user via JOIN
     const { data: check, error: checkError } = await supabase
       .from('inventory_batches')
       .select('id, inventory:inventory(user_id)')
@@ -216,18 +246,27 @@ router.put('/batches/:id', async (req, res) => {
   }
 });
 
-// Update inventory item (Master)
+// Update inventory item (Master) - Does not mutate stock directly (Section 6)
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    // allow updating any field passed in body
+    const updates = { ...req.body };
+    delete updates.stock; // Stock updates must NOT happen via direct item edit
+
+    if (updates.price !== undefined && updates.selling_price === undefined) {
+      updates.selling_price = updates.price;
+    } else if (updates.selling_price !== undefined && updates.price === undefined) {
+      updates.price = updates.selling_price;
+    }
+
     const { data: result, error } = await supabase
       .from('inventory')
-      .update(req.body)
+      .update(updates)
       .eq('id', id)
       .eq('user_id', req.user.id)
       .select()
       .single();
+
     if (error) throw error;
     res.json(result);
   } catch (err) {
@@ -236,40 +275,105 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete inventory item
+// Stock adjustment for an item (Canonicalized)
+router.post('/:id/adjust', async (req, res) => {
+  const { id } = req.params;
+  const { adjustment_type, quantity, reason, remarks, batch_id } = req.body;
+
+  try {
+    let orgId = req.tenantId;
+    if (!orgId) {
+      const { data: u } = await supabase.from('users').select('organization_id').eq('id', req.user.id).maybeSingle();
+      orgId = u?.organization_id || req.user.id;
+    }
+
+    const result = await StockService.adjustStock({
+      organizationId: orgId,
+      storeId: req.headers['x-store-id'] || null,
+      productId: id,
+      quantity: Number(quantity),
+      adjustmentType: adjustment_type || 'decrease',
+      reason: reason || 'Adjustment',
+      remarks: remarks || '',
+      batchId: batch_id || null,
+      userId: req.user.id
+    });
+
+    res.json({
+      success: true,
+      message: result.message,
+      previous_stock: result.previousStock,
+      new_stock: result.newStock
+    });
+  } catch (err) {
+    console.error("Stock adjustment error:", err);
+    res.status(400).json({ error: err.message || "Failed to adjust stock" });
+  }
+});
+
+// Bulk import products from CSV (Canonicalized)
+router.post('/bulk', async (req, res) => {
+  const { products } = req.body;
+  try {
+    let orgId = req.tenantId;
+    if (!orgId) {
+      const { data: u } = await supabase.from('users').select('organization_id').eq('id', req.user.id).maybeSingle();
+      orgId = u?.organization_id || req.user.id;
+    }
+
+    const result = await StockService.bulkImport({
+      organizationId: orgId,
+      storeId: req.headers['x-store-id'] || null,
+      userId: req.user.id,
+      products
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    console.error("Bulk inventory import error:", err);
+    res.status(500).json({ error: err.message || "Failed to import products" });
+  }
+});
+
+// Safe non-destructive product archive (Section 7)
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const { error } = await supabase
       .from('inventory')
-      .delete()
+      .update({
+        status: 'archived',
+        deleted_at: new Date().toISOString()
+      })
       .eq('id', id)
       .eq('user_id', req.user.id);
+
     if (error) throw error;
-    res.json({ message: 'Inventory item deleted successfully' });
+    res.json({ success: true, message: 'Product archived successfully' });
   } catch (err) {
-    console.error('Error deleting inventory item:', err);
-    res.status(500).json({ error: 'Failed to delete inventory item' });
+    console.error('Error archiving inventory item:', err);
+    res.status(500).json({ error: 'Failed to archive inventory item' });
   }
 });
 
-// Delete all items by company
+// Delete all items by company (Safe Archive)
 router.delete('/company/:companyName', async (req, res) => {
   const { companyName } = req.params;
   try {
-    // Decode if needed, though express params usually handle it. 
-    // Client should encodeURIComponent
     const { error } = await supabase
       .from('inventory')
-      .delete()
+      .update({
+        status: 'archived',
+        deleted_at: new Date().toISOString()
+      })
       .eq('user_id', req.user.id)
-      .ilike('company', companyName); // Case insensitive match to be safe, or eq if strict
+      .ilike('company', companyName);
 
     if (error) throw error;
-    res.json({ message: `All products for ${companyName} deleted successfully` });
+    res.json({ success: true, message: `All products for ${companyName} archived successfully` });
   } catch (err) {
-    console.error('Error deleting company products:', err);
-    res.status(500).json({ error: 'Failed to delete company products' });
+    console.error('Error archiving company products:', err);
+    res.status(500).json({ error: 'Failed to archive company products' });
   }
 });
 

@@ -12,7 +12,7 @@ router.post("/login", (req, res) => {
     if ((username === adminUsername || username === "admin@karobar.com" || username === "admin@finsathi.com") && password === adminPassword) {
         const secret = process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET || "admin_secret";
         const token = jwt.sign(
-            { id: "admin-system", role: "admin" },
+            { id: "admin-system", role: "admin", is_superadmin: true },
             secret,
             { expiresIn: "12h" }
         );

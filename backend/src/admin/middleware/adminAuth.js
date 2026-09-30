@@ -9,11 +9,15 @@ export const adminAuth = (req, res, next) => {
     }
 
     try {
-        const secret = process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET || "admin_secret";
+        const secret = process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET;
+        if (!secret) {
+            return res.status(500).json({ message: "Admin JWT secret not configured on server." });
+        }
         const verified = jwt.verify(token, secret);
+
         
-        // Ensure only admin roles can pass
-        if (verified.role !== 'admin') {
+        // Ensure only authenticated superadmin tokens can pass
+        if (verified.role !== 'admin' || (!verified.is_superadmin && verified.id !== 'admin-system')) {
             return res.status(403).json({ message: "Forbidden: Not an admin." });
         }
         

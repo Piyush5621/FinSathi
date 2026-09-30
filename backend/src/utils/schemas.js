@@ -20,21 +20,50 @@ export const inventorySchema = z.object({
 export const saleSchema = z.object({
   customer_id: z.string().uuid("Invalid customer ID").nullable().optional().or(z.literal("")),
   customer_name: z.string().min(2, "Customer name is required if not selecting existing").nullable().optional().or(z.literal("")),
+  customer_gstin: z.string().optional().nullable().or(z.literal("")),
+  place_of_supply: z.string().optional().nullable().or(z.literal("")),
+  store_id: z.string().uuid().nullable().optional().or(z.literal("")),
+
+  invoice_no: z.string().nullable().optional(),
+  idempotency_key: z.string().nullable().optional(),
+  idempotencyKey: z.string().nullable().optional(),
+  client_id: z.string().nullable().optional(),
   items: z.array(z.object({
-    productId: z.string().uuid().optional(),
-    batchId: z.string().uuid().optional(),
-    inventory_id: z.string().uuid().optional(),
-    quantity: z.number().min(1),
-    price: z.number().min(0),
-    product_name: z.string().optional()
+    productId: z.string().uuid().nullable().optional().or(z.literal("")),
+    product_id: z.string().uuid().nullable().optional().or(z.literal("")),
+    id: z.string().uuid().nullable().optional().or(z.literal("")),
+    batchId: z.string().uuid().nullable().optional().or(z.literal("")),
+    batch_id: z.string().uuid().nullable().optional().or(z.literal("")),
+    variantId: z.string().uuid().nullable().optional().or(z.literal("")),
+    variant_id: z.string().uuid().nullable().optional().or(z.literal("")),
+    inventory_id: z.string().uuid().nullable().optional().or(z.literal("")),
+    quantity: z.number().min(0.001, "Quantity must be greater than zero"),
+    price: z.number().min(0, "Price cannot be negative"),
+    product_name: z.string().nullable().optional(),
+    name: z.string().nullable().optional(),
+    gst_percent: z.number().min(0).max(100).nullable().optional(),
+    cost_price: z.number().min(0).nullable().optional(),
+    discount_amount: z.number().min(0).nullable().optional(),
+    unit: z.string().nullable().optional(),
+    total: z.number().min(0).nullable().optional()
   })).min(1, "At least one item is required for a sale"),
-  amount_paid: z.number().min(0).optional(),
-  payment_method: z.string().optional(),
-  payment_status: z.string().optional(),
-  subtotal: z.number().min(0).optional(),
-  tax_amount: z.number().min(0).optional(),
-  discount_percent: z.number().min(0).optional(),
-  total: z.number().min(0).optional(),
+  amount_paid: z.number().min(0).nullable().optional(),
+  payment_method: z.string().nullable().optional(),
+  payment_status: z.string().nullable().optional(),
+  subtotal: z.number().min(0).nullable().optional(),
+  tax_amount: z.number().min(0).nullable().optional(),
+  discount_percent: z.number().min(0).nullable().optional(),
+  discount_amount: z.number().min(0).nullable().optional(),
+  discount: z.number().min(0).nullable().optional(),
+  total: z.number().min(0).nullable().optional(),
+  split_details: z.object({
+    cash: z.number().min(0).optional(),
+    upi: z.number().min(0).optional(),
+    card: z.number().min(0).optional()
+  }).optional().nullable(),
+  notes: z.string().optional().nullable(),
+  date: z.string().nullable().optional(),
+  due_date: z.string().nullable().optional()
 });
 
 export const updateProfileSchema = z.object({

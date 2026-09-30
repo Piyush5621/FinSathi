@@ -1,12 +1,25 @@
 import { useState } from 'react';
-import { DollarSign, CreditCard, CheckCircle, MessageCircle, ArrowRight, Printer } from 'lucide-react';
+import { DollarSign, CreditCard, CheckCircle, MessageCircle, ArrowRight, Printer, AlertCircle } from 'lucide-react';
 import API from "../services/apiClient";
 import toast from "react-hot-toast";
 import { Modal } from "./ui/Modal";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 
-export default function AddPaymentModal({ customerId, customerName, customerPhone, outstandingDue = 0, onClose, onPaymentAdded }) {
+/**
+ * Standardized Canonical AddPaymentModal
+ * Used across Customer Registry, Customer Profile, and Ledger views.
+ * Dispatches repayments to the canonical endpoint, displays structured receipts,
+ * and allows 1-click sharing of receipts via WhatsApp.
+ */
+export default function AddPaymentModal({ 
+    customerId, 
+    customerName, 
+    customerPhone, 
+    outstandingDue = 0, 
+    onClose, 
+    onPaymentAdded 
+}) {
     const [amount, setAmount] = useState("");
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [mode, setMode] = useState("cash");
@@ -20,7 +33,7 @@ export default function AddPaymentModal({ customerId, customerName, customerPhon
         e.preventDefault();
         const payVal = parseFloat(amount);
         if (isNaN(payVal) || payVal <= 0) {
-            return toast.error("Please enter a valid positive payment amount");
+            return toast.error("Please enter a valid positive repayment amount");
         }
 
         if (dueAmount > 0 && payVal > dueAmount + 0.01) {
@@ -39,13 +52,13 @@ export default function AddPaymentModal({ customerId, customerName, customerPhon
                 date,
                 payment_method: mode,
                 payment_mode: mode,
-                reference,
+                reference: reference ? reference.trim() : null,
                 idempotency_key: idempotencyKey
             };
 
             const res = await API.post(endpoint, payload);
 
-            toast.success("Payment recorded successfully!");
+            toast.success("Payment recorded successfully! 💰");
             
             if (res.data?.receipt) {
                 setReceiptData(res.data.receipt);
@@ -64,7 +77,7 @@ export default function AddPaymentModal({ customerId, customerName, customerPhon
 
             if (onPaymentAdded) onPaymentAdded();
         } catch (err) {
-            console.error(err);
+            console.error("Record payment error:", err);
             toast.error(err.response?.data?.error || err.message || "Failed to record payment");
         } finally {
             setLoading(false);
@@ -93,33 +106,37 @@ export default function AddPaymentModal({ customerId, customerName, customerPhon
     };
 
     return (
-        <Modal isOpen={true} onClose={onClose} title={receiptData ? "Payment Receipt" : "Record Customer Repayment"}>
+        <Modal 
+            isOpen={true} 
+            onClose={onClose} 
+            title={receiptData ? "Payment Receipt" : `Record Repayment: ${customerName || 'Customer'}`}
+        >
             {receiptData ? (
                 <div className="space-y-4">
-                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
-                        <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-center">
+                        <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-2">
                             <CheckCircle size={24} />
                         </div>
-                        <h4 className="text-lg font-bold text-emerald-900">Payment Recorded!</h4>
-                        <p className="text-xs text-emerald-700 font-mono mt-0.5">Receipt: {receiptData.receiptNo}</p>
+                        <h4 className="text-lg font-bold text-emerald-900 dark:text-emerald-200">Payment Recorded Successfully!</h4>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-mono mt-0.5">Receipt #{receiptData.receiptNo}</p>
                     </div>
 
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-sm">
-                        <div className="flex justify-between text-slate-600">
+                    <div className="bg-app-surface-subtle p-4 rounded-xl border border-app-border space-y-2.5 text-xs">
+                        <div className="flex justify-between text-app-muted">
                             <span>Customer:</span>
-                            <span className="font-semibold text-slate-900">{receiptData.customerName || customerName || "Customer"}</span>
+                            <span className="font-semibold text-app-text">{receiptData.customerName || customerName || "Customer"}</span>
                         </div>
-                        <div className="flex justify-between text-slate-600">
+                        <div className="flex justify-between text-app-muted">
                             <span>Amount Paid:</span>
-                            <span className="font-black text-emerald-600">₹{Number(receiptData.amountPaid).toLocaleString('en-IN')}</span>
+                            <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono text-sm">₹{Number(receiptData.amountPaid).toLocaleString('en-IN')}</span>
                         </div>
-                        <div className="flex justify-between text-slate-600">
-                            <span>Payment Method:</span>
-                            <span className="font-medium text-slate-800 uppercase text-xs">{receiptData.paymentMethod}</span>
+                        <div className="flex justify-between text-app-muted">
+                            <span>Payment Mode:</span>
+                            <span className="font-bold text-app-text uppercase">{receiptData.paymentMethod}</span>
                         </div>
-                        <div className="flex justify-between text-slate-600 border-t border-slate-200 pt-2">
+                        <div className="flex justify-between text-app-muted border-t border-app-border pt-2">
                             <span>Remaining Outstanding:</span>
-                            <span className={`font-bold ${receiptData.remainingBalance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            <span className={`font-mono font-bold ${receiptData.remainingBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                                 ₹{Number(receiptData.remainingBalance).toLocaleString('en-IN')}
                             </span>
                         </div>
@@ -129,42 +146,48 @@ export default function AddPaymentModal({ customerId, customerName, customerPhon
                         <Button 
                             type="button" 
                             onClick={handleWhatsAppShare}
-                            className="flex-1 bg-[#128C7E] hover:bg-[#075E54] text-white flex items-center justify-center gap-2 py-2.5"
+                            className="flex-1 bg-[#128C7E] hover:bg-[#075E54] text-white flex items-center justify-center gap-2 py-2 font-bold"
                         >
-                            <MessageCircle size={18} />
-                            Share Receipt on WhatsApp
+                            <MessageCircle size={16} />
+                            Share on WhatsApp
                         </Button>
                         <Button 
                             type="button" 
                             variant="outline" 
                             onClick={onClose}
-                            className="px-6 py-2.5"
+                            className="px-6 py-2"
                         >
                             Done
                         </Button>
                     </div>
                 </div>
             ) : (
-                <form onSubmit={handleSubmit} className="space-y-[16px]">
-                    {dueAmount > 0 && (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Current Outstanding Due Notice */}
+                    {dueAmount > 0 ? (
+                        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center justify-between">
                             <div>
-                                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Current Outstanding Due</span>
-                                <span className="text-lg font-black text-amber-900">₹{dueAmount.toLocaleString('en-IN')}</span>
+                                <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">Current Outstanding Due</span>
+                                <span className="text-lg font-black font-mono text-amber-900 dark:text-amber-200">₹{dueAmount.toLocaleString('en-IN')}</span>
                             </div>
                             <Button 
                                 type="button" 
                                 variant="outline" 
                                 onClick={() => setAmount(dueAmount.toString())}
-                                className="text-xs py-1 px-3 bg-white border-amber-300 text-amber-800 hover:bg-amber-100"
+                                className="text-xs py-1 px-3 bg-white dark:bg-slate-900 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 font-bold"
                             >
                                 Pay Full (₹{dueAmount.toLocaleString('en-IN')})
                             </Button>
                         </div>
+                    ) : (
+                        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-300 font-medium">
+                            <CheckCircle size={16} className="text-emerald-600 shrink-0" />
+                            <span>This customer has ₹0 outstanding debt. Account is fully settled.</span>
+                        </div>
                     )}
 
                     <Input 
-                        label="Payment Amount (₹)" 
+                        label="Payment Amount (₹) *" 
                         type="number" 
                         step="0.01"
                         placeholder="0.00" 
@@ -173,54 +196,59 @@ export default function AddPaymentModal({ customerId, customerName, customerPhon
                         required 
                     />
 
-                    <div className="grid grid-cols-2 gap-[16px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <Input 
-                            label="Date" 
+                            label="Payment Date *" 
                             type="date" 
                             value={date} 
                             onChange={(e) => setDate(e.target.value)} 
                             required 
                         />
                         
-                        <div className="flex flex-col gap-[4px]">
-                            <label className="text-[13px] font-semibold text-[#64748B]">Payment Mode</label>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[12px] font-semibold text-app-text-muted">Payment Mode</label>
                             <div className="relative">
                                 <select
                                     value={mode}
                                     onChange={(e) => setMode(e.target.value)}
-                                    className="w-full bg-[#FFFFFF] border border-[#E2E8F0] rounded-lg px-[12px] py-[10px] text-[14px] text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/50 focus:border-[#3B82F6] transition-all appearance-none"
+                                    className="w-full bg-app-surface border border-app-border rounded-lg px-3 py-2 text-xs text-app-text focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue transition-all appearance-none font-medium"
                                 >
                                     <option value="cash">Cash</option>
                                     <option value="upi">UPI / QR</option>
                                     <option value="bank_transfer">Bank Transfer</option>
                                     <option value="cheque">Cheque</option>
                                 </select>
-                                <CreditCard className="absolute right-[12px] top-[12px] text-[#64748B] pointer-events-none" size={16} />
+                                <CreditCard className="absolute right-3 top-2.5 text-app-muted pointer-events-none" size={14} />
                             </div>
                         </div>
                     </div>
 
                     <Input 
-                        label="Reference / Note" 
+                        label="Reference / Transaction Note" 
                         type="text" 
-                        placeholder="UPI ref, transaction ID, or remark" 
+                        placeholder="UPI UTR, check number, or receipt note" 
                         value={reference} 
                         onChange={(e) => setReference(e.target.value)} 
                     />
 
-                    <div className="bg-[#DBEAFE] p-[12px] rounded-lg border border-[#BFDBFE] flex gap-[12px]">
-                        <div className="mt-[2px]"><CheckCircle size={16} className="text-[#2563EB]" /></div>
-                        <p className="text-[12px] text-[#1D4ED8] font-medium leading-tight">
-                            Payment is automatically allocated to the oldest unpaid invoices first (FIFO principle) and safely decreases Khata balance.
+                    <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg border border-blue-200 dark:border-blue-800 flex gap-2.5">
+                        <CheckCircle size={16} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-blue-800 dark:text-blue-300 font-medium leading-relaxed">
+                            Repayment is automatically allocated to the oldest unpaid invoices first (FIFO principle) and updates the customer Khata balance via concurrency-safe OCC locks.
                         </p>
                     </div>
 
-                    <div className="flex justify-end gap-[12px] pt-[8px]">
+                    <div className="flex justify-end gap-2 pt-2 border-t border-app-border">
                         <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={loading} icon={<DollarSign size={16} />} className="bg-indigo-600 hover:bg-indigo-700">
-                            {loading ? "Processing..." : "Record Payment"}
+                        <Button 
+                            type="submit" 
+                            disabled={loading} 
+                            icon={<DollarSign size={15} />} 
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                        >
+                            {loading ? "Recording..." : "Confirm Payment"}
                         </Button>
                     </div>
                 </form>

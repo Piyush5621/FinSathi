@@ -24,18 +24,27 @@ export const getCatalog = async (req, res) => {
     // Fetch active products with stock > 0
     const { data: products, error: prodErr } = await supabase
       .from('inventory')
-      .select('id, name, company, description, price, units, stock')
+      .select('id, name, company, description, price, selling_price, units, stock')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .gt('stock', 0);
 
     if (prodErr) throw prodErr;
 
     // Grouping by company as per PRD
     const groupedProducts = {};
-    products.forEach(p => {
+    (products || []).forEach(p => {
         const company = p.company || 'Other';
         if (!groupedProducts[company]) groupedProducts[company] = [];
-        groupedProducts[company].push(p);
+        const finalPrice = Number(p.selling_price || p.price || 0);
+        const finalUnit = p.units || 'unit';
+        groupedProducts[company].push({
+          ...p,
+          price: finalPrice,
+          selling_price: finalPrice,
+          unit: finalUnit,
+          units: finalUnit
+        });
     });
 
     res.status(200).json({

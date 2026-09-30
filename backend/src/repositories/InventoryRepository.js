@@ -1,4 +1,5 @@
 import { supabase } from "../config/db.js";
+import { adminSupabase } from "../admin/adminSupabase.js";
 
 export const InventoryRepository = {
     async getLowStockCount(userId, threshold = 10) {
@@ -44,7 +45,7 @@ export const InventoryRepository = {
     },
 
     async decrementMasterStockLegacy(productId, quantity) {
-        const { error } = await supabase.rpc("decrement_stock", {
+        const { error } = await adminSupabase.rpc("decrement_stock", {
             row_id: productId,
             quantity_to_subtract: quantity
         });

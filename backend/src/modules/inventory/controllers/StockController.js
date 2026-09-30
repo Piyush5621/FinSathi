@@ -1,37 +1,37 @@
-import {
-  postOpeningStockSchema,
-  postAdjustmentSchema,
-  shipTransferSchema,
-  receiveTransferSchema,
-  createReservationSchema
-} from "../validators/stockValidator.js";
 import { StockService } from "../services/StockService.js";
-import { ValidationError, NotFoundError } from "../../masters/errors/appErrors.js";
-import { WarehouseStockDto, InventoryMovementDto, TransferDto, ReservationDto } from "../dto/stockDto.js";
-import { adminSupabase } from "../../../admin/adminSupabase.js";
+import { ValidationError } from "../../masters/errors/appErrors.js";
 
 export class StockController {
-  static async postOpeningStock(req, res, next) {
+  static async postRestock(req, res, next) {
     try {
-      const result = postOpeningStockSchema.safeParse(req.body);
-      if (!result.success) {
-        throw new ValidationError("Validation failed", result.error.format());
-      }
+      const { 
+        productId, product_id, 
+        variantId, variant_id, 
+        quantity, 
+        cost_price, costPrice, 
+        selling_price, sellingPrice, 
+        wholesale_price, wholesalePrice,
+        batch_name, batchName,
+        store_id, storeId
+      } = req.body;
 
-      const { stock, movement } = await StockService.postOpeningStock(
-        req.tenantId,
-        result.data,
-        req.user.user_id || req.user.staff_id
-      );
+      const pId = productId || product_id;
+      if (!pId) throw new ValidationError("Product ID is required for restock.");
 
-      res.status(201).json({
-        success: true,
-        message: "Opening stock posted successfully.",
-        data: {
-          stock: new WarehouseStockDto(stock),
-          movement: new InventoryMovementDto(movement)
-        }
+      const result = await StockService.restockItem({
+        organizationId: req.tenantId,
+        storeId: req.headers['x-store-id'] || store_id || storeId,
+        productId: pId,
+        variantId: variantId || variant_id || null,
+        quantity,
+        costPrice: costPrice !== undefined ? costPrice : cost_price,
+        sellingPrice: sellingPrice !== undefined ? sellingPrice : selling_price,
+        wholesalePrice: wholesalePrice !== undefined ? wholesalePrice : wholesale_price,
+        batchName: batchName || batch_name,
+        userId: req.user.user_id || req.user.id || req.user.staff_id
       });
+
+      res.status(201).json(result);
     } catch (err) {
       next(err);
     }
@@ -39,171 +39,118 @@ export class StockController {
 
   static async postAdjustment(req, res, next) {
     try {
-      const result = postAdjustmentSchema.safeParse(req.body);
-      if (!result.success) {
-        throw new ValidationError("Validation failed", result.error.format());
-      }
+      const {
+        productId, product_id,
+        variantId, variant_id,
+        quantity,
+        adjustment_type, adjustmentType,
+        reason,
+        remarks,
+        batch_id, batchId,
+        store_id, storeId
+      } = req.body;
 
-      const { stock, movement, adjustment } = await StockService.postAdjustment(
-        req.tenantId,
-        result.data,
-        req.user.user_id || req.user.staff_id
-      );
+      const pId = productId || product_id || req.params.id;
+      if (!pId) throw new ValidationError("Product ID is required for adjustment.");
 
-      res.status(201).json({
-        success: true,
-        message: "Stock adjustment processed successfully.",
-        data: {
-          stock: new WarehouseStockDto(stock),
-          movement: new InventoryMovementDto(movement)
-        }
+      const result = await StockService.adjustStock({
+        organizationId: req.tenantId,
+        storeId: req.headers['x-store-id'] || store_id || storeId,
+        productId: pId,
+        variantId: variantId || variant_id || null,
+        quantity,
+        adjustmentType: adjustmentType || adjustment_type || 'decrease',
+        reason: reason || 'Stock Adjustment',
+        remarks: remarks || '',
+        batchId: batchId || batch_id || null,
+        userId: req.user.user_id || req.user.id || req.user.staff_id
       });
+
+      res.status(200).json(result);
     } catch (err) {
       next(err);
     }
   }
 
-  static async shipTransfer(req, res, next) {
+  static async postTransfer(req, res, next) {
     try {
-      const result = shipTransferSchema.safeParse(req.body);
-      if (!result.success) {
-        throw new ValidationError("Validation failed", result.error.format());
-      }
+      const {
+        source_store_id, sourceStoreId,
+        destination_store_id, destinationStoreId, target_store_id,
+        productId, product_id,
+        variantId, variant_id,
+        quantity,
+        remarks
+      } = req.body;
 
-      const transfer = await StockService.shipTransfer(
-        req.tenantId,
-        result.data,
-        req.user.user_id || req.user.staff_id
-      );
+      const pId = productId || product_id || req.params.id;
+      if (!pId) throw new ValidationError("Product ID is required for stock transfer.");
 
-      res.status(201).json({
-        success: true,
-        message: "Stock transfer shipped successfully.",
-        data: new TransferDto(transfer)
+      const result = await StockService.transferStock({
+        organizationId: req.tenantId,
+        sourceStoreId: sourceStoreId || source_store_id || req.headers['x-store-id'],
+        destinationStoreId: destinationStoreId || destination_store_id || target_store_id,
+        productId: pId,
+        variantId: variantId || variant_id || null,
+        quantity,
+        remarks,
+        userId: req.user.user_id || req.user.id || req.user.staff_id
       });
+
+      res.status(200).json(result);
     } catch (err) {
       next(err);
     }
   }
 
-  static async receiveTransfer(req, res, next) {
+  static async getMovements(req, res, next) {
     try {
-      const { id } = req.params;
-      const result = receiveTransferSchema.safeParse(req.body);
-      if (!result.success) {
-        throw new ValidationError("Validation failed", result.error.format());
-      }
-
-      const transfer = await StockService.receiveTransfer(
-        id,
-        req.tenantId,
-        result.data,
-        req.user.user_id || req.user.staff_id
-      );
+      const { store_id, product_id, limit, offset } = req.query;
+      const movements = await StockService.getMovements({
+        organizationId: req.tenantId,
+        storeId: req.headers['x-store-id'] || store_id || null,
+        productId: product_id || null,
+        limit: limit || 50,
+        offset: offset || 0
+      });
 
       res.status(200).json({
         success: true,
-        message: "Stock transfer received and completed successfully.",
-        data: new TransferDto(transfer)
+        data: movements
       });
     } catch (err) {
       next(err);
     }
   }
 
-  static async createReservation(req, res, next) {
+  static async postBulkImport(req, res, next) {
     try {
-      const result = createReservationSchema.safeParse(req.body);
-      if (!result.success) {
-        throw new ValidationError("Validation failed", result.error.format());
+      const { products, store_id, storeId } = req.body;
+      const result = await StockService.bulkImport({
+        organizationId: req.tenantId,
+        storeId: req.headers['x-store-id'] || store_id || storeId,
+        userId: req.user.user_id || req.user.id || req.user.staff_id,
+        products
+      });
+
+      res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getStoreBalance(req, res, next) {
+    try {
+      const storeId = req.headers['x-store-id'] || req.query.store_id;
+      const productId = req.query.product_id || req.params.id;
+      const variantId = req.query.variant_id || null;
+
+      if (!storeId || !productId) {
+        throw new ValidationError("store_id and product_id are required.");
       }
 
-      const reservation = await StockService.createReservation(
-        req.tenantId,
-        result.data,
-        req.user.user_id || req.user.staff_id
-      );
-
-      res.status(201).json({
-        success: true,
-        message: "Stock reserved successfully.",
-        data: new ReservationDto(reservation)
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  static async releaseReservation(req, res, next) {
-    try {
-      const { id } = req.params;
-      const reservation = await StockService.releaseReservation(
-        id,
-        req.tenantId,
-        req.user.user_id || req.user.staff_id
-      );
-
-      res.status(200).json({
-        success: true,
-        message: "Stock reservation released successfully.",
-        data: new ReservationDto(reservation)
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  static async getWarehouseBalance(req, res, next) {
-    try {
-      const { warehouseId, productId, variantId } = req.query;
-
-      if (!warehouseId || !productId) {
-        throw new ValidationError("Both warehouseId and productId are required.");
-      }
-
-      const balance = await StockService.getWarehouseBalance(
-        warehouseId,
-        productId,
-        variantId || null,
-        req.tenantId
-      );
-
-      res.status(200).json({
-        success: true,
-        data: balance
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  static async getMovementHistory(req, res, next) {
-    try {
-      const { warehouseId, productId, variantId, limit = 10, page = 1 } = req.query;
-
-      let dbQuery = adminSupabase
-        .from("inventory_movements")
-        .select("*", { count: "exact" })
-        .eq("organization_id", req.tenantId);
-
-      if (warehouseId) dbQuery = dbQuery.eq("warehouse_id", warehouseId);
-      if (productId) dbQuery = dbQuery.eq("product_id", productId);
-      if (variantId) dbQuery = dbQuery.eq("variant_id", variantId);
-
-      const from = (Number(page) - 1) * Number(limit);
-      const to = from + Number(limit) - 1;
-
-      const { data, count, error } = await dbQuery
-        .range(from, to)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      res.status(200).json({
-        success: true,
-        data: data.map(m => new InventoryMovementDto(m)),
-        count
-      });
+      const balance = await StockService.getStoreBalance(storeId, productId, variantId);
+      res.status(200).json({ success: true, balance });
     } catch (err) {
       next(err);
     }

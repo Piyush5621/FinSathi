@@ -3,11 +3,11 @@ import { supabase } from "../config/db.js";
 // Helper to map route paths to database tables and modules
 const getModuleAndTable = (url) => {
   if (url.includes("/api/inventory")) return { module: "Inventory", table: "inventory" };
-  if (url.includes("/api/sales") || url.includes("/api/invoices")) return { module: "Billing", table: "sales" };
+  if (url.includes("/api/sales")) return { module: "Billing", table: "sales" };
   if (url.includes("/api/customers")) return { module: "Customers", table: "customers" };
+  if (url.includes("/api/payments")) return { module: "Payments", table: "payments" };
   if (url.includes("/api/expenses")) return { module: "Expenses", table: "expenses" };
   if (url.includes("/api/staff")) return { module: "Staff", table: "staff" };
-  if (url.includes("/api/crm")) return { module: "CRM", table: "leads" };
   if (url.includes("/api/purchase-orders")) return { module: "PurchaseOrders", table: "purchase_orders" };
   return { module: "General", table: null };
 };

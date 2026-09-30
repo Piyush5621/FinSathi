@@ -7,19 +7,25 @@ import { successResponse, errorResponse, createdResponse } from "../utils/respon
  */
 export const getNotifications = async (req, res) => {
   try {
+    const userId = req.user?.id || req.user?.user_id || req.user?.sub;
+    if (!userId) {
+      return successResponse(res, [], "No user context");
+    }
+
     const { data, error } = await supabase
       .from("notifications")
       .select("*")
-      .eq("user_id", req.user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return successResponse(res, data, "Notifications retrieved successfully");
+    return successResponse(res, data || [], "Notifications retrieved successfully");
   } catch (err) {
     console.error("Error fetching notifications:", err.message);
     return errorResponse(res, err, 500, "Failed to load notifications");
   }
 };
+
 
 /**
  * Add new notification

@@ -1,6 +1,6 @@
 import React from 'react';
-import { AlertTriangle, RefreshCcw } from 'lucide-react';
-import { Button } from './ui/Button';
+import { AlertTriangle, RefreshCcw, Home } from 'lucide-react';
+import Button from './ui/Button';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -19,31 +19,34 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] p-6 font-inter">
-          <div className="max-w-md w-full bg-white rounded-[40px] p-12 shadow-[0_20px_70px_rgba(0,0,0,0.05)] border border-slate-100 text-center animate-scale-in">
-            <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-[24px] flex items-center justify-center mx-auto mb-8">
-              <AlertTriangle size={40} />
+        <div className="min-h-screen flex items-center justify-center bg-app-bg text-app-text p-6 antialiased">
+          <div className="max-w-md w-full bg-app-surface rounded-modal p-8 shadow-modal border border-app-border text-center animate-fade-in">
+            <div className="w-16 h-16 bg-app-danger-subtle text-app-danger rounded-panel flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle size={32} />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">System Glitch</h1>
-            <p className="text-slate-500 mt-4 mb-10 text-sm leading-relaxed">
-              Karobar encountered an unexpected rendering error. This usually happens due to a network timeout or a temporary module failure.
+            <h1 className="text-section-heading font-semibold text-app-text tracking-tight">System Glitch</h1>
+            <p className="text-small text-app-text-secondary mt-2 mb-6 leading-relaxed">
+              Karobar encountered an unexpected interface error. This usually happens due to a network timeout or temporary bundle mismatch.
               {this.state.error?.message && (
-                <code className="block font-mono text-[10px] mt-4 text-rose-500 bg-rose-50/80 p-3 rounded-2xl border border-rose-100/50 break-all">
-                  Error: {this.state.error.message}
+                <code className="block font-mono text-micro mt-3 text-app-danger bg-app-danger-subtle p-3 rounded-card border border-app-danger/20 break-all text-left">
+                  {this.state.error.message}
                 </code>
               )}
             </p>
-            <div className="space-y-3">
-               <Button 
+            <div className="flex flex-col gap-2.5">
+              <Button 
+                variant="primary"
                 onClick={() => window.location.reload()} 
-                className="w-full bg-indigo-600 hover:bg-indigo-700 h-14 rounded-2xl gap-3 font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-200"
+                icon={<RefreshCcw size={15} />}
+                className="w-full"
               >
-                <RefreshCcw size={18} /> Recover Session
+                Reload Application
               </Button>
               <Button 
-                variant="ghost"
+                variant="outline"
                 onClick={() => window.location.href = '/dashboard'} 
-                className="w-full text-slate-400 font-bold text-xs"
+                icon={<Home size={15} />}
+                className="w-full"
               >
                 Back to Dashboard
               </Button>

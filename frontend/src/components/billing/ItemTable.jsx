@@ -1,134 +1,136 @@
-import { Trash2 } from 'lucide-react';
-import { Table, Thead, Tbody, Tr, Th, Td } from '../ui/Table';
-import { Badge } from '../ui/Badge';
+import React from 'react';
+import { Trash2, Plus, Minus, AlertTriangle, Package, Sparkles } from 'lucide-react';
 
 const ItemTable = ({ items = [], onRemoveItem, onUpdateItem }) => {
   if (items.length === 0) {
     return (
-      <div className="w-full p-8 flex flex-col items-center justify-center bg-slate-50 border-y border-slate-100">
-        <p className="text-slate-400 text-xs font-semibold">Cart is empty.</p>
-        <p className="text-[10px] text-slate-400 mt-1">Scan a barcode or search to add items.</p>
+      <div className="w-full py-9 px-4 flex flex-col items-center justify-center bg-app-surface-subtle/60 border border-dashed border-app-border text-center rounded-xl my-1 select-none">
+        <div className="w-10 h-10 rounded-2xl bg-app-primary/10 text-app-primary flex items-center justify-center mb-2 shadow-2xs">
+          <Package size={20} />
+        </div>
+        <p className="text-app-text font-bold text-xs">Cart is empty</p>
+        <p className="text-[11px] text-app-text-muted mt-0.5 max-w-[200px]">
+          Click products from the catalog or scan barcode to add.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="w-full">
-      {/* DESKTOP TABLE */}
-      <div className="hidden md:block w-full">
-        <Table>
-          <Thead>
-            <Tr>
-              <Th className="w-[40px]">#</Th>
-              <Th>Product</Th>
-              <Th className="text-center w-[100px]">Qty</Th>
-              <Th className="text-center w-[120px]">Price (₹)</Th>
-              <Th className="text-center">GST</Th>
-              <Th className="text-right">Total</Th>
-              <Th className="text-right">Action</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {items.map((item, index) => {
-              const uniqueKey = item.tableId || item.id || index;
-              const gstAmount = ((item.price * item.quantity) * (item.gst_percent || 0)) / 100;
-              const totalWithGST = (item.amount || 0) + gstAmount;
+    <div className="w-full space-y-2">
+      {items.map((item, index) => {
+        const uniqueKey = item.tableId || item.id || index;
+        const gstAmount = ((Number(item.price || 0) * Number(item.quantity || 1)) * Number(item.gst_percent || 0)) / 100;
+        const totalWithGST = (Number(item.amount || (item.price * item.quantity))) + gstAmount;
+        const isOverStock = item.stock !== undefined && item.quantity > item.stock;
 
-              return (
-                <Tr key={uniqueKey}>
-                  <Td className="text-slate-400 font-mono text-[10px]">{index + 1}</Td>
-                  <Td>
-                     <div className="font-semibold text-slate-800">{item.name}</div>
-                     {item.code && <div className="text-[9px] text-slate-400 uppercase tracking-wider mt-0.5">{item.code}</div>}
-                  </Td>
-                  <Td className="text-center">
-                    <input 
-                      type="number" 
-                      min="1" 
-                      value={item.quantity}
-                      onChange={(e) => onUpdateItem(uniqueKey, 'quantity', parseInt(e.target.value) || 1)}
-                      className="w-16 text-center text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-1 focus:outline-none focus:ring-1 focus:ring-brand-blue"
-                    />
-                  </Td>
-                  <Td className="text-center">
-                    <input 
-                      type="number" 
-                      min="0" 
-                      value={item.price}
-                      onChange={(e) => onUpdateItem(uniqueKey, 'price', parseFloat(e.target.value) || 0)}
-                      className="w-20 text-center text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-1 focus:outline-none focus:ring-1 focus:ring-brand-blue"
-                    />
-                  </Td>
-                  <Td className="text-center">
-                     <Badge variant="gray">{item.gst_percent || 0}%</Badge>
-                  </Td>
-                  <Td className="text-right font-bold text-slate-800">₹{totalWithGST.toFixed(2)}</Td>
-                  <Td className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => onRemoveItem(uniqueKey)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer" title="Remove">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </Td>
-                </Tr>
-              );
-            })}
-          </Tbody>
-        </Table>
-      </div>
-
-      {/* MOBILE CARD LAYOUT */}
-      <div className="md:hidden flex flex-col divide-y divide-slate-100">
-        {items.map((item, index) => {
-          const uniqueKey = item.tableId || item.id || index;
-          const gstAmount = ((item.price * item.quantity) * (item.gst_percent || 0)) / 100;
-          const totalWithGST = (item.amount || 0) + gstAmount;
-
-          return (
-            <div key={uniqueKey} className="p-4 bg-white flex flex-col gap-3 relative">
-              <div className="flex justify-between items-start pr-8">
-                <div>
-                  <h4 className="font-semibold text-sm text-slate-800 leading-tight">{item.name}</h4>
-                  {item.code && <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-1">{item.code}</p>}
+        return (
+          <div
+            key={uniqueKey}
+            className="p-2.5 rounded-xl border border-app-border bg-app-surface hover:border-app-border-hover transition-all duration-150 space-y-2 group shadow-2xs"
+          >
+            {/* Top row: Name, SKU, Unit, Remove */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-bold text-xs text-app-text leading-snug">
+                    {item.name}
+                  </span>
+                  {item.unit && (
+                    <span className="text-[10px] font-semibold text-app-text-secondary bg-app-surface-subtle border border-app-border px-1.5 py-0.2 rounded-md">
+                      {item.unit}
+                    </span>
+                  )}
+                  {Number(item.gst_percent) > 0 && (
+                    <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.2 rounded">
+                      +{item.gst_percent}% GST
+                    </span>
+                  )}
                 </div>
-                <button 
-                  onClick={() => onRemoveItem(uniqueKey)} 
-                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+
+                <div className="flex items-center gap-2 text-[10px] text-app-text-muted mt-0.5">
+                  {item.code && (
+                    <span className="font-mono">{item.code}</span>
+                  )}
+                  {isOverStock && (
+                    <span className="text-rose-600 font-bold flex items-center gap-0.5">
+                      <AlertTriangle size={10} /> Max {item.stock} in stock
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Remove button */}
+              <button
+                type="button"
+                onClick={() => onRemoveItem(uniqueKey)}
+                className="p-1 text-app-text-muted hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Remove item from cart"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+
+            {/* Bottom row: Inline Tactile Quantity + Unit Price + Line Total */}
+            <div className="flex items-center justify-between pt-1 border-t border-app-border/50 gap-2">
+              {/* Quantity Controls */}
+              <div className="inline-flex items-center border border-app-border rounded-lg bg-app-surface-subtle overflow-hidden shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextQty = Math.max(1, item.quantity - 1);
+                    onUpdateItem(uniqueKey, 'quantity', nextQty);
+                  }}
+                  className="w-7 h-7 flex items-center justify-center hover:bg-app-border/40 text-app-text-secondary hover:text-app-text transition-colors cursor-pointer"
+                  title="Decrease quantity"
                 >
-                  <Trash2 size={16} />
+                  <Minus size={11} />
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  value={item.quantity}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 1;
+                    onUpdateItem(uniqueKey, 'quantity', Math.max(1, val));
+                  }}
+                  className="w-9 h-7 text-center font-bold text-xs text-app-text bg-app-surface border-x border-app-border outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextQty = item.quantity + 1;
+                    onUpdateItem(uniqueKey, 'quantity', nextQty);
+                  }}
+                  className="w-7 h-7 flex items-center justify-center hover:bg-app-border/40 text-app-text-secondary hover:text-app-text transition-colors cursor-pointer"
+                  title="Increase quantity"
+                >
+                  <Plus size={11} />
                 </button>
               </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Qty</label>
-                  <input 
-                    type="number" 
-                    min="1" 
-                    value={item.quantity}
-                    onChange={(e) => onUpdateItem(uniqueKey, 'quantity', parseInt(e.target.value) || 1)}
-                    className="w-full text-sm font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-2 focus:outline-none focus:ring-1 focus:ring-brand-blue"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Price (₹)</label>
-                  <input 
-                    type="number" 
-                    min="0" 
+
+              {/* Price & Line Total */}
+              <div className="flex items-center gap-2 text-right">
+                <div className="flex items-center gap-1 text-[11px] text-app-text-muted">
+                  <span>@</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
                     value={item.price}
                     onChange={(e) => onUpdateItem(uniqueKey, 'price', parseFloat(e.target.value) || 0)}
-                    className="w-full text-sm font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-2 focus:outline-none focus:ring-1 focus:ring-brand-blue"
+                    className="w-16 text-right font-bold text-xs text-app-text bg-app-surface-subtle border border-app-border rounded-md px-1.5 py-0.5 focus:border-app-primary outline-none font-mono transition-colors"
+                    title="Edit item unit price"
                   />
                 </div>
-                <div className="flex-[1.2] text-right">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total</label>
-                  <p className="text-base font-black text-slate-900 mt-2">₹{totalWithGST.toFixed(2)}</p>
+                <div className="font-black text-xs text-app-text font-mono min-w-[70px]">
+                  ₹{totalWithGST.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

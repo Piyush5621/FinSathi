@@ -1,5 +1,7 @@
 import express from 'express';
 import { supabase } from '../config/db.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
+
 
 const router = express.Router();
 
@@ -46,7 +48,8 @@ router.get('/staff/:bizId', async (req, res) => {
 });
 
 /** 📝 Mark Attendance from Kiosk (Public) */
-router.post('/attendance', async (req, res) => {
+router.post('/attendance', authLimiter, async (req, res) => {
+
   try {
     const { bizId, staffId, staffNo, date, clock_in } = req.body;
     

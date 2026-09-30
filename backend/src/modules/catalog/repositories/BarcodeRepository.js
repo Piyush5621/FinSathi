@@ -33,7 +33,19 @@ export class BarcodeRepository extends BaseRepository {
       .update({ is_primary: false })
       .eq("product_id", productId)
       .eq("organization_id", organizationId);
+    if (error) throw error;
+  }
+
+  static async findBarcodesForProducts(productIds, organizationId) {
+    if (!productIds || productIds.length === 0) return [];
+    const { data, error } = await adminSupabase
+      .from("product_barcodes")
+      .select("*")
+      .in("product_id", productIds)
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null);
 
     if (error) throw error;
+    return data || [];
   }
 }

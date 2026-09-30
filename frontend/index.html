@@ -7,6 +7,19 @@
     <meta name="description" content="Karobar (कारोबार) — All-in-one Business Operating Platform for Indian MSMEs. Billing, Stock Management, Customers, Expenses & AI Advisor. Your Business. One Simple Karobar." />
     <meta name="theme-color" content="#090D16" />
     <title>Karobar — Business & Stock OS</title>
+    <script>
+      (function() {
+        try {
+          var mode = localStorage.getItem('theme_mode') || localStorage.getItem('theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (mode === 'dark' || ((!mode || mode === 'system') && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

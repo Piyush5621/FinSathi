@@ -1,143 +1,212 @@
-import {  useState, useEffect  } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import API from '../services/apiClient';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Lock, CheckCircle2, Clock, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { 
+  Lock, CheckCircle2, Clock, ArrowRight, ShieldCheck, 
+  UserCheck, Delete, RotateCcw, Building2
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 export default function AttendanceTerminal() {
-    const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const bizId = searchParams.get('biz');
-    
-    const [staffNo, setStaffNo] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState(false);
-    const [scannedStaff, setScannedStaff] = useState(null);
+  const [searchParams] = useSearchParams();
+  const bizId = searchParams.get('biz');
+  
+  const [staffNo, setStaffNo] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [scannedStaff, setScannedStaff] = useState(null);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!bizId) {
-            toast.error("Invalid Store Terminal. Please scan again.");
-            return;
-        }
-        if (!staffNo) return;
+  const handleKeypadPress = (val) => {
+    if (staffNo.length < 10) {
+      setStaffNo(prev => prev + val);
+    }
+  };
 
-        setLoading(true);
-        try {
-            // New secure Kiosk API call (replaces 2 supabase calls)
-            const { data } = await API.post('/kiosk/attendance', {
-                bizId,
-                staffNo,
-                clock_in: new Date().toISOString()
-            });
+  const handleBackspace = () => {
+    setStaffNo(prev => prev.slice(0, -1));
+  };
 
-            setScannedStaff(data.staff);
-            setSuccess(true);
-            toast.success(`Welcome, ${data.staff.name}!`);
-        } catch (err) {
-            console.error(err);
-            toast.error(err.response?.data?.error || "System error. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
+  const handleClear = () => {
+    setStaffNo('');
+  };
 
-    if (success) {
-        return (
-            <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6">
-                <motion.div 
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="w-full max-w-md text-center bg-white p-12 rounded-[48px] shadow-2xl border border-emerald-100"
-                >
-                    <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center text-white mx-auto mb-8 shadow-xl shadow-emerald-200">
-                        <CheckCircle2 size={48} />
-                    </div>
-                    <h1 className="text-[32px] font-black text-slate-900 mb-2">Authenticated!</h1>
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[13px] mb-8">Attendance Recorded Successfully</p>
-                    
-                    <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 mb-10">
-                        <p className="text-slate-400 text-[11px] font-black uppercase tracking-widest">Employee Profile</p>
-                        <p className="text-[24px] font-black text-brand-navy mt-1">{scannedStaff?.name}</p>
-                        <p className="text-brand-blue font-bold text-[14px] mt-1 italic">{scannedStaff?.position}</p>
-                    </div>
-
-                    <p className="text-slate-400 text-[14px] font-medium mb-12">
-                        You can close this window now. Have a great day at work!
-                    </p>
-
-                    <Button variant="secondary" onClick={() => setSuccess(false)} className="w-full py-5 rounded-2xl font-black">
-                        Mark Another
-                    </Button>
-                </motion.div>
-            </div>
-        );
+  const handleSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!bizId) {
+      toast.error("Invalid Store Terminal. Please scan again.");
+      return;
+    }
+    if (!staffNo) {
+      toast.error("Please enter your staff PIN");
+      return;
     }
 
+    setLoading(true);
+    try {
+      const { data } = await API.post('/kiosk/attendance', {
+        bizId,
+        staffNo,
+        clock_in: new Date().toISOString()
+      });
+
+      setScannedStaff(data.staff);
+      setSuccess(true);
+      toast.success(`Welcome, ${data.staff?.name || 'Staff'}!`);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.error || "Verification failed. Please check your PIN.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (success) {
     return (
-        <div className="min-h-screen bg-[#0F172A] flex items-center justify-center p-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-blue/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-[100px]" />
-            <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/5 rounded-full -translate-x-1/2 translate-y-1/2 blur-[80px]" />
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6">
+        <motion.div 
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="w-full max-w-md bg-white rounded-3xl p-8 sm:p-10 text-center shadow-2xl border border-slate-100"
+        >
+          <div className="w-20 h-20 bg-emerald-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/20">
+            <CheckCircle2 size={42} />
+          </div>
 
-            <motion.div 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="w-full max-w-md relative z-10"
-            >
-                <div className="text-center mb-10">
-                    <div className="w-20 h-20 bg-brand-blue rounded-[28px] flex items-center justify-center text-white shadow-2xl shadow-brand-blue/30 mx-auto mb-6">
-                        <UserCheck size={40} />
-                    </div>
-                    <h2 className="text-[32px] font-black text-white tracking-tight">Staff Check-In</h2>
-                    <p className="text-slate-400 text-[14px] font-medium mt-2">Enter your unique staff ID to mark presence.</p>
-                </div>
+          <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-wider rounded-full mb-3">
+            Authenticated
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900">Attendance Logged!</h1>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1 mb-6">
+            Your presence has been recorded in real-time.
+          </p>
+          
+          <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8 text-left space-y-1">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Employee Profile</p>
+            <p className="text-xl font-black text-slate-900">{scannedStaff?.name}</p>
+            <p className="text-xs font-bold text-indigo-600">{scannedStaff?.position || 'Staff Member'}</p>
+            <p className="text-[11px] text-slate-400 pt-1">Clock-in: {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
 
-                <Card className="p-10 border-none bg-white/10 backdrop-blur-2xl rounded-[48px] shadow-3xl">
-                    <form onSubmit={handleSubmit} className="space-y-8">
-                        <div className="space-y-3">
-                            <label className="text-[12px] font-black text-brand-blue uppercase tracking-[0.2em] ml-2">Verification PIN</label>
-                            <div className="relative">
-                                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400">
-                                    <Lock size={20} />
-                                </span>
-                                <input 
-                                    type="text" 
-                                    value={staffNo}
-                                    onChange={e => setStaffNo(e.target.value)}
-                                    placeholder="Enter 6-Digit No."
-                                    className="w-full bg-white p-6 pl-14 rounded-3xl text-[20px] font-black text-brand-navy outline-none ring-4 ring-transparent focus:ring-brand-blue/20 transition-all placeholder:text-slate-300"
-                                    required
-                                    autoFocus
-                                />
-                            </div>
-                        </div>
+          <p className="text-xs text-slate-400 font-medium mb-6">
+            You may now close this window or check in another team member.
+          </p>
 
-                        <Button 
-                            type="submit" 
-                            disabled={loading}
-                            className="w-full py-7 rounded-[24px] font-black text-[18px] shadow-2xl shadow-brand-blue/30 flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
-                        >
-                            {loading ? "Verifying..." : "Mark Presence"}
-                            {!loading && <ArrowRight size={22} />}
-                        </Button>
-                    </form>
-                </Card>
-
-                <div className="mt-12 flex justify-center gap-6">
-                    <div className="flex items-center gap-2">
-                        <ShieldCheck size={16} className="text-emerald-500" />
-                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Secured Terminal</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Clock size={16} className="text-brand-blue" />
-                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Real-Time Sync</span>
-                    </div>
-                </div>
-            </motion.div>
-        </div>
+          <Button 
+            variant="secondary" 
+            onClick={() => { setSuccess(false); setStaffNo(''); }} 
+            className="w-full py-4 rounded-xl font-black text-sm bg-slate-100 hover:bg-slate-200 text-slate-800 transition-all"
+          >
+            Mark Another Check-In
+          </Button>
+        </motion.div>
+      </div>
     );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 text-white selection:bg-indigo-500">
+      <motion.div 
+        initial={{ y: 15, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="w-full max-w-md space-y-6"
+      >
+        {/* Terminal Header */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-600/30 mb-2">
+            <UserCheck size={28} />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Staff Attendance Terminal</h1>
+          <p className="text-xs sm:text-sm text-slate-400 font-medium">
+            Enter your 6-digit staff PIN to clock in for today
+          </p>
+        </div>
+
+        {/* PIN Input & Keypad Card */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-sm space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <div className="flex justify-between items-center mb-2 px-1">
+                <label className="text-[11px] font-black text-indigo-400 uppercase tracking-wider">Worker PIN</label>
+                <span className="text-[11px] text-slate-500 font-medium">Touch or keyboard input</span>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                <input 
+                  type="password" 
+                  inputMode="numeric"
+                  value={staffNo}
+                  onChange={e => setStaffNo(e.target.value)}
+                  placeholder="••••••"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3.5 pl-12 pr-4 text-center font-mono text-2xl tracking-[0.4em] font-black text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  autoFocus
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Quick Touch Keypad for Kiosk/Tablet Screens */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5 pt-1">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handleKeypadPress(String(num))}
+                  className="py-3.5 bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-white font-black text-xl rounded-xl border border-slate-700/50 transition-all cursor-pointer"
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={handleClear}
+                className="py-3.5 bg-slate-800/40 hover:bg-slate-800 active:scale-95 text-slate-400 hover:text-white font-bold text-xs uppercase rounded-xl border border-slate-800 transition-all flex items-center justify-center"
+                title="Clear"
+              >
+                <RotateCcw size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleKeypadPress('0')}
+                className="py-3.5 bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-white font-black text-xl rounded-xl border border-slate-700/50 transition-all"
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={handleBackspace}
+                className="py-3.5 bg-slate-800/40 hover:bg-slate-800 active:scale-95 text-slate-400 hover:text-white font-bold text-xs uppercase rounded-xl border border-slate-800 transition-all flex items-center justify-center"
+                title="Backspace"
+              >
+                <Delete size={18} />
+              </button>
+            </div>
+
+            <Button 
+              type="submit" 
+              disabled={loading || !staffNo}
+              className="w-full py-4 rounded-xl font-black text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              {loading ? "Verifying..." : "Mark Attendance"}
+              {!loading && <ArrowRight size={18} />}
+            </Button>
+          </form>
+        </div>
+
+        {/* Footer Security Badges */}
+        <div className="flex justify-center items-center gap-6 text-[11px] font-bold text-slate-500">
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck size={14} className="text-emerald-500" />
+            <span>Encrypted Terminal</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Clock size={14} className="text-indigo-400" />
+            <span>Live Cloud Sync</span>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
 }

@@ -9,6 +9,7 @@ router.use(authenticate, attachTenant, attachPermissions);
 
 // --- Product Catalog Endpoints ---
 router.post("/products", authorize("edit_catalog"), audit, ProductController.createProduct);
+router.get("/products/barcode/:barcode", authorize("view_catalog"), ProductController.lookupBarcode);
 router.put("/products/:id", authorize("edit_catalog"), audit, ProductController.updateProduct);
 router.get("/products/:id", authorize("view_catalog"), ProductController.getProductDetails);
 router.post("/products/:id/variants", authorize("edit_catalog"), audit, ProductController.createVariant);

@@ -1,8 +1,7 @@
 import express from "express";
 import {
-  getSuppliers,
-  addSupplier,
   getExpenses,
+  getExpenseById,
   addExpense,
   updateExpense,
   deleteExpense
@@ -10,9 +9,8 @@ import {
 
 const router = express.Router();
 
-router.get("/suppliers", getSuppliers);
-router.post("/suppliers", addSupplier);
 router.get("/", getExpenses);
+router.get("/:id", getExpenseById);
 router.post("/", addExpense);
 router.put("/:id", updateExpense);
 router.delete("/:id", deleteExpense);

@@ -115,9 +115,12 @@ export default function InvoiceEditorModal({ invoice, onClose, onSaved }) {
   };
 
   const handleAddItem = (newItem) => {
+    const prodId = newItem.productId || newItem.product_id || newItem.id;
     const item = {
       ...newItem,
-      id: Date.now(),
+      productId: prodId,
+      product_id: prodId,
+      id: prodId || Date.now(),
       amount: newItem.price * newItem.quantity,
       gst_percent: newItem.gst_percent || 0,
     };

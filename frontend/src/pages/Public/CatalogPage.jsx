@@ -35,6 +35,7 @@ export default function CatalogPage() {
   };
 
   const updateCart = (product, delta) => {
+    const itemPrice = Number(product.selling_price ?? product.price ?? 0);
     setCart(prev => {
       const newQty = (prev[product.id]?.quantity || 0) + delta;
       if (newQty <= 0) {
@@ -43,13 +44,18 @@ export default function CatalogPage() {
       }
       return { 
         ...prev, 
-        [product.id]: { ...product, quantity: newQty } 
+        [product.id]: { 
+          ...product, 
+          selling_price: itemPrice, 
+          price: itemPrice, 
+          quantity: newQty 
+        } 
       };
     });
   };
 
   const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = Object.values(cart).reduce((sum, item) => sum + (item.selling_price * item.quantity), 0);
+  const totalPrice = Object.values(cart).reduce((sum, item) => sum + (Number(item.selling_price ?? item.price ?? 0) * item.quantity), 0);
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
@@ -121,10 +127,10 @@ export default function CatalogPage() {
                         <div className="flex-1">
                            <h4 className="font-bold text-slate-900">{product.name}</h4>
                            <p className="text-xs text-slate-500 line-clamp-1">{product.description || 'No description available'}</p>
-                           <div className="mt-2 flex items-center gap-3">
-                              <span className="text-lg font-black text-indigo-600">₹{product.selling_price}</span>
-                              <span className="text-[10px] text-slate-400 uppercase font-bold">per {product.unit || 'unit'}</span>
-                           </div>
+                            <div className="mt-2 flex items-center gap-3">
+                              <span className="text-lg font-black text-indigo-600">₹{product.selling_price ?? product.price ?? 0}</span>
+                              <span className="text-[10px] text-slate-400 uppercase font-bold">per {product.unit || product.units || 'unit'}</span>
+                            </div>
                         </div>
                         
                         <div className="flex items-center gap-3 bg-slate-50 p-1 rounded-xl border border-slate-100">

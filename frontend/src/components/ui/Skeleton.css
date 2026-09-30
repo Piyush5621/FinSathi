@@ -1,21 +1,15 @@
 .skeleton-loader {
-  background-color: #e2e8f0; /* slate-200 */
-  animation: pulse 2s ease-in-out infinite;
+  background-color: var(--surface-secondary);
+  border-radius: 8px;
+  animation: skeleton-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   display: block;
 }
 
-.dark .skeleton-loader {
-  background-color: #334155; /* slate-700 */
-}
-
-@keyframes pulse {
-  0% {
+@keyframes skeleton-pulse {
+  0%, 100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.4;
-  }
-  100% {
-    opacity: 1;
+    opacity: 0.45;
   }
 }

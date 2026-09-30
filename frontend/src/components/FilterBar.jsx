@@ -1,16 +1,32 @@
-import {  useState  } from 'react';
+import React, { useState } from 'react';
+import { Filter, Calendar, RotateCcw } from 'lucide-react';
+import Button from './ui/Button';
+import Select from './ui/Select';
+import Input from './ui/Input';
 
-const FilterBar = ({ onFilter }) => {
+const FilterBar = ({ onFilter, className = '' }) => {
   const [filterType, setFilterType] = useState('month');
   const [month, setMonth] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const handleFilterChange = () => {
-    onFilter({
-      type: filterType,
-      ...(filterType === 'month' ? { month } : { startDate, endDate })
-    });
+  const handleApply = () => {
+    if (onFilter) {
+      onFilter({
+        type: filterType,
+        ...(filterType === 'month' ? { month } : { startDate, endDate })
+      });
+    }
+  };
+
+  const handleReset = () => {
+    setFilterType('month');
+    setMonth('');
+    setStartDate('');
+    setEndDate('');
+    if (onFilter) {
+      onFilter({ type: 'all' });
+    }
   };
 
   const months = [
@@ -29,57 +45,74 @@ const FilterBar = ({ onFilter }) => {
   ];
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 mb-6 shadow-lg">
-      <div className="flex flex-wrap gap-4 items-center">
-        <div className="flex items-center space-x-3">
-          <label className="text-gray-200">Filter by:</label>
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="bg-gray-800 text-gray-200 rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="month">Month</option>
-            <option value="range">Date Range</option>
-          </select>
+    <div className={`p-3.5 rounded-card bg-app-surface border border-app-border shadow-xs ${className}`}>
+      <div className="flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-small font-medium text-app-text-secondary">
+            <Filter size={15} className="text-app-text-muted" />
+            <span>Filter:</span>
+          </div>
+
+          <div className="w-36">
+            <Select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              options={[
+                { value: 'month', label: 'By Month' },
+                { value: 'range', label: 'Date Range' }
+              ]}
+            />
+          </div>
+
+          {filterType === 'month' ? (
+            <div className="w-40">
+              <Select
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                options={months}
+                placeholder="Select Month"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="w-36">
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  aria-label="Start Date"
+                />
+              </div>
+              <span className="text-caption text-app-text-muted">to</span>
+              <div className="w-36">
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  aria-label="End Date"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {filterType === 'month' ? (
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="bg-gray-800 text-gray-200 rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            icon={<RotateCcw size={13} />}
           >
-            <option value="">Select Month</option>
-            {months.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-gray-800 text-gray-200 rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <span className="text-gray-200">to</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="bg-gray-800 text-gray-200 rounded-lg px-3 py-2 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </>
-        )}
-
-        <button
-          onClick={handleFilterChange}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          Apply Filter
-        </button>
+            Reset
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleApply}
+          >
+            Apply Filter
+          </Button>
+        </div>
       </div>
     </div>
   );

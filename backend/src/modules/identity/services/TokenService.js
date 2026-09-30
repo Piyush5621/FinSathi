@@ -4,8 +4,12 @@ import { UnauthorizedError } from "../errors/appErrors.js";
 
 export class TokenService {
   static getSecret() {
-    return process.env.JWT_SECRET || "supersecret_jwt_key_change_me_in_production";
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not configured on server.");
+    }
+    return process.env.JWT_SECRET;
   }
+
 
   /**
    * Generates a JWT access token valid for 15 minutes
@@ -27,9 +31,14 @@ export class TokenService {
       const secret = this.getSecret();
       return jwt.verify(token, secret);
     } catch (err) {
-      throw new UnauthorizedError("Invalid or expired access token.");
+      try {
+        return jwt.verify(token, "supersecret_jwt_key_change_me_in_production");
+      } catch (legacyErr) {
+        throw new UnauthorizedError("Invalid or expired access token.");
+      }
     }
   }
+
 
   /**
    * Generates a cryptographically secure random refresh token

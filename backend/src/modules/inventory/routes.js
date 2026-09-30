@@ -7,14 +7,16 @@ const router = express.Router();
 // Apply auth, tenant context, and permissions middlewares
 router.use(authenticate, attachTenant, attachPermissions);
 
-router.post("/opening-stock", authorize("edit_inventory"), audit, StockController.postOpeningStock);
-router.post("/adjustments", authorize("edit_inventory"), audit, StockController.postAdjustment);
-router.post("/transfers/ship", authorize("edit_inventory"), audit, StockController.shipTransfer);
-router.post("/transfers/:id/receive", authorize("edit_inventory"), audit, StockController.receiveTransfer);
-router.post("/reservations", authorize("edit_inventory"), audit, StockController.createReservation);
-router.post("/reservations/:id/release", authorize("edit_inventory"), audit, StockController.releaseReservation);
+// Canonical Inventory Endpoints
+router.post("/restock", authorize("edit_inventory"), audit, StockController.postRestock);
+router.post("/adjust", authorize("edit_inventory"), audit, StockController.postAdjustment);
+router.post("/transfer", authorize("edit_inventory"), audit, StockController.postTransfer);
+router.get("/movements", authorize("view_inventory"), StockController.getMovements);
+router.post("/bulk", authorize("edit_inventory"), audit, StockController.postBulkImport);
+router.get("/balance", authorize("view_inventory"), StockController.getStoreBalance);
 
-router.get("/balances", authorize("view_inventory"), StockController.getWarehouseBalance);
-router.get("/movements", authorize("view_inventory"), StockController.getMovementHistory);
+// Backward-compatibility aliases
+router.post("/adjustments", authorize("edit_inventory"), audit, StockController.postAdjustment);
+router.post("/opening-stock", authorize("edit_inventory"), audit, StockController.postRestock);
 
 export default router;
