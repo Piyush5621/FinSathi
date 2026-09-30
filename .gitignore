@@ -28,6 +28,8 @@ coverage/
 playwright.config.js
 jest.config.*
 vitest.config.*
+!backend/tests/
+!backend/tests/server.test.js
 
 # Developer-Only Documentation, Guides, PRDs & Internal Notes
 BRAIN.md
