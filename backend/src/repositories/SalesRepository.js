@@ -1,12 +1,105 @@
 import { supabase } from "../config/db.js";
 import { getPostgresPool } from "../config/postgres.js";
 
+async function findSalesWithSupabase(userId, options) {
+    const page = Math.max(1, Number.parseInt(options.page || "1", 10) || 1);
+    const limit = Math.max(1, Math.min(100, Number.parseInt(options.limit || "20", 10) || 20));
+    const search = (options.search || "").trim().toLowerCase();
+    const status = (options.status || "all").toLowerCase();
+    const customerId = options.customer_id || options.customerId || null;
+    const startDate = options.startDate || null;
+    const endDate = options.endDate || null;
+    const batchSize = 1000;
+    const sales = [];
+
+    for (let offset = 0; ; offset += batchSize) {
+        const { data, error } = await supabase
+            .from("sales")
+            .select("*, customers(name, phone, email, outstanding_balance)")
+            .eq("user_id", userId)
+            .order("date", { ascending: false })
+            .order("created_at", { ascending: false })
+            .range(offset, offset + batchSize - 1);
+
+        if (error) throw error;
+        sales.push(...(data || []));
+        if (!data || data.length < batchSize) break;
+    }
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const overdueThreshold = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const filtered = sales.filter((sale) => {
+        if (customerId && sale.customer_id !== customerId) return false;
+        if (startDate && (!sale.date || sale.date < startDate)) return false;
+        if (endDate && (!sale.date || sale.date > endDate)) return false;
+
+        if (status === "overdue") {
+            const overdue = sale.payment_status !== "paid" && sale.payment_status !== "cancelled" &&
+                (sale.due_date
+                    ? new Date(sale.due_date) < today
+                    : sale.date && new Date(sale.date).getTime() < overdueThreshold);
+            if (!overdue) return false;
+        } else if (status === "unpaid") {
+            if (!["unpaid", "partial"].includes(sale.payment_status)) return false;
+        } else if (["paid", "partial", "cancelled"].includes(status)) {
+            if (sale.payment_status !== status) return false;
+        } else if (status === "returned") {
+            let returns = sale.returns;
+            if (typeof returns === "string") {
+                try {
+                    returns = JSON.parse(returns);
+                } catch {
+                    returns = [];
+                }
+            }
+            if (sale.payment_status !== "returned" && (!Array.isArray(returns) || returns.length === 0)) return false;
+        }
+
+        if (search) {
+            const customer = sale.customers || {};
+            const searchable = [
+                sale.invoice_no,
+                customer.name,
+                customer.phone,
+                sale.notes,
+                sale.total
+            ].some((value) => String(value ?? "").toLowerCase().includes(search));
+            if (!searchable) return false;
+        }
+        return true;
+    });
+
+    const totalBilled = filtered.reduce((total, sale) => total + Number(sale.total || 0), 0);
+    const totalPaid = filtered.reduce((total, sale) => total + Number(sale.amount_paid || 0), 0);
+    const pendingDue = filtered.reduce((total, sale) => {
+        if (["paid", "cancelled"].includes(sale.payment_status)) return total;
+        return total + Math.max(0, Number(sale.total || 0) - Number(sale.amount_paid || 0));
+    }, 0);
+    const offset = (page - 1) * limit;
+
+    return {
+        sales: filtered.slice(offset, offset + limit),
+        pagination: {
+            page,
+            limit,
+            total: filtered.length,
+            totalPages: Math.ceil(filtered.length / limit) || 1
+        },
+        summary: { totalBilled, totalPaid, pendingDue }
+    };
+}
+
 /**
  * Repository for Sales data access
  */
 export const SalesRepository = {
     async findSalesWithPagination(userId, options = {}) {
         const pool = getPostgresPool();
+        if (!pool) {
+            return findSalesWithSupabase(userId, options);
+        }
+
         const page = Math.max(1, parseInt(options.page || 1, 10));
         const limit = Math.max(1, Math.min(100, parseInt(options.limit || 20, 10)));
         const offset = (page - 1) * limit;

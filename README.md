@@ -112,6 +112,19 @@ npm run build
 
 ---
 
+## Keep the Render Backend Awake
+
+To keep a Render web service from spinning down due to inactivity, create an
+HTTP(S) monitor in an uptime-monitoring service such as
+[UptimeRobot](https://uptimerobot.com/). Set the monitor URL to your Render
+service's health endpoint (for example,
+`https://your-service.onrender.com/health`) and its interval to five minutes.
+The endpoint returns HTTP 200 when the API process is live.
+
+Render's free web services can still have cold starts and monthly usage limits;
+periodic monitoring does not guarantee production availability or restart a
+failed service.
+
 ## 👥 Demo Accounts
 
 The database comes pre-seeded with specialized demo business accounts for testing:
