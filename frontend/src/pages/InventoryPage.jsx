@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+const INVENTORY_TABLE_COLUMNS = '3% 16% 10% 9% 12% 10% 10% 12% 8% 10%';
+
 export default function InventoryPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -913,22 +915,25 @@ export default function InventoryPage() {
             ref={parentRef} 
             className="max-h-[620px] overflow-auto custom-scrollbar"
           >
-            <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
+            <div style={{ height: `${rowVirtualizer.getTotalSize() + 40}px`, minWidth: '1280px', position: 'relative' }}>
               
               {/* Sticky Table Header */}
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full min-w-[1280px] table-fixed text-left text-xs border-collapse">
                 <thead className="sticky top-0 bg-app-surface-subtle border-b border-app-border text-[10px] font-bold uppercase text-app-text-secondary z-10">
-                  <tr>
-                    <th className="py-2.5 px-3 w-10 text-center">#</th>
-                    <th className="py-2.5 px-3">Product Name</th>
-                    <th className="py-2.5 px-3">SKU / Barcode</th>
-                    <th className="py-2.5 px-3">Category</th>
-                    <th className="py-2.5 px-3 text-center">Stock Balance</th>
-                    <th className="py-2.5 px-3 text-right">Selling Price</th>
-                    <th className="py-2.5 px-3 text-right">Cost Price</th>
-                    <th className="py-2.5 px-3 text-right">Stock Valuation</th>
-                    <th className="py-2.5 px-3 text-center">Status</th>
-                    <th className="py-2.5 px-3 text-center w-28">Actions</th>
+                  <tr
+                    className="grid h-10 w-full"
+                    style={{ gridTemplateColumns: INVENTORY_TABLE_COLUMNS }}
+                  >
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3 text-center">#</th>
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3">Product Name</th>
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3">SKU / Barcode</th>
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3">Category</th>
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3 text-center">Stock Balance</th>
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3 text-right">Selling Price</th>
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3 text-right">Cost Price</th>
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3 text-right">Stock Valuation</th>
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3 text-center">Status</th>
+                    <th className="min-w-0 overflow-hidden whitespace-nowrap py-2.5 px-3 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -948,18 +953,20 @@ export default function InventoryPage() {
                         }}
                         style={{
                           position: 'absolute',
+                          display: 'grid',
+                          gridTemplateColumns: INVENTORY_TABLE_COLUMNS,
                           top: 0,
                           left: 0,
                           width: '100%',
                           height: `${virtualRow.size}px`,
-                          transform: `translateY(${virtualRow.start + 34}px)`,
+                          transform: `translateY(${virtualRow.start + 40}px)`,
                         }}
                         className="hover:bg-app-surface-subtle/70 transition-colors border-b border-app-border cursor-pointer select-none"
                       >
-                        <td className="py-2 px-3 text-center font-mono text-[11px] text-app-text-muted">
+                        <td className="min-w-0 overflow-hidden py-2 px-3 text-center font-mono text-[11px] text-app-text-muted">
                           {virtualRow.index + 1}
                         </td>
-                        <td className="py-2 px-3 max-w-[220px]">
+                        <td className="min-w-0 overflow-hidden py-2 px-3 max-w-[220px]">
                           <div className="font-bold text-xs text-app-text truncate leading-snug">{item.name}</div>
                           {item.variants && item.variants.length > 0 && (
                             <span className="text-[10px] text-indigo-600 font-semibold mt-0.5 inline-block">
@@ -967,7 +974,7 @@ export default function InventoryPage() {
                             </span>
                           )}
                         </td>
-                        <td className="py-2 px-3 font-mono text-[11px] text-app-text-secondary">
+                        <td className="min-w-0 overflow-hidden py-2 px-3 font-mono text-[11px] text-app-text-secondary">
                           <div>{item.sku || 'N/A'}</div>
                           {item.barcodes && item.barcodes.length > 0 && (
                             <div className="text-[10px] text-app-text-muted flex items-center gap-0.5">
@@ -975,30 +982,30 @@ export default function InventoryPage() {
                             </div>
                           )}
                         </td>
-                        <td className="py-2 px-3 text-app-text-secondary text-xs capitalize">
+                        <td className="min-w-0 overflow-hidden py-2 px-3 text-app-text-secondary text-xs capitalize">
                           {item.category || 'General'}
                         </td>
-                        <td className="py-2 px-3 text-center">
+                        <td className="min-w-0 overflow-hidden py-2 px-3 text-center">
                           <span className="font-mono font-bold text-xs text-app-text">
                             {stock} {item.units}
                           </span>
                         </td>
-                        <td className="py-2 px-3 text-right font-black font-mono text-app-text">
+                        <td className="min-w-0 overflow-hidden py-2 px-3 text-right font-black font-mono text-app-text">
                           ₹{Number(item.price || 0).toLocaleString('en-IN')}
                         </td>
-                        <td className="py-2 px-3 text-right font-mono text-app-text-secondary">
+                        <td className="min-w-0 overflow-hidden py-2 px-3 text-right font-mono text-app-text-secondary">
                           ₹{Number(item.cost_price || 0).toLocaleString('en-IN')}
                           <span className="text-[9px] text-emerald-600 block">({margin}% mrg)</span>
                         </td>
-                        <td className="py-2 px-3 text-right font-black font-mono text-app-text">
+                        <td className="min-w-0 overflow-hidden py-2 px-3 text-right font-black font-mono text-app-text">
                           ₹{valuation.toLocaleString('en-IN')}
                         </td>
-                        <td className="py-2 px-3 text-center">
+                        <td className="min-w-0 overflow-hidden py-2 px-3 text-center">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${status.bg}`}>
                             {status.label}
                           </span>
                         </td>
-                        <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <td className="min-w-0 overflow-hidden py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
