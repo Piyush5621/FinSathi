@@ -1,145 +1,254 @@
-# 💼 Karobar (कारोबार) — Intelligent Business & Stock OS for Indian MSMEs
+<div align="center">
 
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
-[![React Version](https://img.shields.io/badge/react-18.2.0-blue.svg)](https://react.dev/)
-[![Vite Version](https://img.shields.io/badge/vite-7.2.1-purple.svg)](https://vitejs.dev/)
-[![Tests](https://img.shields.io/badge/tests-85%2F85%20passing-success.svg)](backend/package.json)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+# FinSathi (कारोबार / Karobar)
 
-> **Karobar** is an all-in-one, mobile-first Business Operating System engineered specifically for Kirana stores, retail merchants, distributors, and wholesalers across India. It simplifies POS billing, automates FEFO/FIFO inventory tracking, manages customer credit (*Udhaar*) with WhatsApp payment links, generates GST-compliant reports (GSTR-1, GSTR-3B), forecasts 14-day cash flow, and answers business queries in Hindi and Hinglish voice.
+### The mobile-first Business Operating System for Indian MSMEs
 
----
+POS billing · Multi-batch inventory · GST reporting · Business credit scoring · B2B trade network · Hindi/Hinglish voice assistant
 
-## 🚀 Key Features
+![Version](https://img.shields.io/badge/version-1.0.0--RC1-blue)
+![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-61DAFB?logo=react&logoColor=white)
+![Backend](https://img.shields.io/badge/backend-Node.js%20%2B%20Express-339933?logo=node.js&logoColor=white)
+![Database](https://img.shields.io/badge/database-Supabase%20PostgreSQL-3ECF8E?logo=supabase&logoColor=white)
+![Queue](https://img.shields.io/badge/queue-Redis%20%2B%20BullMQ-DC382D?logo=redis&logoColor=white)
 
-* **⚡ Ultra-Fast POS Billing**: 10-second checkout with barcode scanning (camera & hardware), quick customer selection, and automated multi-tax GST computation.
-* **📦 Modern Karobar Stock Engine**: Real-time warehouse balances, FEFO/FIFO batch allocation, variant management (Size/Color/Flavour), and immutable movement audit logs with atomic database row locks.
-* **📥 Purchase Order Inwarding**: Automatically increments warehouse stock, creates batch records, and logs movement entries upon receiving supplier shipments.
-* **🔄 Sales Returns & Restocking**: Partial or full invoice returns with automatic stock restoration, batch reversal, and customer Khata credit balance adjustment.
-* **📒 Customer Khata Ledger**: Real-time credit tracking with automated FIFO partial debt repayments, payment history, and one-click WhatsApp payment reminders.
-* **📶 Offline POS Billing**: Local IndexedDB queueing allowing uninterrupted billing during network dropouts, with automatic background sync and idempotency protection upon reconnection.
-* **📊 GST Filing Center**: Instant generation and Excel export of GSTR-1 and GSTR-3B summaries with B2B, B2CL, B2CS, and HSN breakdowns.
-* **🧠 Financial Intelligence & Caching**: Business Health Score (0–100), 14-Day Cash Flow Forecast, daily briefs, and tenant-isolated Redis cache invalidation.
-* **🎙️ FinVoice AI Assistant**: Natural language voice and text queries in Hindi/Hinglish (*"Aaj kitna bika?"*, *"Konsa item low stock pe hai?"*) powered by Google Gemini and Deepgram.
-* **🤝 B2B Trade Network**: Discover verified suppliers, issue digital purchase orders, track supplier credit, and view trust scores.
+[Features](#-key-features) · [Architecture](#-architecture) · [Getting Started](#-getting-started) · [Scripts](#-available-scripts) · [Documentation](#-documentation)
+
+</div>
 
 ---
 
-## 🏗️ Architecture & Technology Stack
+## 📖 Overview
+
+**FinSathi** (marketed as **Karobar / कारोबार**) is an intelligent, mobile-first Business Operating System built for India's Micro, Small and Medium Enterprises (MSMEs). It moves merchants from traditional, reactive bookkeeping to **proactive, AI-driven business management** by bringing everyday operations into a single platform:
+
+- Point-of-sale billing and invoicing
+- Multi-batch inventory tracking
+- CIBIL-style business health and credit scoring
+- GST compliance reporting
+- A conversational voice assistant (**FinVoice**) that understands Hindi and Hinglish
+- A B2B business network for partner discovery, trade and trade credit
+
+---
+
+## ✨ Key Features
+
+| Module | What it does |
+| --- | --- |
+| **POS Billing Terminal** | Real-time customer search, barcode input, automatic tax calculation and inventory decrement on sale |
+| **FinVoice (Voice AI)** | Hindi/Hinglish transcription and natural-language ledger summaries |
+| **Inventory & Multi-Batch** | Stock counting, per-batch cost tracking, margin analysis and low-stock alerts |
+| **Business Health Score** | Algorithmic 0–100 score across 5 parameters, persisted automatically every day |
+| **GST Reporting** | GSTR-oriented reports for compliance |
+| **Customers & CRM** | Customer ledgers, payment tracking and relationship management |
+| **Suppliers & Logistics** | Supplier management, purchase orders and logistics |
+| **Workforce & Payroll** | Staff management, attendance and payroll |
+| **RBAC & Admin** | Role-based access control with multi-tenant organizations and store branches |
+| **B2B Business Network** | Partner discovery, trade inbox/outbox, stock import, trade credit and reputation |
+| **Notifications & Integrations** | Background notifications, webhooks and kiosk endpoints |
+
+---
+
+## 🧱 Tech Stack
+
+**Frontend**
+- React (Vite) single-page application, PWA-ready
+- React Router, TanStack Query, Zustand
+- Tailwind CSS, `lucide-react`
+- Axios API client with concurrency-safe token refresh
+
+**Backend**
+- Node.js + Express REST API (layered: routes → controllers → services → repositories)
+- Supabase (PostgreSQL) for persistence
+- Redis + BullMQ for background jobs and event distribution
+- JWT authentication with HttpOnly refresh cookies
+- Helmet, CORS, compression, rate limiting, correlation-ID tracing
+
+---
+
+## 🏗 Architecture
 
 ```
-Karobar Monorepo
-├── backend/                  # Express.js REST API with Domain-Driven Modularity
-│   ├── src/
-│   │   ├── modules/          # Core Domain Subsystems
-│   │   │   ├── identity/     # IAM, JWT, Sessions, RBAC, Rate Limiting
-│   │   │   ├── masters/      # UOMs, Categories, Brands, Warehouses
-│   │   │   ├── catalog/      # Products, Variants, Barcode Registries, SKUs
-│   │   │   ├── inventory/    # StockService, BatchSelectionEngine, Movements
-│   │   │   └── network/      # B2B Trade Directory, Partner Connections
-│   │   ├── services/         # SalesService, GstService, CashFlowService, AIService
-│   │   ├── controllers/      # Route controllers
-│   │   └── server.js         # Express app entry point & middleware stack
-│   └── tests/                # 16 automated test suites (85/85 passing)
-│
-├── frontend/                 # React 18 + Vite 7 Single Page Application (PWA)
-│   ├── src/
-│   │   ├── pages/            # Billing (POS), Inventory, Khata, GST, AI Advisor
-│   │   ├── components/       # Shared UI components & layout
-│   │   ├── services/         # Axios API client with 401 token auto-refresh
-│   │   └── main.jsx          # React app root
-│   └── vite.config.js        # Vite config with PWA Service Worker precaching
+React SPA ──► Axios apiClient ──► Express (middleware: CORS, Helmet, rate limit, auth)
+                                        │
+                          Routes ► Controllers ► Services ► Repositories
+                                        │                        │
+                                   Redis / BullMQ           Supabase PostgreSQL
+                              (reputation, growth, AI,
+                               notifications, analytics…)
+```
+
+**Highlights**
+
+- **Auth:** JWT bearer tokens plus HttpOnly-cookie refresh. A refresh lock and request queue prevent race conditions when several calls fail with `401` at once.
+- **Plan & suspension handling:** `PLAN_LIMIT_REACHED` redirects to the subscription page; `ACCOUNT_SUSPENDED` clears credentials and shows the suspension notice.
+- **Async processing:** BullMQ queues (`reputation`, `growth`, `notification`, `marketplace`, `ai`, `cache`, `analytics`) with exponential backoff and 5 retries. Falls back to an in-memory publisher in tests or when Redis is unavailable.
+- **Observability:** Correlation IDs, response-time tracking, performance monitoring and a Bull Board dashboard at `/admin/queues` (when `REDIS_URL` is set).
+- **Health checks:** `GET /api/health` and `GET /health`.
+
+---
+
+## 📁 Project Structure
+
+```
+karobar/
+├── frontend/     # Vite + React SPA (Tailwind CSS, TanStack Query, Zustand)
+├── backend/      # Express REST API (Supabase Postgres, BullMQ, Redis)
+├── database/     # PostgreSQL migrations, schema dumps and seed datasets
+├── design/       # UI/UX mockups, wireframes and brand assets
+└── docs/         # Release notes, changelog and project documentation
 ```
 
 ---
 
-## 🛠️ Quick Start
+## 🚀 Getting Started
 
 ### Prerequisites
-* Node.js `>= 20.0.0`
-* Supabase PostgreSQL instance
-* Redis (Optional for local development; in-memory cache/queues used as fallback)
-* Google Gemini API Key (for FinVoice AI)
 
-### 1. Clone & Install
+- **Node.js** 18+ and **npm**
+- A **Supabase** project (PostgreSQL)
+- **Redis** (optional locally; required for BullMQ queues and the queue dashboard)
+
+### 1. Clone the repository
+
 ```bash
 git clone https://github.com/Piyush5621/FinSathi.git
 cd FinSathi
-
-# Install backend dependencies
-cd backend
-npm install
-
-# Install frontend dependencies
-cd ../frontend
-npm install
 ```
 
-### 2. Configure Environment Variables
-Create `.env` in `backend/`:
+### 2. Install dependencies
+
+```bash
+cd backend && npm install
+cd ../frontend && npm install
+```
+
+### 3. Configure environment variables
+
+**`backend/.env`**
+
 ```env
-PORT=5001
-NODE_ENV=development
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_KEY=your-supabase-service-role-key
-JWT_SECRET=your_super_secret_jwt_key_min_32_chars
-GEMINI_API_KEY=your_gemini_api_key
-REDIS_URL=redis://127.0.0.1:6379 # Optional
+PORT=5000
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key   # or SUPABASE_ANON_KEY
+JWT_SECRET=your_strong_jwt_secret
+REDIS_URL=redis://localhost:6379
 ```
 
-### 3. Run Tests
+**`frontend/.env`**
+
+```env
+VITE_API_BASE_URL=http://localhost:5000
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+> ⚠️ Never commit `.env` files or service-role keys. If Supabase variables are missing on the frontend, a safe mock client is used so the app does not crash in local development.
+
+### 4. Set up the database
+
+Apply the SQL migrations from the [`database/`](./database) directory to your Supabase project.
+
+### 5. (Optional) Seed demo data
+
+```bash
+cd backend
+npm run seed:demo
+```
+
+The seeder is idempotent. It creates multi-tenant organizations, branches and **10 demo accounts covering every RBAC role**, plus 70+ products with multi-batch stock, 25+ customers, 12+ suppliers, sales invoices, payment ledgers and a full B2B network profile.
+
+> Demo accounts use the `@karobar.test` / `@sanchay.test` domains. **Change or remove demo credentials before any public deployment.**
+
+### 6. Run the app
+
+```bash
+# Terminal 1 – backend
+cd backend
+npm run dev
+
+# Terminal 2 – frontend
+cd frontend
+npm run dev
+```
+
+Open the URL printed by Vite (typically `http://localhost:5173`).
+
+---
+
+## 🧰 Available Scripts
+
+| Location | Command | Description |
+| --- | --- | --- |
+| Root | `npm run build` | Production build of the frontend |
+| `backend/` | `npm run dev` | Start the API with `nodemon` (hot reload) |
+| `backend/` | `npm start` | Start the production server (`node src/server.js`) |
+| `backend/` | `npm run seed:demo` | Seed the demo environment |
+| `backend/` | `npm test` | Run the automated backend test suites |
+| `frontend/` | `npm run dev` | Start the Vite dev server |
+| `frontend/` | `npm run build` | Build the SPA for production |
+| `frontend/` | `npm run lint` | Run ESLint |
+| `frontend/` | `npm run preview` | Preview the production build locally |
+
+---
+
+## 🧪 Testing
+
+The backend ships with **16 automated test suites** covering identity and auth, stock flows, POS concurrency and GSTR reporting.
+
 ```bash
 cd backend
 npm test
 ```
-*Expected: 74 / 74 tests passing across 15 suites.*
-
-### 4. Start Development Servers
-```bash
-# Start backend (from backend/)
-npm run dev
-
-# Start frontend (from frontend/)
-npm run dev
-```
-
-### 5. Build for Production
-```bash
-cd frontend
-npm run build
-```
 
 ---
 
-## Keep the Render Backend Awake
+## 🗺 Roadmap
 
-To keep a Render web service from spinning down due to inactivity, create an
-HTTP(S) monitor in an uptime-monitoring service such as
-[UptimeRobot](https://uptimerobot.com/). Set the monitor URL to your Render
-service's health endpoint (for example,
-`https://your-service.onrender.com/health`) and its interval to five minutes.
-The endpoint returns HTTP 200 when the API process is live.
+Planned modules previewed in the in-app Demo Hub:
 
-Render's free web services can still have cold starts and monthly usage limits;
-periodic monitoring does not guarantee production availability or restart a
-failed service.
-
-## 👥 Demo Accounts
-
-The database comes pre-seeded with specialized demo business accounts for testing:
-
-| Role | Email | Password | Business Name |
-| :--- | :--- | :--- | :--- |
-| **Retail Owner** | `owner@shreenathji.karobar` | `Karobar@2026` | Shree Nathji Kirana & Supermarket |
-| **Wholesale Owner** | `owner@vermatraders.karobar` | `Karobar@2026` | Verma Traders FMCG Wholesale |
-| **Apparel Owner** | `owner@shreeramapparel.karobar` | `Karobar@2026` | Shree Ram Apparels & Textiles |
-| **Store Manager** | `manager@shreenathji.karobar` | `Karobar@2026` | Shree Nathji Kirana & Supermarket |
-| **Cashier / POS** | `cashier@shreenathji.karobar` | `Karobar@2026` | Shree Nathji Kirana & Supermarket |
-| **Accountant** | `accountant@shreenathji.karobar` | `Karobar@2026` | Shree Nathji Kirana & Supermarket |
-| **Super Admin** | `admin@karobar.com` | `finadmin123` | Karobar Command Center |
+- E-commerce storefronts
+- Advanced vendor and logistics hub
+- Employee portal and HR payroll
+- Third-party API developer portal
 
 ---
 
-## 📜 License
-This project is licensed under the MIT License.
+## 📚 Documentation
+
+- [Release Notes – v1.0.0 RC1](./docs/RELEASE_NOTES_v1.0.0_RC1.md)
+- [Changelog](./CHANGELOG.md)
+- [Current State](./docs/CURRENT_STATE.md)
+- [Full code wiki on DeepWiki](https://deepwiki.com/Piyush5621/FinSathi)
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome.
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m "feat: add your feature"`
+4. Push the branch: `git push origin feature/your-feature`
+5. Open a Pull Request
+
+Please run `npm run lint` (frontend) and `npm test` (backend) before submitting.
+
+---
+
+## 📄 License
+
+Add your license here (for example, MIT) and include a `LICENSE` file in the repository root.
+
+---
+
+## 👤 Author
+
+**Piyush** – [@Piyush5621](https://github.com/Piyush5621)
+
+<div align="center">
+
+*Built to help Indian merchants run smarter, not harder.*
+
+</div>
