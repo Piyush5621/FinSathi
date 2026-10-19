@@ -39,7 +39,7 @@ export const Select = forwardRef(function Select({
           className={`w-full appearance-none bg-app-surface text-app-text border rounded-input px-3.5 py-2 pr-9 text-body transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:opacity-50 disabled:bg-app-surface-secondary disabled:cursor-not-allowed cursor-pointer ${
             error 
               ? 'border-app-danger focus:border-app-danger focus:ring-app-danger/20' 
-              : 'border-app-border hover:border-app-border focus:border-app-primary focus:ring-app-primary/20'
+              : 'border-app-border hover:border-app-border-hover focus:border-app-primary focus:ring-app-primary/20'
           }`}
         >
           {placeholder && <option value="" disabled className="text-app-text-muted">{placeholder}</option>}

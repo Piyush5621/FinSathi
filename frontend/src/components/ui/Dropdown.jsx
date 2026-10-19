@@ -34,11 +34,11 @@ export function Dropdown({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            initial={{ opacity: 0, scale: 0.96, y: -6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -4 }}
-            transition={{ duration: 0.12 }}
-            className={`absolute z-50 mt-1.5 min-w-[180px] bg-app-surface text-app-text border border-app-border rounded-panel shadow-elevated py-1.5 focus:outline-none ${
+            exit={{ opacity: 0, scale: 0.96, y: -6 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+            className={`absolute z-50 mt-1.5 min-w-[200px] bg-app-surface text-app-text border border-app-border rounded-panel shadow-dropdown p-1.5 focus:outline-none ${
               align === 'right' ? 'right-0' : 'left-0'
             } ${menuClassName}`}
             role="menu"
@@ -68,7 +68,7 @@ export function DropdownItem({
       type="button"
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      className={`w-full text-left flex items-center gap-2 px-3.5 py-2 text-small transition-colors duration-100 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+      className={`w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-btn text-small font-medium transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
         danger
           ? 'text-app-danger hover:bg-app-danger-subtle'
           : 'text-app-text hover:bg-app-surface-secondary'

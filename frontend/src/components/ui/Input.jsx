@@ -48,7 +48,7 @@ export const Input = forwardRef(function Input({
           } ${iconRight ? 'pr-9' : ''} ${
             error 
               ? 'border-app-danger focus:border-app-danger focus:ring-app-danger/20' 
-              : 'border-app-border hover:border-app-border focus:border-app-primary focus:ring-app-primary/20'
+              : 'border-app-border hover:border-app-border-hover focus:border-app-primary focus:ring-app-primary/20'
           }`}
         />
         {iconRight && (

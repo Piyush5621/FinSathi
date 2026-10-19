@@ -239,13 +239,13 @@ export default function InvoiceHistory() {
             </form>
 
             {/* Status Filter Tabs */}
-            <div className="flex items-center bg-app-subtle p-1 rounded-xl gap-0.5 shrink-0 overflow-x-auto max-w-full">
+            <div className="flex items-center bg-app-subtle p-1 rounded-full gap-0.5 shrink-0 overflow-x-auto max-w-full">
               {STATUS_TABS.map(tab => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => handleTabClick(tab)}
-                  className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1 text-[11px] font-bold rounded-full transition-all cursor-pointer whitespace-nowrap ${
                     activeTab === tab
                       ? 'bg-app-surface text-app-text shadow-xs'
                       : 'text-app-muted hover:text-app-text'

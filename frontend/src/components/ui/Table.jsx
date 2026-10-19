@@ -13,7 +13,7 @@ export function Table({ children, className = '', containerClassName = '' }) {
 
 export function Thead({ children, className = '' }) {
   return (
-    <thead className={`bg-app-surface-secondary border-b border-app-border text-app-text-secondary ${className}`}>
+    <thead className={`bg-app-surface-secondary/50 border-b border-app-border text-app-text-secondary ${className}`}>
       {children}
     </thead>
   );
@@ -37,7 +37,7 @@ export function Th({
   return (
     <th 
       onClick={sortable ? onSort : undefined}
-      className={`px-4 py-3 text-caption font-semibold uppercase tracking-wider select-none ${alignmentClass} ${
+      className={`px-5 py-3.5 text-caption font-semibold uppercase tracking-wider select-none ${alignmentClass} ${
         sortable ? 'cursor-pointer hover:text-app-text transition-colors' : ''
       } ${className}`}
       {...props}
@@ -58,7 +58,7 @@ export function Th({
 
 export function Tbody({ children, className = '' }) {
   return (
-    <tbody className={`divide-y divide-app-border bg-app-surface ${className}`}>
+    <tbody className={`divide-y divide-app-border/70 bg-app-surface ${className}`}>
       {children}
     </tbody>
   );
@@ -68,8 +68,8 @@ export function Tr({ children, className = '', onClick, selected = false, ...pro
   return (
     <tr 
       onClick={onClick}
-      className={`transition-colors duration-100 ${
-        selected ? 'bg-app-primary-subtle/50' : 'hover:bg-app-surface-secondary/60'
+      className={`transition-colors duration-150 ${
+        selected ? 'bg-app-primary-subtle/40' : 'hover:bg-app-surface-secondary/50'
       } ${onClick ? 'cursor-pointer' : ''} ${className}`}
       {...props}
     >
@@ -86,7 +86,7 @@ export function Td({ children, className = '', align = 'left', ...props }) {
   }[align] || 'text-left';
 
   return (
-    <td className={`px-4 py-3.5 text-body text-app-text ${alignmentClass} ${className}`} {...props}>
+    <td className={`px-5 py-4 text-small text-app-text ${alignmentClass} ${className}`} {...props}>
       {children}
     </td>
   );

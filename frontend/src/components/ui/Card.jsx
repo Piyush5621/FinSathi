@@ -12,12 +12,12 @@ export function Card({
   return (
     <div 
       onClick={onClick}
-      className={`bg-app-surface text-app-text border border-app-border rounded-card transition-all duration-150 ${
+      className={`bg-app-surface text-app-text border border-app-border rounded-card transition-all duration-200 ease-out ${
         elevated ? 'shadow-elevated bg-app-surface-elevated' : 'shadow-card'
       } ${
-        hover ? 'hover:border-app-border hover:shadow-elevated cursor-pointer' : ''
+        hover || onClick ? 'hover:border-app-border-hover hover:shadow-elevated hover:-translate-y-0.5 cursor-pointer' : ''
       } ${
-        noPadding ? '' : 'p-5'
+        noPadding ? '' : 'p-5 sm:p-6'
       } ${className}`}
       {...props}
     >

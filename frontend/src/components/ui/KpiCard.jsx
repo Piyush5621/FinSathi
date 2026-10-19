@@ -48,12 +48,12 @@ export function KpiCard({
         <div className="mt-3.5 pt-3 border-t border-app-border/40 flex items-center justify-between text-caption text-app-text-muted">
           {change !== undefined && (
             <div className="flex items-center gap-1 font-semibold">
-              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-control text-micro font-bold ${
+              <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-micro font-bold border ${
                 isPositive 
-                  ? 'bg-app-success-subtle text-app-success' 
+                  ? 'bg-app-success-subtle text-app-success border-app-success/20' 
                   : isNegative 
-                  ? 'bg-app-danger-subtle text-app-danger' 
-                  : 'bg-app-surface-secondary text-app-text-muted'
+                  ? 'bg-app-danger-subtle text-app-danger border-app-danger/20' 
+                  : 'bg-app-surface-secondary text-app-text-muted border-app-border'
               }`}>
                 {isPositive && <TrendingUp size={11} />}
                 {isNegative && <TrendingDown size={11} />}

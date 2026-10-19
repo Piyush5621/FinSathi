@@ -63,6 +63,8 @@ export function Badge({
     warning: "bg-app-warning-subtle text-app-warning border-app-warning/20",
     danger: "bg-app-danger-subtle text-app-danger border-app-danger/20",
     info: "bg-app-info-subtle text-app-info border-app-info/20",
+    coral: "bg-app-coral-subtle text-app-coral border-app-coral/20",
+    orange: "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800/40",
     blue: "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/40",
     purple: "bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800/40",
     gray: "bg-app-surface-secondary text-app-text-secondary border-app-border",
@@ -73,20 +75,22 @@ export function Badge({
     warning: "bg-app-warning",
     danger: "bg-app-danger",
     info: "bg-app-info",
+    coral: "bg-app-coral",
+    orange: "bg-orange-500",
     blue: "bg-blue-600",
     purple: "bg-purple-600",
     gray: "bg-app-text-muted",
   };
 
   const sizeStyles = {
-    sm: "px-1.5 py-0.5 text-micro gap-1",
-    md: "px-2 py-0.5 text-caption gap-1.5",
-    lg: "px-2.5 py-1 text-small gap-1.5",
+    sm: "px-2 py-0.5 text-micro gap-1",
+    md: "px-2.5 py-0.5 text-caption gap-1.5",
+    lg: "px-3 py-1 text-small gap-1.5",
   };
 
   return (
     <span 
-      className={`inline-flex items-center font-semibold rounded-control border leading-none shrink-0 ${
+      className={`inline-flex items-center font-semibold rounded-full border leading-none shrink-0 ${
         sizeStyles[size] || sizeStyles.md
       } ${
         variantStyles[effectiveVariant] || variantStyles.gray

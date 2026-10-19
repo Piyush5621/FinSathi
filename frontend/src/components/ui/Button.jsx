@@ -18,7 +18,7 @@ export function Button({
   title,
   ...props
 }) {
-  const baseStyle = "inline-flex items-center justify-center font-medium transition-all duration-150 rounded-btn focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none cursor-pointer active:scale-[0.99] select-none";
+  const baseStyle = "inline-flex items-center justify-center font-semibold tracking-tight transition-all duration-200 rounded-btn focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none cursor-pointer active:scale-[0.98] select-none";
 
   const sizeStyles = {
     sm: "px-2.5 py-1.5 text-xs gap-1.5 h-8",
@@ -28,13 +28,16 @@ export function Button({
   };
 
   const variants = {
-    primary: "bg-app-primary text-white hover:bg-app-primary-hover shadow-sm focus-visible:ring-app-primary/40 border border-transparent",
-    secondary: "bg-app-surface text-app-text border border-app-border hover:bg-app-surface-secondary hover:text-app-text shadow-sm focus-visible:ring-app-border",
-    outline: "bg-transparent text-app-text border border-app-border hover:bg-app-surface-secondary focus-visible:ring-app-border",
+    primary: "bg-app-primary text-white hover:bg-app-primary-hover shadow-xs hover:shadow-card focus-visible:ring-app-primary/40 border border-transparent",
+    secondary: "bg-app-surface text-app-text border border-app-border hover:bg-app-surface-secondary hover:border-app-border-hover shadow-xs focus-visible:ring-app-border",
+    coral: "bg-app-coral text-white hover:bg-app-coral-hover shadow-xs hover:shadow-card focus-visible:ring-app-coral/40 border border-transparent",
+    coralSubtle: "bg-app-coral-subtle text-app-coral hover:bg-app-coral-subtle/80 border border-transparent",
+    subtle: "bg-app-primary-subtle text-app-primary hover:bg-app-primary-subtle/80 border border-transparent",
+    outline: "bg-transparent text-app-text border border-app-border hover:bg-app-surface-secondary hover:border-app-border-hover focus-visible:ring-app-border",
     ghost: "bg-transparent text-app-text-secondary hover:bg-app-surface-secondary hover:text-app-text focus-visible:ring-app-border border border-transparent",
-    danger: "bg-app-danger text-white hover:opacity-90 shadow-sm focus-visible:ring-app-danger/40 border border-transparent",
+    danger: "bg-app-danger text-white hover:opacity-90 shadow-xs focus-visible:ring-app-danger/40 border border-transparent",
     dangerOutline: "bg-transparent text-app-danger border border-app-danger/30 hover:bg-app-danger-subtle focus-visible:ring-app-danger/30",
-    success: "bg-app-success text-white hover:opacity-90 shadow-sm focus-visible:ring-app-success/40 border border-transparent",
+    success: "bg-app-success text-white hover:opacity-90 shadow-xs focus-visible:ring-app-success/40 border border-transparent",
   };
 
   const combinedClassName = `${baseStyle} ${sizeStyles[size] || sizeStyles.md} ${variants[variant] || variants.primary} ${className}`;

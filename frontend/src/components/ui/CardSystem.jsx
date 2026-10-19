@@ -49,10 +49,11 @@ export function MetricCard({
                 {title}
               </span>
               {badge && (
-                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-control uppercase tracking-wider ${
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                   badgeVariant === 'success' ? 'bg-app-success-subtle text-app-success border border-app-success/20' :
                   badgeVariant === 'warning' ? 'bg-app-warning-subtle text-app-warning border border-app-warning/20' :
                   badgeVariant === 'danger' ? 'bg-app-danger-subtle text-app-danger border border-app-danger/20' :
+                  badgeVariant === 'coral' ? 'bg-app-coral-subtle text-app-coral border border-app-coral/20' :
                   badgeVariant === 'primary' ? 'bg-app-primary-subtle text-app-primary border border-app-primary/20' :
                   'bg-app-surface-secondary text-app-text-secondary border border-app-border'
                 }`}>
@@ -71,7 +72,7 @@ export function MetricCard({
           </div>
 
           {icon && (
-            <div className={`w-10 h-10 rounded-panel shrink-0 flex items-center justify-center transition-transform group-hover:scale-105 shadow-xs ${iconBg}`}>
+            <div className={`w-11 h-11 rounded-panel shrink-0 flex items-center justify-center transition-transform group-hover:scale-105 shadow-xs ${iconBg}`}>
               {icon}
             </div>
           )}
@@ -79,7 +80,7 @@ export function MetricCard({
 
         {/* Progress Bar (if provided) */}
         {typeof progress === 'number' && !loading && (
-          <div className="mt-3 w-full bg-app-surface-secondary h-1.5 rounded-full overflow-hidden">
+          <div className="mt-3.5 w-full bg-app-surface-secondary h-1.5 rounded-full overflow-hidden">
             <div 
               className="bg-app-primary h-full rounded-full transition-all duration-500" 
               style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} 
@@ -90,10 +91,10 @@ export function MetricCard({
 
       {/* Comparison Trend / Footer */}
       {(change !== undefined || subtitle || footer) && (
-        <div className="mt-3 pt-3 border-t border-app-border/50 flex items-center justify-between text-caption text-app-text-muted gap-2">
+        <div className="mt-3.5 pt-3 border-t border-app-border/50 flex items-center justify-between text-caption text-app-text-muted gap-2">
           {change !== undefined ? (
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-control text-micro font-bold tabular-nums ${
+              <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-micro font-bold tabular-nums ${
                 isPositive 
                   ? 'bg-app-success-subtle text-app-success border border-app-success/20' 
                   : isNegative 
@@ -139,7 +140,7 @@ export function InsightCard({
   actionText = 'Take Action',
   onAction,
   icon = <Sparkles size={16} />,
-  variant = 'indigo', // 'indigo' | 'emerald' | 'amber' | 'rose'
+  variant = 'indigo', // 'indigo' | 'coral' | 'emerald' | 'amber' | 'rose'
   className = '',
   loading = false,
 }) {
@@ -151,6 +152,13 @@ export function InsightCard({
       iconColor: 'text-indigo-600 dark:text-indigo-400',
       button: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20',
     },
+    coral: {
+      bg: 'bg-gradient-to-br from-red-50/80 via-app-surface to-orange-50/30 dark:from-red-950/30 dark:via-app-surface dark:to-orange-950/10',
+      border: 'border-red-200/80 dark:border-red-900/60',
+      badge: 'bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300 border-red-200 dark:border-red-800',
+      iconColor: 'text-app-coral',
+      button: 'bg-app-coral hover:bg-app-coral-hover text-white shadow-xs',
+    },
     emerald: {
       bg: 'bg-gradient-to-br from-emerald-50/80 via-app-surface to-emerald-50/30 dark:from-emerald-950/30 dark:via-app-surface dark:to-emerald-950/10',
       border: 'border-emerald-200/80 dark:border-emerald-900/60',
@@ -161,7 +169,7 @@ export function InsightCard({
     amber: {
       bg: 'bg-gradient-to-br from-amber-50/80 via-app-surface to-amber-50/30 dark:from-amber-950/30 dark:via-app-surface dark:to-amber-950/10',
       border: 'border-amber-200/80 dark:border-amber-900/60',
-      badge: 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+      badge: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800',
       iconColor: 'text-amber-600 dark:text-amber-400',
       button: 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-500/20',
     },
