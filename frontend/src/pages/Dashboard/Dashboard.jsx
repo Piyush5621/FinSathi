@@ -50,7 +50,7 @@ const LiveClockWidget = React.memo(() => {
   });
 
   return (
-    <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-btn px-3.5 py-2 flex items-center gap-3 shrink-0 shadow-xs">
+    <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-full px-4 py-2 flex items-center gap-3 shrink-0 shadow-xs">
       <div className="flex items-center gap-2">
         <Clock size={15} className="text-indigo-300 animate-pulse shrink-0" />
         <span className="font-mono text-sm sm:text-base font-black text-white tabular-nums tracking-tight">
@@ -397,11 +397,11 @@ export default function Dashboard() {
           {/* Store Context & Page Title */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-control text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/15 backdrop-blur-sm">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/15 backdrop-blur-sm shadow-xs">
                 <ShieldCheck size={13} className="text-emerald-400 shrink-0" /> {userRole}
               </span>
               {currentUser.store_name && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-control text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/15 backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-white/10 text-white border border-white/15 backdrop-blur-sm shadow-xs">
                   <Store size={13} className="text-amber-300 shrink-0" /> {currentUser.store_name}
                 </span>
               )}
@@ -703,13 +703,13 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="inline-flex p-0.5 bg-app-surface-secondary border border-app-border rounded-btn text-micro font-semibold self-start sm:self-center shadow-xs">
+                  <div className="inline-flex p-1 bg-app-surface-secondary border border-app-border rounded-full text-micro font-semibold self-start sm:self-center shadow-xs">
                     {['Today', '7 Days', '30 Days', '12 Months'].map((period) => (
                       <button
                         key={period}
                         type="button"
                         onClick={() => setSelectedPeriod(period)}
-                        className={`px-2.5 py-1 rounded-control transition-all cursor-pointer ${
+                        className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
                           selectedPeriod === period 
                             ? 'bg-app-surface text-app-text font-bold shadow-xs' 
                             : 'text-app-text-secondary hover:text-app-text'
@@ -722,7 +722,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Period Metric Summary Row */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 border-b border-app-border/40 text-center sm:text-left">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3.5 border-b border-app-border/40 text-center sm:text-left">
                   <div>
                     <span className="text-[10px] font-bold text-app-text-muted uppercase tracking-wider block">Period Revenue</span>
                     <span className="text-sm sm:text-base font-black text-app-text tabular-nums mt-0.5 block">
@@ -756,16 +756,16 @@ export default function Dashboard() {
                       <AreaChart data={activeChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                         <defs>
                           <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3157D5" stopOpacity={0.35} />
-                            <stop offset="95%" stopColor="#3157D5" stopOpacity={0.0} />
+                            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.25} />
+                            <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(152, 162, 179, 0.2)" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(152, 162, 179, 0.15)" />
                         <XAxis 
                           dataKey="name" 
                           tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} 
                           tickLine={false} 
-                          axisLine={{ stroke: 'rgba(152, 162, 179, 0.3)' }}
+                          axisLine={{ stroke: 'rgba(152, 162, 179, 0.25)' }}
                         />
                         <YAxis 
                           tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} 
@@ -777,7 +777,7 @@ export default function Dashboard() {
                           contentStyle={{
                             backgroundColor: 'var(--surface-app)',
                             borderColor: 'var(--border-app)',
-                            borderRadius: '8px',
+                            borderRadius: '10px',
                             boxShadow: 'var(--shadow-elevated)',
                             color: 'var(--text-primary)',
                             fontSize: '12px'
@@ -787,7 +787,7 @@ export default function Dashboard() {
                         <Area 
                           type="monotone" 
                           dataKey="revenue" 
-                          stroke="#3157D5" 
+                          stroke="#2563EB" 
                           strokeWidth={2.5} 
                           fillOpacity={1} 
                           fill="url(#salesGradient)" 

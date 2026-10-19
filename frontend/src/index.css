@@ -6,68 +6,78 @@
 
 :root {
   color-scheme: light;
-  /* Light Mode Design Tokens */
-  --bg-app: #F8F9FA;
+  /* Arastoo V14 Premium Light Mode Design Tokens */
+  --bg-app: #F5F5F7;
   --surface-app: #FFFFFF;
-  --surface-secondary: #F1F3F5;
-  --surface-subtle: #F8F9FA;
+  --surface-secondary: #F0F1F4;
+  --surface-subtle: #FAFAFC;
   --surface-elevated: #FFFFFF;
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #64748B;
-  --border-app: #E2E8F0;
-  --border-subtle: #F1F5F9;
-  --border-hover: #CBD5E1;
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #6B7280;
+  --border-app: #E5E7EB;
+  --border-subtle: #F3F4F6;
+  --border-hover: #D1D5DB;
 
-  --primary-app: #3157D5;
-  --primary-hover: #2647B8;
-  --primary-subtle: #EEF2FF;
+  --primary-app: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-subtle: #EFF6FF;
 
-  --success-app: #16A34A;
-  --success-subtle: #F0FDF4;
-  --warning-app: #D97706;
+  --accent-coral: #F04438;
+  --accent-coral-subtle: #FEF3F2;
+  --accent-coral-hover: #D92D20;
+
+  --success-app: #10B981;
+  --success-subtle: #ECFDF5;
+  --warning-app: #F59E0B;
   --warning-subtle: #FFFBEB;
-  --danger-app: #DC2626;
+  --danger-app: #EF4444;
   --danger-subtle: #FEF2F2;
-  --info-app: #2563EB;
-  --info-subtle: #EFF6FF;
+  --info-app: #0EA5E9;
+  --info-subtle: #F0F9FF;
 
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-elevated: 0 4px 12px rgba(16, 24, 40, 0.08);
-  --shadow-modal: 0 16px 40px rgba(16, 24, 40, 0.16);
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.18);
+  --shadow-dropdown: 0 10px 20px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
 }
 
 .dark {
   color-scheme: dark;
-  /* Dark Mode Design Tokens */
-  --bg-app: #0B0F17;
-  --surface-app: #111827;
-  --surface-secondary: #1E293B;
-  --surface-subtle: #162032;
-  --surface-elevated: #1F2937;
-  --text-primary: #F8FAFC;
+  /* Arastoo V14 Premium Dark Mode Design Tokens */
+  --bg-app: #0C1017;
+  --surface-app: #131924;
+  --surface-secondary: #1A2232;
+  --surface-subtle: #161D2B;
+  --surface-elevated: #1F283B;
+  --text-primary: #F9FAFB;
   --text-secondary: #CBD5E1;
   --text-muted: #94A3B8;
-  --border-app: #283548;
-  --border-subtle: #1E293B;
-  --border-hover: #3E4E68;
+  --border-app: #1F293D;
+  --border-subtle: #192233;
+  --border-hover: #334155;
 
-  --primary-app: #5B7CFF;
-  --primary-hover: #7590FF;
-  --primary-subtle: rgba(91, 124, 255, 0.14);
+  --primary-app: #3B82F6;
+  --primary-hover: #60A5FA;
+  --primary-subtle: rgba(59, 130, 246, 0.14);
 
-  --success-app: #22C55E;
-  --success-subtle: rgba(34, 197, 94, 0.14);
+  --accent-coral: #F87171;
+  --accent-coral-subtle: rgba(239, 68, 68, 0.15);
+  --accent-coral-hover: #FCA5A5;
+
+  --success-app: #10B981;
+  --success-subtle: rgba(16, 185, 129, 0.15);
   --warning-app: #F59E0B;
-  --warning-subtle: rgba(245, 158, 11, 0.14);
+  --warning-subtle: rgba(245, 158, 11, 0.15);
   --danger-app: #EF4444;
-  --danger-subtle: rgba(239, 68, 68, 0.14);
-  --info-app: #60A5FA;
-  --info-subtle: rgba(96, 165, 250, 0.14);
+  --danger-subtle: rgba(239, 68, 68, 0.15);
+  --info-app: #38BDF8;
+  --info-subtle: rgba(56, 189, 248, 0.15);
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25);
-  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-modal: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.35);
+  --shadow-elevated: 0 10px 25px -5px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.65);
+  --shadow-dropdown: 0 10px 20px -3px rgba(0, 0, 0, 0.5);
 }
 
 @layer base {
@@ -176,10 +186,22 @@
 
 /* Glassmorphism Surface Effect */
 .glass-surface {
-  background-color: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 .dark .glass-surface {
-  background-color: rgba(17, 24, 39, 0.75);
+  background-color: rgba(19, 25, 36, 0.85);
+}
+
+/* Accessibility: Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

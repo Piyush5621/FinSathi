@@ -954,7 +954,7 @@ export default function Billing() {
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1 rounded-lg text-[11px] font-bold capitalize whitespace-nowrap transition-colors cursor-pointer ${
+                  className={`px-3 py-1 rounded-full text-[11px] font-bold capitalize whitespace-nowrap transition-colors cursor-pointer ${
                     selectedCategory === cat
                       ? 'bg-app-primary text-white shadow-2xs'
                       : 'bg-app-surface-subtle text-app-text-secondary hover:text-app-text hover:bg-app-border/40'
